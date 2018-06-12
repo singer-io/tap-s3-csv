@@ -1,4 +1,18 @@
-def do_discover(config, state, streams):
+import json
+import singer
+import sys
+
+from tap_s3_csv.discover import discover_streams
+from tap_s3_csv.config import CONFIG_CONTRACT
+LOGGER = singer.get_logger()
+
+REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "tables"]
+
+def do_discover(config):
+    LOGGER.info("Starting discover")
+    catalog = {"streams": discover_streams(config)}
+    json.dump(catalog, sys.stdout, indent=2)
+    LOGGER.info("Finished discover")
 
 def do_sync(args):
     LOGGER.info('Starting sync.')
@@ -13,10 +27,12 @@ def do_sync(args):
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
-    args = utils.parse_args(REQUIRED_CONFIG_KEYS)
+    args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
+
+    tables_config = CONFIG_CONTRACT(args.config['tables'])
     if args.discover:
-        do_discovery(config, state, streams)
-    elif args.properties.get('streams', []):
+        do_discover(args.config)
+    elif args.properties:
         do_sync(args)
 
 
