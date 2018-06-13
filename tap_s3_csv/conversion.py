@@ -5,22 +5,6 @@ import singer
 
 LOGGER = singer.get_logger()
 
-def convert_row(row, schema):
-    to_return = {}
-
-    for key, value in row.items():
-        field_schema = schema['properties'][key]
-        datatype = field_schema.get('_conversion_type', 'string')
-
-        LOGGER.debug('Converting {} value {} to {}'.format(
-            key, value, datatype))
-        converted, _ = convert(value, datatype)
-
-        to_return[key] = converted
-
-    return to_return
-
-
 def convert(datum, override_type=None):
     """
     Returns tuple of (converted_data_point, json_schema_type,).
@@ -37,6 +21,7 @@ def convert(datum, override_type=None):
 
     if override_type in (None, 'number'):
         try:
+            #numbers are NOT floats, they are DECIMALS
             to_return = float(datum)
             return (to_return, 'number',)
         except (ValueError, TypeError):
@@ -57,29 +42,17 @@ def convert(datum, override_type=None):
     return (str(datum), 'string',)
 
 
-def count_sample(sample, start=None):
-    if start is None:
-        start = {}
-
+def count_sample(sample, counts):
     for key, value in sample.items():
-        if key not in start:
-            start[key] = {}
+        if key not in counts:
+            counts[key] = {}
 
         (_, datatype) = convert(value)
 
         if datatype is not None:
-            start[key][datatype] = start[key].get(datatype, 0) + 1
+            counts[key][datatype] = counts[key].get(datatype, 0) + 1
 
-    return start
-
-
-def count_samples(samples):
-    to_return = None
-
-    for sample in samples:
-        to_return = count_sample(sample, to_return)
-
-    return to_return
+    return counts
 
 
 def pick_datatype(counts):
@@ -109,22 +82,25 @@ def pick_datatype(counts):
 
 
 def generate_schema(samples):
-    to_return = {}
-    counts = count_samples(samples)
+    counts = {}
+    counts = {}
+    for sample in samples:
+        # {'name' : { 'string' : 45}}
+        counts = count_sample(sample, counts)
 
     for key, value in counts.items():
         datatype = pick_datatype(value)
 
         if datatype == 'date-time':
-            to_return[key] = {
+            counts[key] = {
                 'type': ['null', 'string'],
                 'format': 'date-time',
-                '_conversion_type': 'date-time',
+                # '_conversion_type': 'date-time',
             }
         else:
-            to_return[key] = {
+            counts[key] = {
                 'type': ['null', datatype],
-                '_conversion_type': datatype,
+                # '_conversion_type': datatype,
             }
 
-    return to_return
+    return counts

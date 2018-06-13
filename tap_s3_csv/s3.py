@@ -3,7 +3,7 @@ import boto3
 import singer
 
 import tap_s3_csv.conversion as conversion
-import tap_s3_csv.format_handler
+import tap_s3_csv.csv_handler
 
 LOGGER = singer.get_logger()
 
@@ -49,8 +49,11 @@ def sample_file(config, table_spec, s3_path, sample_rate, max_records):
 
     samples = []
 
-    iterator = tap_s3_csv.format_handler.get_row_iterator(
-        config, table_spec, s3_path)
+    if table_spec['format'] == 'csv':
+        file_handle = get_file_handle(config, s3_path)
+        iterator = tap_s3_csv.csv_handler.get_row_iterator(table_spec, file_handle)
+    else:
+        raise Exception("only supporting csv for now!")
 
     current_row = 0
 
@@ -152,3 +155,12 @@ def list_files_in_bucket(config, bucket, search_prefix=None):
     LOGGER.info("Found {} files.".format(len(s3_objects)))
 
     return s3_objects
+
+
+def get_file_handle(config, s3_path):
+    bucket = config['bucket']
+    s3_client = boto3.resource('s3')
+
+    s3_bucket = s3_client.Bucket(bucket)
+    s3_object = s3_bucket.Object(s3_path)
+    return s3_object.get()['Body']

@@ -24,6 +24,10 @@ def generator_wrapper(reader):
         yield to_return
 
 
+def get_row_iterator(config, table_spec, s3_path):
+    file_handle = get_file_handle(config, s3_path)
+
+
 def get_row_iterator(table_spec, file_handle):
     # we use a protected member of the s3 object, _raw_stream, here to create
     # a generator for data from the s3 file.
