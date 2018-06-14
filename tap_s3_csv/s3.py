@@ -93,6 +93,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     bucket = config['bucket']
 
     to_return = []
+
     pattern = table_spec['pattern']
     matcher = re.compile(pattern)
 

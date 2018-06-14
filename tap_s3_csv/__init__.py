@@ -29,7 +29,14 @@ def do_sync(args):
 def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
 
-    tables_config = CONFIG_CONTRACT(args.config['tables'])
+    # Parse the inconing tables config as JSON
+    con = json.loads(args.config['tables'])
+    tables_config = CONFIG_CONTRACT(con)
+
+    # Reassign the config tables to the validated object
+    config = args.config
+    config['tables'] = tables_config
+
     if args.discover:
         do_discover(args.config)
     elif args.properties:
