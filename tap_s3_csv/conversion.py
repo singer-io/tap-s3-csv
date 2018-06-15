@@ -83,7 +83,6 @@ def pick_datatype(counts):
 
 def generate_schema(samples):
     counts = {}
-    counts = {}
     for sample in samples:
         # {'name' : { 'string' : 45}}
         counts = count_sample(sample, counts)

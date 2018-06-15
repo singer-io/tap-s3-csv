@@ -3,7 +3,7 @@ import boto3
 import singer
 
 import tap_s3_csv.conversion as conversion
-import tap_s3_csv.csv_handler
+import tap_s3_csv.csv_handler as csv_handler
 
 LOGGER = singer.get_logger()
 
@@ -51,7 +51,7 @@ def sample_file(config, table_spec, s3_path, sample_rate, max_records):
 
     if table_spec['format'] == 'csv':
         file_handle = get_file_handle(config, s3_path)
-        iterator = tap_s3_csv.csv_handler.get_row_iterator(table_spec, file_handle)
+        iterator = csv_handler.get_row_iterator(table_spec, file_handle)
     else:
         raise Exception("only supporting csv for now!")
 
