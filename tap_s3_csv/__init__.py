@@ -2,8 +2,11 @@ import json
 import singer
 import sys
 
+from singer import metadata
 from tap_s3_csv.discover import discover_streams
+from tap_s3_csv.sync import sync_stream
 from tap_s3_csv.config import CONFIG_CONTRACT
+
 LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "tables"]
@@ -14,16 +17,35 @@ def do_discover(config):
     json.dump(catalog, sys.stdout, indent=2)
     LOGGER.info("Finished discover")
 
-def do_sync(args):
+
+def stream_is_selected(mdata):
+    return mdata.get((), {}).get('selected', False)
+
+
+def do_sync(config, catalog, state):
     LOGGER.info('Starting sync.')
 
-    config = tap_s3_csv.config.load(args.config)
-    state = load_state(args.state)
+    for stream in catalog['streams']:
+        stream_name = stream['tap_stream_id']
+        mdata = metadata.to_map(stream['metadata'])
+        table_spec = next(s for s in config['tables'] if s['name'] == stream_name)
+        if not stream_is_selected(mdata):
+            LOGGER.info("%s: Skipping - not selected", stream_name)
+            continue
 
-    for table in config['tables']:
-        state = sync_table(config, state, table)
+        singer.write_state(state)
+        key_properties = metadata.get(mdata, (), 'table-key-properties')
+        singer.write_schema(stream_name, stream['schema'], key_properties)
+
+        # NOTE: Almost all of the above was stolen from tap-zendesk
+        LOGGER.info("%s: Starting sync", stream_name)
+        counter_value = sync_stream(config, state, table_spec, stream)
+        LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
+
+        #state = sync_table(config, state, table, catalog_entry)
 
     LOGGER.info('Done syncing.')
+
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
@@ -40,7 +62,7 @@ def main():
     if args.discover:
         do_discover(args.config)
     elif args.properties:
-        do_sync(args)
+        do_sync(config, args.properties, args.state)
 
 
 if __name__ == '__main__':
