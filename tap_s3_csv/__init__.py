@@ -42,8 +42,6 @@ def do_sync(config, catalog, state):
         counter_value = sync_stream(config, state, table_spec, stream)
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
 
-        #state = sync_table(config, state, table, catalog_entry)
-
     LOGGER.info('Done syncing.')
 
 

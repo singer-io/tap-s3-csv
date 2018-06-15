@@ -5,15 +5,14 @@ import tap_s3_csv.csv_handler as csv_handler
 
 from singer import metadata
 from singer import Transformer
+from singer import utils
 
 LOGGER = singer.get_logger()
 
 def sync_stream(config, state, table_spec, stream):
     table_name = table_spec['name']
-    # TODO: Use bookmark code here.
-    modified_since = dateutil.parser.parse(
-        state.get(table_name, {}).get('modified_since') or
-        config['start_date'])
+    modified_since = utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
+                                            config['start_date'])
 
     LOGGER.info('Syncing table "{}".'.format(table_name))
     LOGGER.info('Getting files modified since {}.'.format(modified_since))
@@ -33,16 +32,13 @@ def sync_stream(config, state, table_spec, stream):
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
 
-        state[table_name] = {
-            'modified_since': s3_file['last_modified'].isoformat()
-        }
-
+        state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
         singer.write_state(state)
 
     LOGGER.info('Wrote {} records for table "{}".'
                 .format(records_streamed, table_name))
 
-    return state
+    return records_streamed
 
 def sync_table_file(config, s3_file, table_spec, stream):
     LOGGER.info('Syncing file "{}".'.format(s3_file))
