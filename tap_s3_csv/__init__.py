@@ -1,6 +1,6 @@
 import json
-import singer
 import sys
+import singer
 
 from singer import metadata
 from tap_s3_csv.discover import discover_streams

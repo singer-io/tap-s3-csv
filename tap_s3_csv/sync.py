@@ -1,11 +1,10 @@
-import dateutil
-import singer
-import tap_s3_csv.s3 as s3
-import tap_s3_csv.csv_handler as csv_handler
-
 from singer import metadata
 from singer import Transformer
 from singer import utils
+
+import singer
+import tap_s3_csv.s3 as s3
+import tap_s3_csv.csv_handler as csv_handler
 
 LOGGER = singer.get_logger()
 
@@ -14,14 +13,13 @@ def sync_stream(config, state, table_spec, stream):
     modified_since = utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
                                             config['start_date'])
 
-    LOGGER.info('Syncing table "{}".'.format(table_name))
-    LOGGER.info('Getting files modified since {}.'.format(modified_since))
+    LOGGER.info('Syncing table "%s".', table_name)
+    LOGGER.info('Getting files modified since %s.', modified_since)
 
     s3_files = s3.get_input_files_for_table(
         config, table_spec, modified_since)
 
-    LOGGER.info('Found {} files to be synced.'
-                .format(len(s3_files)))
+    LOGGER.info('Found %s files to be synced.', len(s3_files))
 
     if not s3_files:
         return state
@@ -35,13 +33,12 @@ def sync_stream(config, state, table_spec, stream):
         state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
         singer.write_state(state)
 
-    LOGGER.info('Wrote {} records for table "{}".'
-                .format(records_streamed, table_name))
+    LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
 
     return records_streamed
 
 def sync_table_file(config, s3_file, table_spec, stream):
-    LOGGER.info('Syncing file "{}".'.format(s3_file))
+    LOGGER.info('Syncing file "%s".', s3_file)
 
     bucket = config['bucket']
     table_name = table_spec['name']

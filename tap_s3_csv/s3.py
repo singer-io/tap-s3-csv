@@ -44,8 +44,7 @@ def merge_dicts(first, second):
 
 
 def sample_file(config, table_spec, s3_path, sample_rate, max_records):
-    LOGGER.info('Sampling {} ({} records, every {}th record).'
-                .format(s3_path, max_records, sample_rate))
+    LOGGER.info('Sampling %s (%s records, every %sth record).', s3_path, max_records, sample_rate)
 
     samples = []
 
@@ -66,11 +65,12 @@ def sample_file(config, table_spec, s3_path, sample_rate, max_records):
         if len(samples) >= max_records:
             break
 
-    LOGGER.info('Sampled {} records.'.format(len(samples)))
+    LOGGER.info('Sampled %s records.', len(samples))
 
     return samples
 
 
+# pylint: disable=too-many-arguments
 def sample_files(config, table_spec, s3_files,
                  sample_rate=10, max_records=1000, max_files=5):
     to_return = []
@@ -98,31 +98,29 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     matcher = re.compile(pattern)
 
     LOGGER.info(
-        'Checking bucket "{}" for keys matching "{}"'
-        .format(bucket, pattern))
+        'Checking bucket "%s" for keys matching "%s"', bucket, pattern)
 
-    s3_objects = list_files_in_bucket(
-        config, bucket, table_spec.get('search_prefix'))
+    s3_objects = list_files_in_bucket(bucket, table_spec.get('search_prefix'))
 
     for s3_object in s3_objects:
         key = s3_object['Key']
         last_modified = s3_object['LastModified']
 
-        LOGGER.info('Last modified: {}'.format(last_modified))
+        LOGGER.info('Last modified: %s', last_modified)
 
         if(matcher.search(key) and
            (modified_since is None or modified_since < last_modified)):
-            LOGGER.info('Will download key "{}"'.format(key))
+            LOGGER.info('Will download key "%s"', key)
             to_return.append({'key': key, 'last_modified': last_modified})
         else:
-            LOGGER.info('Will not download key "{}"'.format(key))
+            LOGGER.info('Will not download key "%s"', key)
 
     to_return = sorted(to_return, key=lambda item: item['last_modified'])
 
     return to_return
 
 
-def list_files_in_bucket(config, bucket, search_prefix=None):
+def list_files_in_bucket(bucket, search_prefix=None):
     s3_client = boto3.client('s3')
 
     s3_objects = []
@@ -142,8 +140,7 @@ def list_files_in_bucket(config, bucket, search_prefix=None):
     next_continuation_token = result.get('NextContinuationToken')
 
     while next_continuation_token is not None:
-        LOGGER.info('Continuing pagination with token "{}".'
-                     .format(next_continuation_token))
+        LOGGER.info('Continuing pagination with token "%s".', next_continuation_token)
 
         continuation_args = args.copy()
         continuation_args['ContinuationToken'] = next_continuation_token
@@ -153,7 +150,7 @@ def list_files_in_bucket(config, bucket, search_prefix=None):
         s3_objects += result['Contents']
         next_continuation_token = result.get('NextContinuationToken')
 
-    LOGGER.info("Found {} files.".format(len(s3_objects)))
+    LOGGER.info("Found %s files.", len(s3_objects))
 
     return s3_objects
 

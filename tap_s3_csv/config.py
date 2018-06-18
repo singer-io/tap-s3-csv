@@ -1,5 +1,3 @@
-import json
-
 from voluptuous import Schema, Required, Any, Optional
 
 CONFIG_CONTRACT = Schema([{
