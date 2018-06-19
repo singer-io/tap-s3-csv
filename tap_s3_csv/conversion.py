@@ -47,7 +47,7 @@ def count_sample(sample, counts):
         if key not in counts:
             counts[key] = {}
 
-        (_, datatype) = convert(value)
+        (_, datatype) = convert(value) # TODO: OVerrides?
 
         if datatype is not None:
             counts[key][datatype] = counts[key].get(datatype, 0) + 1

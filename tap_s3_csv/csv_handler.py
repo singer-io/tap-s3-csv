@@ -4,9 +4,8 @@ import re
 
 
 def generator_wrapper(reader):
-    to_return = {}
-
     for row in reader:
+        to_return = {}
         for key, value in row.items():
             if key is None:
                 key = '_s3_extra'
