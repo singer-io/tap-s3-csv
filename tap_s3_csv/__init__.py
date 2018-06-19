@@ -51,7 +51,7 @@ def validate_table_config(config):
         tables_config = get_bucket_config(config['bucket'])
     else:
         # Parse the incoming tables config as JSON
-        tables_config = json.loads(args.config['tables'])
+        tables_config = json.loads(config['tables'])
 
     # Reassign the config tables to the validated object
     return CONFIG_CONTRACT(tables_config)
