@@ -21,10 +21,9 @@ def sync_stream(config, state, table_spec, stream):
 
     LOGGER.info('Found %s files to be synced.', len(s3_files))
 
-    if not s3_files:
-        return state
-
     records_streamed = 0
+    if not s3_files:
+        return records_streamed
 
     for s3_file in s3_files:
         records_streamed += sync_table_file(

@@ -32,6 +32,7 @@ def get_sampled_schema_for_table(config, table_spec):
         '_s3_source_bucket': {'type': 'string'},
         '_s3_source_file': {'type': 'string'},
         '_s3_source_lineno': {'type': 'integer'},
+        '_s3_extra': {'type': 'array', 'items': { 'type': 'string'}},
     }
 
     data_schema = conversion.generate_schema(samples)
