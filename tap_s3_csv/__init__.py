@@ -10,7 +10,7 @@ from tap_s3_csv.config import CONFIG_CONTRACT
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "bucket"]
+REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "config_location"]
 
 def do_discover(config):
     LOGGER.info("Starting discover")
@@ -45,23 +45,23 @@ def do_sync(config, catalog, state):
 
     LOGGER.info('Done syncing.')
 
+def validate_table_config(config):
+    # Check for a config.json in the configured Bucket
+    if config['config_location'] == 'S3':
+        tables_config = get_bucket_config(config['bucket'])
+    else:
+        # Parse the incoming tables config as JSON
+        tables_config = json.loads(args.config['tables'])
+
+    # Reassign the config tables to the validated object
+    return CONFIG_CONTRACT(tables_config)
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
     config = args.config
 
-    # Check for a config.json in the configured Bucket first
-    bucket_config = get_bucket_config(config['bucket'])
-    if bucket_config:
-        tables_config = bucket_config
-    else:
-        # Parse the incoming tables config as JSON
-        tables_config = json.loads(args.config['tables'])
-
-    # Reassign the config tables to the validated object
-    validated_config = CONFIG_CONTRACT(tables_config)
-    config['tables'] = validated_config
+    config['tables'] = validate_table_config(config)
 
     if args.discover:
         do_discover(args.config)
