@@ -1,6 +1,6 @@
-import boto3
 import json
 import re
+import boto3
 import singer
 
 import tap_s3_csv.conversion as conversion
@@ -15,7 +15,7 @@ def get_bucket_config(bucket):
     try:
         LOGGER.info("Loading config.json from bucket %s", bucket)
         config = json.loads(s3_object.get()['Body'].read().decode('utf-8'))
-    except:
+    except Exception:
         LOGGER.info("Could not find config.json in bucket %s, using provided config.", bucket)
         return None
 
@@ -32,7 +32,7 @@ def get_sampled_schema_for_table(config, table_spec):
         '_s3_source_bucket': {'type': 'string'},
         '_s3_source_file': {'type': 'string'},
         '_s3_source_lineno': {'type': 'integer'},
-        '_s3_extra': {'type': 'array', 'items': { 'type': 'string'}},
+        '_s3_extra': {'type': 'array', 'items': {'type': 'string'}},
     }
 
     data_schema = conversion.generate_schema(samples)
