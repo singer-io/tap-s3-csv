@@ -35,7 +35,7 @@ def get_sampled_schema_for_table(config, table_spec):
         '_s3_extra': {'type': 'array', 'items': {'type': 'string'}},
     }
 
-    data_schema = conversion.generate_schema(samples)
+    data_schema = conversion.generate_schema(samples, table_spec)
 
     return {
         'type': 'object',

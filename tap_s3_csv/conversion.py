@@ -28,26 +28,21 @@ def convert(datum, override_type=None):
             pass
 
     if override_type == 'date-time':
-        try:
-            to_return = dateutil.parser.parse(datum)
-
-            if(to_return.tzinfo is None or
-               to_return.tzinfo.utcoffset(to_return) is None):
-                to_return = to_return.replace(tzinfo=pytz.utc)
-
-            return (to_return.isoformat(), 'date-time',)
-        except (ValueError, TypeError):
-            pass
+        return (str(datum), 'date-time',)
 
     return (str(datum), 'string',)
 
 
-def count_sample(sample, counts):
+def count_sample(sample, counts, table_spec):
     for key, value in sample.items():
+        # if table_spec['name'] == 'date time min and max values':
+        #     import ipdb
+        #     ipdb.set_trace()
         if key not in counts:
             counts[key] = {}
 
-        (_, datatype) = convert(value) # TODO: OVerrides?
+        override_type = table_spec.get('schema_overrides', {}).get(key, {}).get('_conversion_type')
+        (_, datatype) = convert(value, override_type)
 
         if datatype is not None:
             counts[key][datatype] = counts[key].get(datatype, 0) + 1
@@ -67,6 +62,9 @@ def pick_datatype(counts):
     """
     to_return = 'string'
 
+    if counts.get('date-time', 0) > 0:
+        return 'date-time'
+
     if len(counts) == 1:
         if counts.get('integer', 0) > 0:
             to_return = 'integer'
@@ -81,11 +79,11 @@ def pick_datatype(counts):
     return to_return
 
 
-def generate_schema(samples):
+def generate_schema(samples, table_spec):
     counts = {}
     for sample in samples:
         # {'name' : { 'string' : 45}}
-        counts = count_sample(sample, counts)
+        counts = count_sample(sample, counts, table_spec)
 
     for key, value in counts.items():
         datatype = pick_datatype(value)
@@ -94,12 +92,10 @@ def generate_schema(samples):
             counts[key] = {
                 'type': ['null', 'string'],
                 'format': 'date-time',
-                # '_conversion_type': 'date-time',
             }
         else:
             counts[key] = {
                 'type': ['null', datatype],
-                # '_conversion_type': datatype,
             }
 
     return counts
