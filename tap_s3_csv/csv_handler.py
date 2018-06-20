@@ -35,6 +35,7 @@ def get_row_iterator(table_spec, file_handle):
     if 'field_names' in table_spec:
         field_names = table_spec['field_names']
 
-    reader = csv.DictReader(file_stream, fieldnames=field_names)
+    # Replace any NULL bytes in the line given to the DictReader
+    reader = csv.DictReader((line.replace('\0', '') for line in file_stream), fieldnames=field_names)
 
     return generator_wrapper(reader)
