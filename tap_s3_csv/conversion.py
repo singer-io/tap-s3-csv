@@ -35,9 +35,6 @@ def convert(datum, override_type=None):
 
 def count_sample(sample, counts, table_spec):
     for key, value in sample.items():
-        # if table_spec['name'] == 'date time min and max values':
-        #     import ipdb
-        #     ipdb.set_trace()
         if key not in counts:
             counts[key] = {}
 
@@ -90,8 +87,10 @@ def generate_schema(samples, table_spec):
 
         if datatype == 'date-time':
             counts[key] = {
-                'type': ['null', 'string'],
-                'format': 'date-time',
+                'anyOf': [
+                    {'type': ['null', 'string'], 'format': 'date-time'},
+                    {'type': ['null', 'string']}
+                ]
             }
         else:
             counts[key] = {
