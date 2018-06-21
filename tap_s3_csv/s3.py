@@ -26,6 +26,9 @@ def get_sampled_schema_for_table(config, table_spec):
 
     s3_files = get_input_files_for_table(config, table_spec)
 
+    if len(s3_files) == 0:
+        return {}
+
     samples = sample_files(config, table_spec, s3_files)
 
     metadata_schema = {
@@ -63,11 +66,8 @@ def sample_file(config, table_spec, s3_path, sample_rate, max_records):
 
     samples = []
 
-    if table_spec['format'] == 'csv':
-        file_handle = get_file_handle(config, s3_path)
-        iterator = csv_handler.get_row_iterator(table_spec, file_handle)
-    else:
-        raise Exception("only supporting csv for now!")
+    file_handle = get_file_handle(config, s3_path)
+    iterator = csv_handler.get_row_iterator(table_spec, file_handle, s3_path)
 
     current_row = 0
 
@@ -132,6 +132,9 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
 
     to_return = sorted(to_return, key=lambda item: item['last_modified'])
 
+    if not to_return:
+        LOGGER.warn('No files found matching pattern "%s"', pattern)
+
     return to_return
 
 
@@ -151,8 +154,10 @@ def list_files_in_bucket(bucket, search_prefix=None):
 
     result = s3_client.list_objects_v2(**args)
 
-    s3_objects += result['Contents']
-    next_continuation_token = result.get('NextContinuationToken')
+    next_continuation_token = None
+    if result['KeyCount'] > 0:
+        s3_objects += result['Contents']
+        next_continuation_token = result.get('NextContinuationToken')
 
     while next_continuation_token is not None:
         LOGGER.info('Continuing pagination with token "%s".', next_continuation_token)
@@ -165,7 +170,10 @@ def list_files_in_bucket(bucket, search_prefix=None):
         s3_objects += result['Contents']
         next_continuation_token = result.get('NextContinuationToken')
 
-    LOGGER.info("Found %s files.", len(s3_objects))
+    if len(s3_objects) > 0:
+        LOGGER.info("Found %s files.", len(s3_objects))
+    else:
+        LOGGER.warn('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
 
     return s3_objects
 
