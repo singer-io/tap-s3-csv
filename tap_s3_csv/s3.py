@@ -122,14 +122,10 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         key = s3_object['Key']
         last_modified = s3_object['LastModified']
 
-        LOGGER.info('Last modified: %s', last_modified)
-
         if(matcher.search(key) and
            (modified_since is None or modified_since < last_modified)):
-            LOGGER.info('Will download key "%s"', key)
+            LOGGER.info('Will download key "%s" as it was last modified %s', key, last_modified)
             to_return.append({'key': key, 'last_modified': last_modified})
-        else:
-            LOGGER.info('Will not download key "%s"', key)
 
     to_return = sorted(to_return, key=lambda item: item['last_modified'])
 
