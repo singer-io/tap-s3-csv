@@ -5,32 +5,27 @@ import singer
 
 LOGGER = singer.get_logger()
 
-def convert(datum, override_type=None):
+def infer(datum):
     """
-    Returns tuple of (converted_data_point, json_schema_type,).
+    Returns the inferred data type
     """
     if datum is None or datum == '':
-        return (None, None,)
+        return None
 
-    if override_type in (None, 'integer'):
-        try:
-            to_return = int(datum)
-            return (to_return, 'integer',)
-        except (ValueError, TypeError):
-            pass
+    try:
+        int(datum)
+        return 'integer'
+    except (ValueError, TypeError):
+        pass
 
-    if override_type in (None, 'number'):
-        try:
-            #numbers are NOT floats, they are DECIMALS
-            to_return = float(datum)
-            return (to_return, 'number',)
-        except (ValueError, TypeError):
-            pass
+    try:
+        #numbers are NOT floats, they are DECIMALS
+        float(datum)
+        return 'number'
+    except (ValueError, TypeError):
+        pass
 
-    if override_type == 'date-time':
-        return (str(datum), 'date-time',)
-
-    return (str(datum), 'string',)
+    return 'string'
 
 
 def count_sample(sample, counts, table_spec):
@@ -38,8 +33,11 @@ def count_sample(sample, counts, table_spec):
         if key not in counts:
             counts[key] = {}
 
-        override_type = table_spec.get('schema_overrides', {}).get(key, {}).get('_conversion_type')
-        (_, datatype) = convert(value, override_type)
+        date_overrides = table_spec.get('date_overrides', [])
+        if key in date_overrides:
+            datatype = "date-time"
+        else:
+            datatype = infer(value)
 
         if datatype is not None:
             counts[key][datatype] = counts[key].get(datatype, 0) + 1

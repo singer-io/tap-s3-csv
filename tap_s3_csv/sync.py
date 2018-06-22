@@ -57,10 +57,6 @@ def sync_table_file(config, s3_file, table_spec, stream):
         }
         rec = {**row, **custom_columns}
 
-        # Converting the row? We should have already saved the override value into the schema at this point.
-        # Or if the config has changed, should we apply it over any already existing schema?
-        #to_write = [{**conversion.convert_row(row, schema), **metadata}]
-
         with Transformer() as transformer:
             to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
 
