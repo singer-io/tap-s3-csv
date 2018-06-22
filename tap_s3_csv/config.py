@@ -1,4 +1,4 @@
-from voluptuous import Schema, Required, Any, Optional
+from voluptuous import Schema, Required, Optional
 
 CONFIG_CONTRACT = Schema([{
     Required('name'): str,

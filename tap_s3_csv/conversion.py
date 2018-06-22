@@ -1,6 +1,3 @@
-import dateutil
-import pytz
-
 import singer
 
 LOGGER = singer.get_logger()

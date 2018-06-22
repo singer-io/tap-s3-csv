@@ -8,6 +8,7 @@ import tap_s3_csv.csv_handler as csv_handler
 
 LOGGER = singer.get_logger()
 
+# pylint: disable=broad-except
 def get_bucket_config(bucket):
     s3_client = boto3.resource('s3')
     s3_object = s3_client.Object(bucket, 'config.json')
@@ -26,7 +27,7 @@ def get_sampled_schema_for_table(config, table_spec):
 
     s3_files = get_input_files_for_table(config, table_spec)
 
-    if len(s3_files) == 0:
+    if not s3_files:
         return {}
 
     samples = sample_files(config, table_spec, s3_files)
@@ -133,7 +134,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     to_return = sorted(to_return, key=lambda item: item['last_modified'])
 
     if not to_return:
-        LOGGER.warn('No files found matching pattern "%s"', pattern)
+        LOGGER.warning('No files found matching pattern "%s"', pattern)
 
     return to_return
 
@@ -170,10 +171,10 @@ def list_files_in_bucket(bucket, search_prefix=None):
         s3_objects += result['Contents']
         next_continuation_token = result.get('NextContinuationToken')
 
-    if len(s3_objects) > 0:
+    if s3_objects:
         LOGGER.info("Found %s files.", len(s3_objects))
     else:
-        LOGGER.warn('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
+        LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
 
     return s3_objects
 
