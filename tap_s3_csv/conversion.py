@@ -1,53 +1,40 @@
-import dateutil
-import pytz
-
 import singer
 
 LOGGER = singer.get_logger()
 
-def convert(datum, override_type=None):
+def infer(datum):
     """
-    Returns tuple of (converted_data_point, json_schema_type,).
+    Returns the inferred data type
     """
     if datum is None or datum == '':
-        return (None, None,)
+        return None
 
-    if override_type in (None, 'integer'):
-        try:
-            to_return = int(datum)
-            return (to_return, 'integer',)
-        except (ValueError, TypeError):
-            pass
+    try:
+        int(datum)
+        return 'integer'
+    except (ValueError, TypeError):
+        pass
 
-    if override_type in (None, 'number'):
-        try:
-            #numbers are NOT floats, they are DECIMALS
-            to_return = float(datum)
-            return (to_return, 'number',)
-        except (ValueError, TypeError):
-            pass
+    try:
+        #numbers are NOT floats, they are DECIMALS
+        float(datum)
+        return 'number'
+    except (ValueError, TypeError):
+        pass
 
-    if override_type == 'date-time':
-        try:
-            to_return = dateutil.parser.parse(datum)
-
-            if(to_return.tzinfo is None or
-               to_return.tzinfo.utcoffset(to_return) is None):
-                to_return = to_return.replace(tzinfo=pytz.utc)
-
-            return (to_return.isoformat(), 'date-time',)
-        except (ValueError, TypeError):
-            pass
-
-    return (str(datum), 'string',)
+    return 'string'
 
 
-def count_sample(sample, counts):
+def count_sample(sample, counts, table_spec):
     for key, value in sample.items():
         if key not in counts:
             counts[key] = {}
 
-        (_, datatype) = convert(value) # TODO: OVerrides?
+        date_overrides = table_spec.get('date_overrides', [])
+        if key in date_overrides:
+            datatype = "date-time"
+        else:
+            datatype = infer(value)
 
         if datatype is not None:
             counts[key][datatype] = counts[key].get(datatype, 0) + 1
@@ -67,6 +54,9 @@ def pick_datatype(counts):
     """
     to_return = 'string'
 
+    if counts.get('date-time', 0) > 0:
+        return 'date-time'
+
     if len(counts) == 1:
         if counts.get('integer', 0) > 0:
             to_return = 'integer'
@@ -81,25 +71,25 @@ def pick_datatype(counts):
     return to_return
 
 
-def generate_schema(samples):
+def generate_schema(samples, table_spec):
     counts = {}
     for sample in samples:
         # {'name' : { 'string' : 45}}
-        counts = count_sample(sample, counts)
+        counts = count_sample(sample, counts, table_spec)
 
     for key, value in counts.items():
         datatype = pick_datatype(value)
 
         if datatype == 'date-time':
             counts[key] = {
-                'type': ['null', 'string'],
-                'format': 'date-time',
-                # '_conversion_type': 'date-time',
+                'anyOf': [
+                    {'type': ['null', 'string'], 'format': 'date-time'},
+                    {'type': ['null', 'string']}
+                ]
             }
         else:
             counts[key] = {
                 'type': ['null', datatype],
-                # '_conversion_type': datatype,
             }
 
     return counts

@@ -36,30 +36,26 @@ def sync_stream(config, state, table_spec, stream):
 
     return records_streamed
 
-def sync_table_file(config, s3_file, table_spec, stream):
-    LOGGER.info('Syncing file "%s".', s3_file)
+def sync_table_file(config, s3_path, table_spec, stream):
+    LOGGER.info('Syncing file "%s".', s3_path)
 
     bucket = config['bucket']
     table_name = table_spec['name']
 
-    s3_file_handle = s3.get_file_handle(config, s3_file)
-    iterator = csv_handler.get_row_iterator(table_spec, s3_file_handle)
+    s3_file_handle = s3.get_file_handle(config, s3_path)
+    iterator = csv_handler.get_row_iterator(table_spec, s3_file_handle, s3_path)
 
     records_synced = 0
 
     for row in iterator:
         custom_columns = {
             '_s3_source_bucket': bucket,
-            '_s3_source_file': s3_file,
+            '_s3_source_file': s3_path,
 
             # index zero, +1 for header row
             '_s3_source_lineno': records_synced + 2
         }
         rec = {**row, **custom_columns}
-
-        # Converting the row? We should have already saved the override value into the schema at this point.
-        # Or if the config has changed, should we apply it over any already existing schema?
-        #to_write = [{**conversion.convert_row(row, schema), **metadata}]
 
         with Transformer() as transformer:
             to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))

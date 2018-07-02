@@ -23,7 +23,7 @@ def load_metadata(table_spec, schema):
     #if self.replication_key:
     #    mdata = metadata.write(mdata, (), 'valid-replication-keys', [self.replication_key])
 
-    for field_name in schema['properties'].keys():
+    for field_name in schema.get('properties', {}).keys():
         if field_name in table_spec['key_properties']:
             mdata = metadata.write(mdata, ('properties', field_name), 'inclusion', 'automatic')
         else:

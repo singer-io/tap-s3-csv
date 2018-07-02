@@ -8,6 +8,7 @@ import tap_s3_csv.csv_handler as csv_handler
 
 LOGGER = singer.get_logger()
 
+# pylint: disable=broad-except
 def get_bucket_config(bucket):
     s3_client = boto3.resource('s3')
     s3_object = s3_client.Object(bucket, 'config.json')
@@ -26,6 +27,9 @@ def get_sampled_schema_for_table(config, table_spec):
 
     s3_files = get_input_files_for_table(config, table_spec)
 
+    if not s3_files:
+        return {}
+
     samples = sample_files(config, table_spec, s3_files)
 
     metadata_schema = {
@@ -35,7 +39,7 @@ def get_sampled_schema_for_table(config, table_spec):
         '_s3_extra': {'type': 'array', 'items': {'type': 'string'}},
     }
 
-    data_schema = conversion.generate_schema(samples)
+    data_schema = conversion.generate_schema(samples, table_spec)
 
     return {
         'type': 'object',
@@ -63,11 +67,8 @@ def sample_file(config, table_spec, s3_path, sample_rate, max_records):
 
     samples = []
 
-    if table_spec['format'] == 'csv':
-        file_handle = get_file_handle(config, s3_path)
-        iterator = csv_handler.get_row_iterator(table_spec, file_handle)
-    else:
-        raise Exception("only supporting csv for now!")
+    file_handle = get_file_handle(config, s3_path)
+    iterator = csv_handler.get_row_iterator(table_spec, file_handle, s3_path)
 
     current_row = 0
 
@@ -121,16 +122,15 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         key = s3_object['Key']
         last_modified = s3_object['LastModified']
 
-        LOGGER.info('Last modified: %s', last_modified)
-
         if(matcher.search(key) and
            (modified_since is None or modified_since < last_modified)):
-            LOGGER.info('Will download key "%s"', key)
+            LOGGER.info('Will download key "%s" as it was last modified %s', key, last_modified)
             to_return.append({'key': key, 'last_modified': last_modified})
-        else:
-            LOGGER.info('Will not download key "%s"', key)
 
     to_return = sorted(to_return, key=lambda item: item['last_modified'])
+
+    if not to_return:
+        LOGGER.warning('No files found matching pattern "%s"', pattern)
 
     return to_return
 
@@ -151,8 +151,10 @@ def list_files_in_bucket(bucket, search_prefix=None):
 
     result = s3_client.list_objects_v2(**args)
 
-    s3_objects += result['Contents']
-    next_continuation_token = result.get('NextContinuationToken')
+    next_continuation_token = None
+    if result['KeyCount'] > 0:
+        s3_objects += result['Contents']
+        next_continuation_token = result.get('NextContinuationToken')
 
     while next_continuation_token is not None:
         LOGGER.info('Continuing pagination with token "%s".', next_continuation_token)
@@ -165,7 +167,10 @@ def list_files_in_bucket(bucket, search_prefix=None):
         s3_objects += result['Contents']
         next_continuation_token = result.get('NextContinuationToken')
 
-    LOGGER.info("Found %s files.", len(s3_objects))
+    if s3_objects:
+        LOGGER.info("Found %s files.", len(s3_objects))
+    else:
+        LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
 
     return s3_objects
 
