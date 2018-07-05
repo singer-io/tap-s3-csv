@@ -9,7 +9,7 @@ import tap_s3_csv.csv_handler as csv_handler
 LOGGER = singer.get_logger()
 
 def sync_stream(config, state, table_spec, stream):
-    table_name = table_spec['name']
+    table_name = table_spec['table_name']
     modified_since = utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
                                             config['start_date'])
 
@@ -40,7 +40,7 @@ def sync_table_file(config, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     bucket = config['bucket']
-    table_name = table_spec['name']
+    table_name = table_spec['table_name']
 
     s3_file_handle = s3.get_file_handle(config, s3_path)
     iterator = csv_handler.get_row_iterator(table_spec, s3_file_handle, s3_path)

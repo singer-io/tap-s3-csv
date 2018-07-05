@@ -110,7 +110,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
 
     to_return = []
 
-    pattern = table_spec['pattern']
+    pattern = table_spec['search_pattern']
     matcher = re.compile(pattern)
 
     LOGGER.info(

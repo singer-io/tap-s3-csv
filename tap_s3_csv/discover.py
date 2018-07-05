@@ -7,7 +7,7 @@ def discover_streams(config):
 
     for table_spec in config['tables']:
         schema = discover_schema(config, table_spec)
-        streams.append({'stream': table_spec['name'], 'tap_stream_id': table_spec['name'], 'schema': schema, 'metadata': load_metadata(table_spec, schema)})
+        streams.append({'stream': table_spec['table_name'], 'tap_stream_id': table_spec['table_name'], 'schema': schema, 'metadata': load_metadata(table_spec, schema)})
     return streams
 
 def discover_schema(config, table_spec):
@@ -30,6 +30,3 @@ def load_metadata(table_spec, schema):
             mdata = metadata.write(mdata, ('properties', field_name), 'inclusion', 'available')
 
     return metadata.to_list(mdata)
-
-
-# {'key_properties': ['name'], 'format': 'csv', 'name': 'chickens', 'pattern': 'csv-exports-chickens/(.*)\\.csv$'}
