@@ -49,8 +49,15 @@ def validate_table_config(config):
     tables_config = json.loads(config['tables'])
 
     for table_config in tables_config:
-        table_config['key_properties'] = table_config.get('key_properties', '').split(',')
-        table_config['date_overrides'] = table_config.get('date_overrides', '').split(',')
+        if table_config.get('key_properties') == "":
+            table_config['key_properties'] = []
+        elif table_config.get('key_properties'):
+            table_config['key_properties'] = table_config['key_properties'].split(',')
+
+        if table_config.get('date_overrides') == "":
+            table_config['date_overrides'] = []
+        elif table_config.get('date_overrides'):
+            table_config['date_overrides'] = table_config['date_overrides'].split(',')
 
     # Reassign the config tables to the validated object
     return CONFIG_CONTRACT(tables_config)
