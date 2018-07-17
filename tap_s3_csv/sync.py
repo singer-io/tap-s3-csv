@@ -3,8 +3,8 @@ from singer import Transformer
 from singer import utils
 
 import singer
-import tap_s3_csv.s3 as s3
-import tap_s3_csv.csv_handler as csv_handler
+from tap_s3_csv import s3
+from tap_s3_csv import csv_handler
 
 LOGGER = singer.get_logger()
 
