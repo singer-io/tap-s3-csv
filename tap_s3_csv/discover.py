@@ -17,12 +17,7 @@ def discover_schema(config, table_spec):
 def load_metadata(table_spec, schema):
     mdata = metadata.new()
 
-    if table_spec.get('key_properties'):
-        mdata = metadata.write(mdata, (), 'table-key-properties', table_spec['key_properties'])
-    #mdata = metadata.write(mdata, (), 'forced-replication-method', 'INCREMENTAL')
-
-    #if self.replication_key:
-    #    mdata = metadata.write(mdata, (), 'valid-replication-keys', [self.replication_key])
+    mdata = metadata.write(mdata, (), 'table-key-properties', table_spec['key_properties'])
 
     for field_name in schema.get('properties', {}).keys():
         if table_spec.get('key_properties', []) and field_name in table_spec.get('key_properties', []):
