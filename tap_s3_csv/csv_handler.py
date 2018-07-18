@@ -15,7 +15,7 @@ def generator_wrapper(reader):
             # remove non-word, non-whitespace characters
             formatted_key = re.sub(r"[^\w\s]", '', formatted_key)
 
-            to_return[formatted_key.lower()] = value
+            to_return[formatted_key] = value
 
         yield to_return
 
