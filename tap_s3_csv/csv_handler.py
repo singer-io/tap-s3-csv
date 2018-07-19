@@ -32,11 +32,17 @@ def get_row_iterator(table_spec, file_handle, s3_path):
     # Replace any NULL bytes in the line given to the DictReader
     reader = csv.DictReader((line.replace('\0', '') for line in file_stream), fieldnames=field_names)
 
+    headers = set(reader.fieldnames)
     if table_spec['key_properties']:
         key_properties = set(table_spec['key_properties'])
-        headers = set(reader.fieldnames)
         if not key_properties.issubset(headers):
             raise Exception('Found file "{}" missing key properties: {}, file only contains headers for fields: {}'
                             .format(s3_path, key_properties - headers, headers))
+
+    if table_spec['date_overrides']:
+        date_overrides = set(table_spec['date_overrides'])
+        if not date_overrides.issubset(headers):
+            raise Exception('Found file "{}" missing date_overrides fields: {}, file only contains headers for fields: {}'
+                            .format(s3_path, date_overrides - headers, headers))
 
     return generator_wrapper(reader)
