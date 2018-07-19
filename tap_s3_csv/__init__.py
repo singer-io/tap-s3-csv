@@ -49,12 +49,12 @@ def validate_table_config(config):
     tables_config = json.loads(config['tables'])
 
     for table_config in tables_config:
-        if table_config.get('key_properties') == "":
+        if table_config.get('key_properties') == "" or table_config.get('key_properties') == None:
             table_config['key_properties'] = []
         elif table_config.get('key_properties'):
             table_config['key_properties'] = [s.strip() for s in table_config['key_properties'].split(',')]
 
-        if table_config.get('date_overrides') == "":
+        if table_config.get('date_overrides') == "" or table_config.get('date_overrides') == None:
             table_config['date_overrides'] = []
         elif table_config.get('date_overrides'):
             table_config['date_overrides'] = [s.strip() for s in table_config['date_overrides'].split(',')]
