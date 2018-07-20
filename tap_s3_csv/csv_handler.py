@@ -13,7 +13,7 @@ def generator_wrapper(reader):
             formatted_key = key
 
             # remove non-word, non-whitespace characters
-            formatted_key = re.sub(r"[^\w\s]", '', formatted_key)
+            #formatted_key = re.sub(r"[^\w\s]", '', formatted_key)
 
             to_return[formatted_key] = value
 
