@@ -1,6 +1,5 @@
 import codecs
 import csv
-import re
 
 
 def generator_wrapper(reader):
