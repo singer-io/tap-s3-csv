@@ -3,8 +3,8 @@ import re
 import boto3
 import singer
 
-from tap_s3_csv import conversion
 from singer_encodings import csv
+from tap_s3_csv import conversion
 
 LOGGER = singer.get_logger()
 
