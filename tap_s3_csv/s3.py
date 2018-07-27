@@ -4,7 +4,7 @@ import boto3
 import singer
 
 from tap_s3_csv import conversion
-from tap_s3_csv import csv_handler
+from singer_encodings import csv
 
 LOGGER = singer.get_logger()
 
@@ -68,7 +68,7 @@ def sample_file(config, table_spec, s3_path, sample_rate, max_records):
     samples = []
 
     file_handle = get_file_handle(config, s3_path)
-    iterator = csv_handler.get_row_iterator(table_spec, file_handle, s3_path)
+    iterator = csv.get_row_iterator(file_handle._raw_stream, table_spec) #pylint:disable=protected-access
 
     current_row = 0
 
@@ -88,7 +88,7 @@ def sample_file(config, table_spec, s3_path, sample_rate, max_records):
 
 # pylint: disable=too-many-arguments
 def sample_files(config, table_spec, s3_files,
-                 sample_rate=10, max_records=1000, max_files=5):
+                 sample_rate=5, max_records=1000, max_files=5):
     to_return = []
 
     files_so_far = 0
@@ -131,7 +131,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
 
     for matched_file in matched_files:
         if modified_since is None or modified_since < matched_file['last_modified']:
-            LOGGER.info('Will download key "%s" as it was last modified %s', key, matched_file['last_modified'])
+            LOGGER.info('Will download key "%s" as it was last modified %s', matched_file['key'], matched_file['last_modified'])
             to_return.append(matched_file)
 
     to_return = sorted(to_return, key=lambda item: item['last_modified'])
