@@ -8,6 +8,10 @@ from tap_s3_csv import conversion
 
 LOGGER = singer.get_logger()
 
+SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
+SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
+SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
+
 # pylint: disable=broad-except
 def get_bucket_config(bucket):
     s3_client = boto3.resource('s3')
@@ -33,10 +37,10 @@ def get_sampled_schema_for_table(config, table_spec):
     samples = sample_files(config, table_spec, s3_files)
 
     metadata_schema = {
-        '_s3_source_bucket': {'type': 'string'},
-        '_s3_source_file': {'type': 'string'},
-        '_s3_source_lineno': {'type': 'integer'},
-        '_s3_extra': {'type': 'array', 'items': {'type': 'string'}},
+        SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
+        SDC_SOURCE_FILE_COLUMN: {'type': 'string'},
+        SDC_SOURCE_LINENO_COLUMN: {'type': 'integer'},
+        csv.SDC_EXTRA_COLUMN: {'type': 'array', 'items': {'type': 'string'}},
     }
 
     data_schema = conversion.generate_schema(samples, table_spec)
