@@ -3,8 +3,8 @@ from singer import Transformer
 from singer import utils
 
 import singer
+from singer_encodings import csv
 from tap_s3_csv import s3
-from tap_s3_csv import csv_handler
 
 LOGGER = singer.get_logger()
 
@@ -43,17 +43,17 @@ def sync_table_file(config, s3_path, table_spec, stream):
     table_name = table_spec['table_name']
 
     s3_file_handle = s3.get_file_handle(config, s3_path)
-    iterator = csv_handler.get_row_iterator(table_spec, s3_file_handle, s3_path)
+    iterator = csv.get_row_iterator(s3_file_handle._raw_stream, table_spec) #pylint:disable=protected-access
 
     records_synced = 0
 
     for row in iterator:
         custom_columns = {
-            '_s3_source_bucket': bucket,
-            '_s3_source_file': s3_path,
+            s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
+            s3.SDC_SOURCE_FILE_COLUMN: s3_path,
 
             # index zero, +1 for header row
-            '_s3_source_lineno': records_synced + 2
+            s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 2
         }
         rec = {**row, **custom_columns}
 

@@ -11,9 +11,9 @@ setup(name='tap-s3-csv',
       py_modules=['tap_s3_csv'],
       install_requires=[
           'boto3==1.4.4',
+          'singer-encodings==0.0.2',
           'singer-python==5.1.5',
-          'voluptuous==0.10.5',
-          'xlrd==1.0.0',
+          'voluptuous==0.10.5'
       ],
       entry_points='''
           [console_scripts]
