@@ -78,6 +78,8 @@ def sample_file(config, table_spec, s3_path, sample_rate, max_records):
 
     for row in iterator:
         if (current_row % sample_rate) == 0:
+            if row.get(csv.SDC_EXTRA_COLUMN):
+                row.pop(csv.SDC_EXTRA_COLUMN)
             samples.append(row)
 
         current_row += 1
