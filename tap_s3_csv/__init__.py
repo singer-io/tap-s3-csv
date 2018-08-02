@@ -14,7 +14,10 @@ REQUIRED_CONFIG_KEYS = ["start_date", "bucket"]
 
 def do_discover(config):
     LOGGER.info("Starting discover")
-    catalog = {"streams": discover_streams(config)}
+    streams = discover_streams(config)
+    if not streams:
+        raise Exception("No streams found")
+    catalog = {"streams": streams}
     json.dump(catalog, sys.stdout, indent=2)
     LOGGER.info("Finished discover")
 
