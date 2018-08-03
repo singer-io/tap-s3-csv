@@ -88,8 +88,11 @@ def generate_schema(samples, table_spec):
                 ]
             }
         else:
+            types = ['null', datatype]
+            if datatype != 'string':
+                types.append('string')
             counts[key] = {
-                'type': ['null', datatype],
+                'type': types,
             }
 
     return counts
