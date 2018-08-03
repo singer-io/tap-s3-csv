@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.0.6
+  * Add JSON Schema type string to all fields as a final fallback in case we miss a crucial sample [#5](https://github.com/singer-io/tap-s3-csv/pull/5)
+  * Add error handling to fail quickly when no streams are found
+  * Fixes a bug where we could sample the reskey field for a non-rectangular csv [#4](https://github.com/singer-io/tap-s3-csv/pull/4)
+
 ## 0.0.5
   * Use the singer-encodings library to share more code
   * Renames columns like "_s3_source_bucket" to "_sdc_source_bucket" to better align with standards
