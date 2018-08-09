@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.0.7
+  * Adds support for different types of CSV delimiters via singer-encodings [#7](https://github.com/singer-io/tap-s3-csv/pull/7)
+
 ## 0.0.6
   * Add JSON Schema type string to all fields as a final fallback in case we miss a crucial sample [#5](https://github.com/singer-io/tap-s3-csv/pull/5)
   * Add error handling to fail quickly when no streams are found
