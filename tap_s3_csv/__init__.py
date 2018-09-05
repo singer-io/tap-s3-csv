@@ -1,6 +1,6 @@
-import boto3
 import json
 import sys
+import boto3
 import singer
 
 from singer import metadata

@@ -1,4 +1,3 @@
-import json
 import re
 import boto3
 import singer
