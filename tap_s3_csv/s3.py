@@ -1,4 +1,3 @@
-import json
 import re
 import boto3
 import singer
@@ -11,20 +10,6 @@ LOGGER = singer.get_logger()
 SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
 SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
 SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
-
-# pylint: disable=broad-except
-def get_bucket_config(bucket):
-    s3_client = boto3.resource('s3')
-    s3_object = s3_client.Object(bucket, 'config.json')
-
-    try:
-        LOGGER.info("Loading config.json from bucket %s", bucket)
-        config = json.loads(s3_object.get()['Body'].read().decode('utf-8'))
-    except Exception:
-        LOGGER.info("Could not find config.json in bucket %s, using provided config.", bucket)
-        return None
-
-    return config
 
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
