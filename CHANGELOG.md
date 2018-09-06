@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.1
+  * Adds retry logic and exponential backoff for AWS requests that fail [#10](https://github.com/singer-io/tap-s3-csv/pull/10)
+
 ## 1.0.0
   * Updates how the tap authenticates with AWS - it will now assume a role given via the config [#9](https://github.com/singer-io/tap-s3-csv/pull/9)
 
