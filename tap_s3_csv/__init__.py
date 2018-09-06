@@ -1,10 +1,10 @@
 import json
 import sys
-import boto3
 import singer
 
 from singer import metadata
 from tap_s3_csv.discover import discover_streams
+from tap_s3_csv import s3
 from tap_s3_csv.sync import sync_stream
 from tap_s3_csv.config import CONFIG_CONTRACT
 
@@ -12,12 +12,6 @@ LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
 
-def setup_aws_client(config):
-    client = boto3.client('sts')
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'], config['role_name'])
-
-    role = client.assume_role(RoleArn=role_arn, ExternalId=config['external_id'], RoleSessionName='TapS3CSV')
-    boto3.setup_default_session(aws_access_key_id=role['Credentials']['AccessKeyId'], aws_secret_access_key=role['Credentials']['SecretAccessKey'], aws_session_token=role['Credentials']['SessionToken'])
 
 def do_discover(config):
     LOGGER.info("Starting discover")
@@ -79,7 +73,7 @@ def main():
 
     config['tables'] = validate_table_config(config)
 
-    setup_aws_client(config)
+    s3.setup_aws_client(config)
 
     if args.discover:
         do_discover(args.config)
