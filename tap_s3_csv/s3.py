@@ -1,5 +1,7 @@
 import re
+import backoff
 import boto3
+import botocore
 import singer
 
 from singer_encodings import csv
@@ -10,6 +12,27 @@ LOGGER = singer.get_logger()
 SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
 SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
 SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
+
+
+def retry_pattern():
+    return backoff.on_exception(backoff.expo,
+                                botocore.exceptions.ClientError,
+                                max_tries=5,
+                                on_backoff=log_backoff_attempt,
+                                factor=10)
+
+
+def log_backoff_attempt(details):
+    LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
+
+@retry_pattern()
+def setup_aws_client(config):
+    client = boto3.client('sts')
+    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'], config['role_name'])
+
+    role = client.assume_role(RoleArn=role_arn, ExternalId=config['external_id'], RoleSessionName='TapS3CSV')
+    boto3.setup_default_session(aws_access_key_id=role['Credentials']['AccessKeyId'], aws_secret_access_key=role['Credentials']['SecretAccessKey'], aws_session_token=role['Credentials']['SessionToken'])
+
 
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
@@ -133,6 +156,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     return to_return
 
 
+@retry_pattern()
 def list_files_in_bucket(bucket, search_prefix=None):
     s3_client = boto3.client('s3')
 
@@ -173,6 +197,7 @@ def list_files_in_bucket(bucket, search_prefix=None):
     return s3_objects
 
 
+@retry_pattern()
 def get_file_handle(config, s3_path):
     bucket = config['bucket']
     s3_client = boto3.resource('s3')
