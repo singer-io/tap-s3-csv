@@ -14,14 +14,18 @@ SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
 SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
 
 
+def retry_pattern():
+    return backoff.on_exception(backoff.expo,
+                                botocore.exceptions.ClientError,
+                                max_tries=5,
+                                on_backoff=log_backoff_attempt,
+                                factor=10)
+
+
 def log_backoff_attempt(details):
     LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
 
-@backoff.on_exception(backoff.expo,
-                      botocore.exceptions.ClientError,
-                      max_tries=5,
-                      on_backoff=log_backoff_attempt,
-                      factor=2)
+@retry_pattern()
 def setup_aws_client(config):
     client = boto3.client('sts')
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'], config['role_name'])
@@ -151,11 +155,8 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
 
     return to_return
 
-@backoff.on_exception(backoff.expo,
-                      botocore.exceptions.ClientError,
-                      max_tries=5,
-                      on_backoff=log_backoff_attempt,
-                      factor=2)
+
+@retry_pattern()
 def list_files_in_bucket(bucket, search_prefix=None):
     s3_client = boto3.client('s3')
 
@@ -195,11 +196,8 @@ def list_files_in_bucket(bucket, search_prefix=None):
 
     return s3_objects
 
-@backoff.on_exception(backoff.expo,
-                      botocore.exceptions.ClientError,
-                      max_tries=5,
-                      on_backoff=log_backoff_attempt,
-                      factor=2)
+
+@retry_pattern()
 def get_file_handle(config, s3_path):
     bucket = config['bucket']
     s3_client = boto3.resource('s3')
