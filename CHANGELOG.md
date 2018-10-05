@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.2
+  * Strips hyphens from incoming account_ids.
+
 ## 1.0.1
   * Adds retry logic and exponential backoff for AWS requests that fail [#10](https://github.com/singer-io/tap-s3-csv/pull/10)
 
