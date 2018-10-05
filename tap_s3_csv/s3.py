@@ -28,8 +28,10 @@ def log_backoff_attempt(details):
 @retry_pattern()
 def setup_aws_client(config):
     client = boto3.client('sts')
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'], config['role_name'])
+    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
+                                                config['role_name'])
 
+    LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
     role = client.assume_role(RoleArn=role_arn, ExternalId=config['external_id'], RoleSessionName='TapS3CSV')
     boto3.setup_default_session(aws_access_key_id=role['Credentials']['AccessKeyId'], aws_secret_access_key=role['Credentials']['SecretAccessKey'], aws_session_token=role['Credentials']['SessionToken'])
 
