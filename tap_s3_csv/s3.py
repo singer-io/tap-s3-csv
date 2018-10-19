@@ -2,6 +2,7 @@ import re
 import backoff
 import boto3
 import botocore
+import json
 import singer
 
 from singer_encodings import csv
@@ -34,6 +35,20 @@ def setup_aws_client(config):
     LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
     role = client.assume_role(RoleArn=role_arn, ExternalId=config['external_id'], RoleSessionName='TapS3CSV')
     boto3.setup_default_session(aws_access_key_id=role['Credentials']['AccessKeyId'], aws_secret_access_key=role['Credentials']['SecretAccessKey'], aws_session_token=role['Credentials']['SessionToken'])
+
+@retry_pattern()
+def get_bucket_config(bucket):
+    s3_client = boto3.resource('s3')
+    s3_object = s3_client.Object(bucket, 'config.json')
+
+    try:
+        LOGGER.info("Loading config.json from bucket %s", bucket)
+        config = json.loads(s3_object.get()['Body'].read().decode('utf-8'))
+    except botocore.exceptions.ClientError:
+        LOGGER.info("Error encountered attempting to load config.json from bucket %s.", bucket)
+        raise
+
+    return config
 
 
 def get_sampled_schema_for_table(config, table_spec):

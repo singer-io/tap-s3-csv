@@ -49,19 +49,22 @@ def do_sync(config, catalog, state):
     LOGGER.info('Done syncing.')
 
 def validate_table_config(config):
-    # Parse the incoming tables config as JSON
-    tables_config = json.loads(config['tables'])
+    if config['load_config_from_s3'] == 'true':
+        tables_config = s3.get_bucket_config(config['bucket'])
+    else:
+        # Parse the incoming tables config as JSON
+        tables_config = json.loads(config['tables'])
 
-    for table_config in tables_config:
-        if table_config.get('key_properties') == "" or table_config.get('key_properties') is None:
-            table_config['key_properties'] = []
-        elif table_config.get('key_properties'):
-            table_config['key_properties'] = [s.strip() for s in table_config['key_properties'].split(',')]
+        for table_config in tables_config:
+            if table_config.get('key_properties') == "" or table_config.get('key_properties') is None:
+                table_config['key_properties'] = []
+            elif table_config.get('key_properties'):
+                table_config['key_properties'] = [s.strip() for s in table_config['key_properties'].split(',')]
 
-        if table_config.get('date_overrides') == "" or table_config.get('date_overrides') is None:
-            table_config['date_overrides'] = []
-        elif table_config.get('date_overrides'):
-            table_config['date_overrides'] = [s.strip() for s in table_config['date_overrides'].split(',')]
+            if table_config.get('date_overrides') == "" or table_config.get('date_overrides') is None:
+                table_config['date_overrides'] = []
+            elif table_config.get('date_overrides'):
+                table_config['date_overrides'] = [s.strip() for s in table_config['date_overrides'].split(',')]
 
     # Reassign the config tables to the validated object
     return CONFIG_CONTRACT(tables_config)
@@ -71,9 +74,10 @@ def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
     config = args.config
 
-    config['tables'] = validate_table_config(config)
-
     s3.setup_aws_client(config)
+
+    # Validate the config tables after setting up AWS as the tables can come from AWS
+    config['tables'] = validate_table_config(config)
 
     if args.discover:
         do_discover(args.config)
