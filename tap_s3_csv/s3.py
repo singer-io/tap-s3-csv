@@ -1,8 +1,8 @@
 import re
+import json
 import backoff
 import boto3
 import botocore
-import json
 import singer
 
 from singer_encodings import csv
