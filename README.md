@@ -41,7 +41,7 @@ Here is an example of basic config, and a bit of a run down on each of the prope
 - **role_name**: In order to access a bucket, the tap uses boto3 to log in as a role in your AWS account. If you have your AWS account credentials, you can specify this as a role which your local user has access to assume, boto3 should by default pick up your AWS keys from the local environment.
 - **bucket**: The name of the bucket to search to files under.
 - **external_id**: (potentially optional) Running this locally, you should be able to omit this property, it is provided to allow the tap to access buckets in accounts where the user doesn't have access to the account itself, but is able to assume a role in that account, through a shared secret. This is that secret, in that case.
-- **tables**: an escaped JSON string that the tap will use to search for files, and emit records as "tables" from those files. Will be used by a [`voluptuous`](https://github.com/alecthomas/voluptuous) based configutation checker.
+- **tables**: an escaped JSON string that the tap will use to search for files, and emit records as "tables" from those files. Will be used by a [`voluptuous`](https://github.com/alecthomas/voluptuous) based configuration checker.
 
 The `table` field consist in one or more objects, inside an array and than JSON encoded, that describe how to find files and emit records. A more detailed (and unescaped) example below:
 
