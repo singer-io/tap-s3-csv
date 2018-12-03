@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.3
+  * Attempt to setup a AWS session that can refresh itself [#16](https://github.com/singer-io/tap-s3-csv/pull/16)
+
 ## 1.0.2
   * Strips hyphens from incoming account_ids.
 
