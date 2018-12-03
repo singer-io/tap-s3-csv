@@ -1,9 +1,16 @@
 import re
 import backoff
 import boto3
-import botocore
 import singer
 
+from botocore.credentials import (
+    AssumeRoleCredentialFetcher,
+    CredentialResolver,
+    DeferredRefreshableCredentials,
+    JSONFileCache
+)
+from botocore.exceptions import ClientError
+from botocore.session import Session
 from singer_encodings import csv
 from tap_s3_csv import conversion
 
@@ -16,7 +23,7 @@ SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
 
 def retry_pattern():
     return backoff.on_exception(backoff.expo,
-                                botocore.exceptions.ClientError,
+                                ClientError,
                                 max_tries=5,
                                 on_backoff=log_backoff_attempt,
                                 factor=10)
@@ -25,15 +32,45 @@ def retry_pattern():
 def log_backoff_attempt(details):
     LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
 
+
+class AssumeRoleProvider():
+    METHOD = 'assume-role'
+
+    def __init__(self, fetcher):
+        self._fetcher = fetcher
+
+    def load(self):
+        return DeferredRefreshableCredentials(
+            self._fetcher.fetch_credentials,
+            self.METHOD
+        )
+
+
 @retry_pattern()
 def setup_aws_client(config):
-    client = boto3.client('sts')
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
                                                 config['role_name'])
+    session = Session()
+    fetcher = AssumeRoleCredentialFetcher(
+        session.create_client,
+        session.get_credentials(),
+        role_arn,
+        extra_args={
+            'DurationSeconds': 3600,
+            'RoleSessionName': 'TapS3CSV',
+            'ExternalId': config['external_id']
+        },
+        cache=JSONFileCache()
+    )
+
+    refreshable_session = Session()
+    refreshable_session.register_component(
+        'credential_provider',
+        CredentialResolver([AssumeRoleProvider(fetcher)])
+    )
 
     LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
-    role = client.assume_role(RoleArn=role_arn, ExternalId=config['external_id'], RoleSessionName='TapS3CSV')
-    boto3.setup_default_session(aws_access_key_id=role['Credentials']['AccessKeyId'], aws_secret_access_key=role['Credentials']['SecretAccessKey'], aws_session_token=role['Credentials']['SessionToken'])
+    boto3.setup_default_session(botocore_session=refreshable_session)
 
 
 def get_sampled_schema_for_table(config, table_spec):
