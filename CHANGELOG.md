@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.4
+  * Skip files when they are empty [#17](https://github.com/singer-io/tap-s3-csv/pull/17)
+
 ## 1.0.3
   * Attempt to setup a AWS session that can refresh itself [#16](https://github.com/singer-io/tap-s3-csv/pull/16)
 
