@@ -176,6 +176,10 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         key = s3_object['Key']
         last_modified = s3_object['LastModified']
 
+        if s3_object['Size'] == 0:
+            LOGGER.info('Skipping matches file "%s" as it is empty', key)
+            continue
+
         if matcher.search(key):
             matched_files.append({'key': key, 'last_modified': last_modified})
 
