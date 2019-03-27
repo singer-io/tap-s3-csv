@@ -1,3 +1,4 @@
+import itertools
 import re
 import backoff
 import boto3
@@ -76,12 +77,12 @@ def setup_aws_client(config):
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
-    s3_files = get_input_files_for_table(config, table_spec)
+    s3_files_gen = get_input_files_for_table(config, table_spec)
 
-    if not s3_files:
+    samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
+
+    if not samples:
         return {}
-
-    samples = sample_files(config, table_spec, s3_files)
 
     metadata_schema = {
         SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
@@ -113,49 +114,41 @@ def merge_dicts(first, second):
     return to_return
 
 
-def sample_file(config, table_spec, s3_path, sample_rate, max_records):
-    LOGGER.info('Sampling %s (%s records, every %sth record).', s3_path, max_records, sample_rate)
-
-    samples = []
-
+def sample_file(config, table_spec, s3_path, sample_rate):
     file_handle = get_file_handle(config, s3_path)
     iterator = csv.get_row_iterator(file_handle._raw_stream, table_spec) #pylint:disable=protected-access
 
     current_row = 0
 
+    sampled_row_count = 0
+
     for row in iterator:
         if (current_row % sample_rate) == 0:
             if row.get(csv.SDC_EXTRA_COLUMN):
                 row.pop(csv.SDC_EXTRA_COLUMN)
-            samples.append(row)
+            sampled_row_count += 1
+            if (sampled_row_count % 200) == 0:
+                LOGGER.info("Sampled %s rows from %s",
+                            sampled_row_count, s3_path)
+            yield row
 
         current_row += 1
 
-        if len(samples) >= max_records:
-            break
-
-    LOGGER.info('Sampled %s records.', len(samples))
-
-    return samples
+    LOGGER.info("Sampled %s rows from %s",
+                sampled_row_count,
+                s3_path)
 
 
 # pylint: disable=too-many-arguments
 def sample_files(config, table_spec, s3_files,
                  sample_rate=5, max_records=1000, max_files=5):
-    to_return = []
-
-    files_so_far = 0
-
-    for s3_file in s3_files:
-        to_return += sample_file(config, table_spec, s3_file['key'],
-                                 sample_rate, max_records)
-
-        files_so_far += 1
-
-        if files_so_far >= max_files:
-            break
-
-    return to_return
+    LOGGER.info("Sampling files (max files: %s)", max_files)
+    for s3_file in itertools.islice(s3_files, max_files):
+        LOGGER.info('Sampling %s (max records: %s, sample rate: %s)',
+                    s3_file['key'],
+                    max_records,
+                    sample_rate)
+        yield from itertools.islice(sample_file(config, table_spec, s3_file['key'], sample_rate), max_records)
 
 
 def get_input_files_for_table(config, table_spec, modified_since=None):
@@ -169,41 +162,48 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     LOGGER.info(
         'Checking bucket "%s" for keys matching "%s"', bucket, pattern)
 
-    s3_objects = list_files_in_bucket(bucket, table_spec.get('search_prefix'))
-
-    matched_files = []
-    for s3_object in s3_objects:
+    matched_files_count = 0
+    unmatched_files_count = 0
+    max_files_before_log = 30000
+    for s3_object in list_files_in_bucket(bucket, table_spec.get('search_prefix')):
         key = s3_object['Key']
         last_modified = s3_object['LastModified']
 
         if s3_object['Size'] == 0:
-            LOGGER.info('Skipping matches file "%s" as it is empty', key)
+            LOGGER.info('Skipping matched file "%s" as it is empty', key)
+            unmatched_files_count += 1
             continue
 
         if matcher.search(key):
-            matched_files.append({'key': key, 'last_modified': last_modified})
+            matched_files_count += 1
+            if modified_since is None or modified_since < last_modified:
+                LOGGER.info('Will download key "%s" as it was last modified %s',
+                            key,
+                            last_modified)
+                yield {'key': key, 'last_modified': last_modified}
+        else:
+            unmatched_files_count += 1
 
-    if not matched_files:
+        if (unmatched_files_count + matched_files_count) % max_files_before_log == 0:
+            # Are we skipping greater than 50% of the files?
+            if 0.5 < (unmatched_files_count / (matched_files_count + unmatched_files_count)):
+                LOGGER.warn(("Found %s matching files and %s non-matching files. "
+                             "You should consider adding a `search_prefix` to the config "
+                             "or removing non-matching files from the bucket."),
+                            matched_files_count, unmatched_files_count)
+            else:
+                LOGGER.info("Found %s matching files and %s non-matching files",
+                            matched_files_count, unmatched_files_count)
+
+    if 0 == matched_files_count:
         raise Exception("No files found matching pattern {}".format(pattern))
-
-    for matched_file in matched_files:
-        if modified_since is None or modified_since < matched_file['last_modified']:
-            LOGGER.info('Will download key "%s" as it was last modified %s', matched_file['key'], matched_file['last_modified'])
-            to_return.append(matched_file)
-
-    to_return = sorted(to_return, key=lambda item: item['last_modified'])
-
-    if not to_return:
-        LOGGER.warning('No files found matching pattern "%s" modified since %s', pattern, modified_since)
-
-    return to_return
 
 
 @retry_pattern()
 def list_files_in_bucket(bucket, search_prefix=None):
     s3_client = boto3.client('s3')
 
-    s3_objects = []
+    s3_object_count = 0
 
     max_results = 1000
     args = {
@@ -214,30 +214,18 @@ def list_files_in_bucket(bucket, search_prefix=None):
     if search_prefix is not None:
         args['Prefix'] = search_prefix
 
-    result = s3_client.list_objects_v2(**args)
+    paginator = s3_client.get_paginator('list_objects_v2')
+    pages = 0
+    for page in paginator.paginate(**args):
+        pages += 1
+        LOGGER.debug("On page %s", pages)
+        s3_object_count += len(page['Contents'])
+        yield from page['Contents']
 
-    next_continuation_token = None
-    if result['KeyCount'] > 0:
-        s3_objects += result['Contents']
-        next_continuation_token = result.get('NextContinuationToken')
-
-    while next_continuation_token is not None:
-        LOGGER.info('Continuing pagination with token "%s".', next_continuation_token)
-
-        continuation_args = args.copy()
-        continuation_args['ContinuationToken'] = next_continuation_token
-
-        result = s3_client.list_objects_v2(**continuation_args)
-
-        s3_objects += result['Contents']
-        next_continuation_token = result.get('NextContinuationToken')
-
-    if s3_objects:
-        LOGGER.info("Found %s files.", len(s3_objects))
+    if 0 < s3_object_count:
+        LOGGER.info("Found %s files.", s3_object_count)
     else:
         LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
-
-    return s3_objects
 
 
 @retry_pattern()

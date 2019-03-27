@@ -19,13 +19,13 @@ def sync_stream(config, state, table_spec, stream):
     s3_files = s3.get_input_files_for_table(
         config, table_spec, modified_since)
 
-    LOGGER.info('Found %s files to be synced.', len(s3_files))
-
     records_streamed = 0
-    if not s3_files:
-        return records_streamed
 
-    for s3_file in s3_files:
+    # We sort here so that tracking the modified_since bookmark makes
+    # sense. This means that we can't sync s3 buckets that are larger than
+    # we can sort in memory which is suboptimal. If we could bookmark
+    # based on anything else then we could just sync files as we see them.
+    for s3_file in sorted(s3_files, key=lambda item: item['last_modified']):
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
 
