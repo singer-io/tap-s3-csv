@@ -16,6 +16,11 @@ setup(name='tap-s3-csv',
           'singer-python==5.1.5',
           'voluptuous==0.10.5'
       ],
+      extras_require={
+          'dev': [
+              'ipdb==0.11'
+          ]
+      },
       entry_points='''
           [console_scripts]
           tap-s3-csv=tap_s3_csv:main
