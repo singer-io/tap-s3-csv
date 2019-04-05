@@ -159,12 +159,12 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     pattern = table_spec['search_pattern']
     try:
         matcher = re.compile(pattern)
-    except:
+    except re.error as e:
         raise ValueError(
             ("search_pattern for table `{}` is not a valid regular "
              "expression. See "
              "https://docs.python.org/3.5/library/re.html#regular-expression-syntax").format(table_spec['table_name']),
-            pattern) from None
+            pattern) from e
 
     LOGGER.info(
         'Checking bucket "%s" for keys matching "%s"', bucket, pattern)
