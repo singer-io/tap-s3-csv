@@ -12,14 +12,11 @@ from botocore.credentials import (
 )
 from botocore.exceptions import ClientError
 from botocore.session import Session
-from singer_encodings import csv
+
 from tap_s3_csv import conversion
+from tap_s3_csv import csv_iterator
 
 LOGGER = singer.get_logger()
-
-SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
-SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
-SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
 
 
 def retry_pattern():
@@ -84,18 +81,10 @@ def get_sampled_schema_for_table(config, table_spec):
     if not samples:
         return {}
 
-    metadata_schema = {
-        SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
-        SDC_SOURCE_FILE_COLUMN: {'type': 'string'},
-        SDC_SOURCE_LINENO_COLUMN: {'type': 'integer'},
-        csv.SDC_EXTRA_COLUMN: {'type': 'array', 'items': {'type': 'string'}},
-    }
-
     data_schema = conversion.generate_schema(samples, table_spec)
-
     return {
         'type': 'object',
-        'properties': merge_dicts(data_schema, metadata_schema)
+        'properties': data_schema
     }
 
 def merge_dicts(first, second):
@@ -116,7 +105,7 @@ def merge_dicts(first, second):
 
 def sample_file(config, table_spec, s3_path, sample_rate):
     file_handle = get_file_handle(config, s3_path)
-    iterator = csv.get_row_iterator(file_handle._raw_stream, table_spec) #pylint:disable=protected-access
+    iterator = csv_iterator.get_row_iterator(file_handle._raw_stream, table_spec) #pylint:disable=protected-access
 
     current_row = 0
 
@@ -124,8 +113,6 @@ def sample_file(config, table_spec, s3_path, sample_rate):
 
     for row in iterator:
         if (current_row % sample_rate) == 0:
-            if row.get(csv.SDC_EXTRA_COLUMN):
-                row.pop(csv.SDC_EXTRA_COLUMN)
             sampled_row_count += 1
             if (sampled_row_count % 200) == 0:
                 LOGGER.info("Sampled %s rows from %s",

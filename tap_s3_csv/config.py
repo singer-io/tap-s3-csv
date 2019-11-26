@@ -6,5 +6,6 @@ CONFIG_CONTRACT = Schema([{
     Required('key_properties'): [str],
     Optional('search_prefix'): str,
     Optional('date_overrides'): [str],
-    Optional('delimiter'): str
+    Optional('delimiter'): str,
+    Optional('escape_char'): str
 }])

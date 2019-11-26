@@ -6,7 +6,7 @@ from singer import Transformer
 from singer import utils
 
 import singer
-from singer_encodings import csv as singer_encodings_csv
+from tap_s3_csv import csv_iterator
 from tap_s3_csv import s3
 
 LOGGER = singer.get_logger()
@@ -24,11 +24,13 @@ def sync_stream(config, state, table_spec, stream):
 
     records_streamed = 0
 
-    # We sort here so that tracking the modified_since bookmark makes
-    # sense. This means that we can't sync s3 buckets that are larger than
+    # Original implementation sorted by 'modified_since' so that the modified_since bookmark makes
+    # sense. We sort by 'key' because we import multiple part files generated from Spark where the
+    # names are incremental order.
+    # This means that we can't sync s3 buckets that are larger than
     # we can sort in memory which is suboptimal. If we could bookmark
     # based on anything else then we could just sync files as we see them.
-    for s3_file in sorted(s3_files, key=lambda item: item['last_modified']):
+    for s3_file in sorted(s3_files, key=lambda item: item['key']):
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
 
@@ -54,23 +56,15 @@ def sync_table_file(config, s3_path, table_spec, stream):
     # need to be fixed. The other consequence of this could be larger
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
-    iterator = singer_encodings_csv.get_row_iterator(
+    iterator = csv_iterator.get_row_iterator(
         s3_file_handle._raw_stream, table_spec) #pylint:disable=protected-access
 
     records_synced = 0
 
     for row in iterator:
-        custom_columns = {
-            s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
-            s3.SDC_SOURCE_FILE_COLUMN: s3_path,
-
-            # index zero, +1 for header row
-            s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 2
-        }
-        rec = {**row, **custom_columns}
-
+        
         with Transformer() as transformer:
-            to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+            to_write = transformer.transform(row, stream['schema'], metadata.to_map(stream['metadata']))
 
         singer.write_record(table_name, to_write)
         records_synced += 1

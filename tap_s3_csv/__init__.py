@@ -50,7 +50,7 @@ def do_sync(config, catalog, state):
 
 def validate_table_config(config):
     # Parse the incoming tables config as JSON
-    tables_config = json.loads(config['tables'])
+    tables_config = config['tables']
 
     for table_config in tables_config:
         if table_config.get('key_properties') == "" or table_config.get('key_properties') is None:
