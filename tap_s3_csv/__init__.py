@@ -10,7 +10,7 @@ from tap_s3_csv.config import CONFIG_CONTRACT
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
+REQUIRED_CONFIG_KEYS = ["bucket"]
 
 
 def do_discover(config):
@@ -73,12 +73,12 @@ def main():
 
     config['tables'] = validate_table_config(config)
 
+    # Check that boto can access S3
     try:
         for page in s3.list_files_in_bucket(config['bucket']):
             break
-        LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
-    except:
-        s3.setup_aws_client(config)
+    except err:
+        LOGGER.error(err)
 
     if args.discover:
         do_discover(args.config)

@@ -1,9 +1,5 @@
 {
-  "start_date": "2017-11-02T00:00:00Z",
-  "account_id": "776493035568",
-  "role_name": "export-activity-clay-us-east-1-ExportActivityTaskRole",
   "bucket": "wisepipe-data-testing",
-  "external_id": "my_optional_secret_external_id",
   "tables": [
     {
       "search_prefix": "exports/cars/",

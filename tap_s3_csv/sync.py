@@ -9,12 +9,13 @@ import singer
 from tap_s3_csv import csv_iterator
 from tap_s3_csv import s3
 
+
 LOGGER = singer.get_logger()
 
 def sync_stream(config, state, table_spec, stream):
     table_name = table_spec['table_name']
-    modified_since = utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
-                                            config['start_date'])
+    bookmark = singer.get_bookmark(state, table_name, 'modified_since')
+    modified_since = utils.strptime_with_tz(bookmark or '1990-01-01T00:00:00Z') 
 
     LOGGER.info('Syncing table "%s".', table_name)
     LOGGER.info('Getting files modified since %s.', modified_since)
