@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.2
+  * Accepts the table key_properties as both a list and a csv string
+
 ## 1.0.4
   * Skip files when they are empty [#17](https://github.com/singer-io/tap-s3-csv/pull/17)
 
