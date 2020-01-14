@@ -53,6 +53,8 @@ def validate_table_config(config):
     tables_config = json.loads(config['tables'])
 
     for table_config in tables_config:
+        if table_config.get('search_prefix') is None:
+            table_config.pop('search_prefix')
         if table_config.get('key_properties') == "" or table_config.get('key_properties') is None:
             table_config['key_properties'] = []
         elif table_config.get('key_properties'):
