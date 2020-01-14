@@ -193,7 +193,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
 
         if (unmatched_files_count + matched_files_count) % max_files_before_log == 0:
             # Are we skipping greater than 50% of the files?
-            if 0.5 < (unmatched_files_count / (matched_files_count + unmatched_files_count)):
+            if (unmatched_files_count / (matched_files_count + unmatched_files_count)) > 0.5:
                 LOGGER.warn(("Found %s matching files and %s non-matching files. "
                              "You should consider adding a `search_prefix` to the config "
                              "or removing non-matching files from the bucket."),
@@ -202,7 +202,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
                 LOGGER.info("Found %s matching files and %s non-matching files",
                             matched_files_count, unmatched_files_count)
 
-    if 0 == matched_files_count:
+    if matched_files_count == 0:
         raise Exception("No files found matching pattern {}".format(pattern))
 
 
@@ -229,7 +229,7 @@ def list_files_in_bucket(bucket, search_prefix=None):
         s3_object_count += len(page['Contents'])
         yield from page['Contents']
 
-    if 0 < s3_object_count:
+    if s3_object_count > 0:
         LOGGER.info("Found %s files.", s3_object_count)
     else:
         LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
