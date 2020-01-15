@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.3
+  * Fix issue relating to search_prefix config values
+
 ## 1.2.2
   * Accepts the table key_properties as both a list and a csv string
 
