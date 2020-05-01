@@ -85,7 +85,7 @@ def main():
     if args.discover:
         do_discover(args.config)
     elif args.properties:
-        skip_stream_validation = config.get("skip_stream_is_selected", False)
+        skip_stream_validation = str(config.get("skip_stream_is_selected")).lower() == "true"
         if skip_stream_validation:
             do_sync(config, args.properties, args.state, skip_stream_is_selected=skip_stream_validation)
         else:
