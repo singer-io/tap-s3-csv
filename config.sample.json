@@ -1,8 +1,8 @@
 {
-    "start_date": "2000-04-07T00:00:00Z",
-    "account_id": "329341267552",
-    "role_name": "gcp-safegraph-transfer",
-    "bucket": "cherre-sg-data",
+    "start_date": "2017-11-02T00:00:00Z",
+    "account_id": "1234567890",
+    "role_name": "role_with_bucket_access",
+    "bucket": "my-bucket",
     "external_id": "my_optional_secret_external_id",
     "tables": "[{\"search_prefix\":\"brand_info\",\"search_pattern\":\"brand_info\\\\/.*\\\\.csv\",\"table_name\":\"bluths_from_csv\",\"key_properties\":\"\",\"date_overrides\":\"\",\"delimiter\":\",\"}]",
     "skip_stream_is_selected": true
