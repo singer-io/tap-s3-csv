@@ -75,12 +75,12 @@ def main():
 
     config['tables'] = validate_table_config(config)
 
-    try:
-        for page in s3.list_files_in_bucket(config['bucket']):
-            break
-        LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
-    except:
-        s3.setup_aws_client(config)
+    # try:
+    #     for page in s3.list_files_in_bucket(config['bucket']):
+    #         break
+    #     LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
+    # except:
+    s3.setup_aws_client(config)
 
     if args.discover:
         do_discover(args.config)
