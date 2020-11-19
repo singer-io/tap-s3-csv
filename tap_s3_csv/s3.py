@@ -81,7 +81,7 @@ def get_sampled_schema_for_table(config, table_spec):
     if not samples:
         return {}
 
-    data_schema = conversion.generate_schema(samples, table_spec)
+    data_schema = conversion.generate_schema(samples, table_spec, config.get('string_max_length', False))
     return {
         'type': 'object',
         'properties': data_schema

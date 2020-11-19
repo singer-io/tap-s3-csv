@@ -2,6 +2,7 @@ import singer
 
 LOGGER = singer.get_logger()
 
+
 def infer(datum):
     """
     Returns the inferred data type
@@ -16,7 +17,7 @@ def infer(datum):
         pass
 
     try:
-        #numbers are NOT floats, they are DECIMALS
+        # numbers are NOT floats, they are DECIMALS
         float(datum)
         return 'number'
     except (ValueError, TypeError):
@@ -25,10 +26,14 @@ def infer(datum):
     return 'string'
 
 
-def count_sample(sample, counts, table_spec):
+def process_sample(sample, counts, lengths, table_spec):
     for key, value in sample.items():
         if key not in counts:
             counts[key] = {}
+        
+        length = len(value)
+        if key not in lengths or length > lengths[key]:
+            lengths[key] = length
 
         date_overrides = table_spec.get('date_overrides', [])
         if key in date_overrides:
@@ -39,7 +44,7 @@ def count_sample(sample, counts, table_spec):
         if datatype is not None:
             counts[key][datatype] = counts[key].get(datatype, 0) + 1
 
-    return counts
+    return counts, lengths
 
 
 def pick_datatype(counts):
@@ -71,28 +76,31 @@ def pick_datatype(counts):
     return to_return
 
 
-def generate_schema(samples, table_spec):
-    counts = {}
+def generate_schema(samples, table_spec, string_max_length: bool):
+    counts, lengths = {}, {}
     for sample in samples:
-        # {'name' : { 'string' : 45}}
-        counts = count_sample(sample, counts, table_spec)
+        # {'name' : { 'string' : 45}}, {'name': 10}
+        counts, lengths = process_sample(sample, counts, lengths, table_spec)
 
+    schema = {}
     for key, value in counts.items():
         datatype = pick_datatype(value)
 
         if datatype == 'date-time':
-            counts[key] = {
+            schema[key] = {
                 'anyOf': [
                     {'type': ['null', 'string'], 'format': 'date-time'},
                     {'type': ['null', 'string']}
                 ]
             }
+            if string_max_length:
+                schema[key]['anyOf'][1]['maxLength'] = lengths[key]
         else:
             types = ['null', datatype]
             if datatype != 'string':
                 types.append('string')
-            counts[key] = {
-                'type': types,
-            }
+            schema[key] = {'type': types}
+            if string_max_length:
+                schema[key]['maxLength'] = lengths[key]
 
-    return counts
+    return schema
