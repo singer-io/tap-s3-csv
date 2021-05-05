@@ -1,0 +1,102 @@
+{
+  "start_date": "2017-01-01 00:00:00",
+  "bucket": "com-stitchdata-prod-circleci-assets",
+  "account_id": "218546966473",
+  "external_id": "not-used",
+  "role_name": "dev_tap_s3",
+  "tables": [
+    {
+      "table_name": "test_data_types_no_coercion",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_data_types\\.csv$",
+      "key_properties": "",
+      "date_overrides": "date, datetime with tz,datetime with tz space separator,datetime with tz to hour,datetime with tz to microseconds,datetime with tz to milliseconds,datetime with tz to minutes,datetime with tz to seconds,datetime without tz,datetime without tz space separator,datetime without tz to hour,datetime without tz to microseconds,datetime without tz to milliseconds,datetime without tz to minutes,datetime without tz to seconds,time,time to microseconds,time to milliseconds,time to minutes,time to seconds"
+    },
+    {
+      "table_name": "test_switching_data_types",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_switching_data_types\\.csv$",
+      "key_properties": "",
+      "date_overrides": "date_time_to_integer_override"
+    },
+    {
+      "table_name": "header_longer",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/header_longer.csv$",
+      "key_properties": ""
+    },
+    {
+      "table_name": "rows_longer_and_shorter",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/rows_longer_and_shorter.csv$",
+      "key_properties": ""
+    },
+    {
+      "table_name": "header_shorter",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/header_shorter.csv$",
+      "key_properties": ""
+    },
+    {
+      "table_name": "multiple_files_header_different",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/multiple_files_header_different_part.*?csv$",
+      "key_properties": "Three"
+    },
+    {
+      "table_name": "all utf-8 unicode characters",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_unicode_characters\\.csv$",
+      "key_properties": "character"
+    },
+    {
+      "table_name": "pk_unique_values_nullable_and_non_nullable",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/primary_key_unique_values_and_nullable_integers\\.csv$",
+      "key_properties": "key"
+    },
+    {
+      "table_name": "multiple_files_one_stream",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_multiple_file_with_pk.*?\\.csv$",
+      "key_properties": "key, value"
+    },
+    {
+      "table_name": "multiple_files_one_stream_unordered_header",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_header_order_multiple_file_with_pk.*?\\.csv$",
+      "key_properties": "key"
+    },
+    {
+      "table_name": "not real numbers",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_not_real_numbers\\.csv$",
+      "key_properties": ""
+    },
+    {
+      "table_name": "date time min and max values",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_date_time_iso_format_min_max_values\\.csv$",
+      "date_overrides": "date, datetime with tz, datetime without tz, time",
+      "key_properties": ""
+    },
+    {
+      "table_name": "primary key 56 null",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_primary_key_56_null\\.csv$",
+      "key_properties": "id"
+    },
+    {
+      "table_name": "primary key 56 duplicate",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/test_primary_key_56_duplicate\\.csv$",
+      "key_properties": "id"
+    },
+    {
+      "table_name": "problematic headers",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/problematic_header_characters\\.csv$",
+      "key_properties": ""
+    }
+  ]
+}
