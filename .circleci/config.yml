@@ -36,3 +36,21 @@ jobs:
                        --client-id=50 \
                        --token=$STITCH_API_TOKEN \
                        tests
+
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - build:
+          context: circleci-user
+  build_daily:
+    triggers:
+      - schedule:
+          cron: "0 14 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - build:
+          context: circleci-user
