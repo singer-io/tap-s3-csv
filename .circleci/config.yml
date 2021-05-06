@@ -18,7 +18,7 @@ jobs:
           command: |
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
             pip install nose
-            nosetests tests/unittests/
+            nosetests tests
       - add_ssh_keys
       - run:
           name: 'Integration Tests'
