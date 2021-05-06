@@ -71,11 +71,9 @@ class S3Bookmarks(unittest.TestCase):
 
     def get_properties(self):
         return {
-            'start_date' : '2017-01-01 00:00:00',
+            'start_date' : '2017-01-01T00:00:00Z',
             'bucket': 'com-stitchdata-prod-circleci-assets',
             'account_id': '218546966473',
-            'external_id': 'not-used',
-            'role_name': 'dev_tap_s3',
             'tables': "[{\"table_name\": \"chickens\",\"search_prefix\": \"tap_tester\",\"search_pattern\": \"tap_tester/bookmarks.*\",\"key_properties\": \"name\"}]"
         }
 
