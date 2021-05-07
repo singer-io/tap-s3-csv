@@ -1,5 +1,6 @@
 import sys
 import csv
+import json
 
 from singer import metadata
 from singer import Transformer
@@ -39,7 +40,7 @@ def sync_stream(config, state, table_spec, stream):
 
     return records_streamed
 
-def sync_table_file(config, s3_path, table_spec, stream):
+def sync_csv_file(config, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     bucket = config['bucket']
@@ -76,3 +77,62 @@ def sync_table_file(config, s3_path, table_spec, stream):
         records_synced += 1
 
     return records_synced
+
+def sync_jsonl_file(config, s3_path, table_spec, stream):
+    LOGGER.info('Syncing file "%s".', s3_path)
+
+    bucket = config['bucket']
+    table_name = table_spec['table_name']
+
+    file_handle = s3.get_file_handle(config, s3_path)._raw_stream    
+    iterator = file_handle
+
+    records_synced = 0
+
+    for row in iterator:
+
+        row = json.loads(row.decode('utf-8'))
+        
+        custom_columns = {
+            s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
+            s3.SDC_SOURCE_FILE_COLUMN: s3_path,
+
+            # index zero and then starting from 1
+            s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 1
+        }
+        rec = {**row, **custom_columns}
+
+        with Transformer() as transformer:
+            to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+
+        value = [ {field:rec[field]} for field in set(rec) - set(to_write) ]
+
+        if value:
+            extra_data = {
+                s3.SDC_EXTRA_COLUMN: value
+            }
+            update_to_write = {**to_write,**extra_data}
+        else:
+            update_to_write = to_write
+
+        # Transform again to validate _sdc_extra value.
+        with Transformer() as transformer:
+            update_to_write = transformer.transform(update_to_write, stream['schema'], metadata.to_map(stream['metadata']))
+
+        singer.write_record(table_name, update_to_write)
+        records_synced += 1
+
+    return records_synced
+
+
+def sync_table_file(config, s3_path, table_spec, stream):
+
+    extention = s3_path.split(".").pop().lower()
+    
+    if extention == "csv":
+        return sync_csv_file(config, s3_path, table_spec, stream)
+    elif extention == "jsonl":
+        return sync_jsonl_file(config, s3_path, table_spec, stream)
+    else:
+        LOGGER.warning("File having this .{} will not be synced.".format(extention))
+        return 0
