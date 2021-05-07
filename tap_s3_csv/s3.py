@@ -1,9 +1,9 @@
 import itertools
 import re
+import json
 import backoff
 import boto3
 import singer
-import json
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -203,7 +203,7 @@ def sample_file(config, table_spec, s3_path, sample_rate):
             table_spec, check_jsonl_sample_records)
         return jsonl_sample_records
     else:
-        iterator = []
+        return []
 
 
 # pylint: disable=too-many-arguments
