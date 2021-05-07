@@ -12,6 +12,7 @@ from tap_s3_csv import s3
 
 LOGGER = singer.get_logger()
 
+
 def sync_stream(config, state, table_spec, stream):
     table_name = table_spec['table_name']
     modified_since = utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
@@ -33,12 +34,15 @@ def sync_stream(config, state, table_spec, stream):
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
 
-        state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
+        state = singer.write_bookmark(
+            state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
         singer.write_state(state)
 
-    LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
+    LOGGER.info('Wrote %s records for table "%s".',
+                records_streamed, table_name)
 
     return records_streamed
+
 
 def sync_csv_file(config, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
@@ -56,7 +60,7 @@ def sync_csv_file(config, s3_path, table_spec, stream):
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
     iterator = singer_encodings_csv.get_row_iterator(
-        s3_file_handle._raw_stream, table_spec) #pylint:disable=protected-access
+        s3_file_handle._raw_stream, table_spec)  # pylint:disable=protected-access
 
     records_synced = 0
 
@@ -71,12 +75,14 @@ def sync_csv_file(config, s3_path, table_spec, stream):
         rec = {**row, **custom_columns}
 
         with Transformer() as transformer:
-            to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+            to_write = transformer.transform(
+                rec, stream['schema'], metadata.to_map(stream['metadata']))
 
         singer.write_record(table_name, to_write)
         records_synced += 1
 
     return records_synced
+
 
 def sync_jsonl_file(config, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
@@ -84,7 +90,7 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
     bucket = config['bucket']
     table_name = table_spec['table_name']
 
-    file_handle = s3.get_file_handle(config, s3_path)._raw_stream    
+    file_handle = s3.get_file_handle(config, s3_path)._raw_stream
     iterator = file_handle
 
     records_synced = 0
@@ -92,7 +98,7 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
     for row in iterator:
 
         row = json.loads(row.decode('utf-8'))
-        
+
         custom_columns = {
             s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
             s3.SDC_SOURCE_FILE_COLUMN: s3_path,
@@ -103,21 +109,23 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
         rec = {**row, **custom_columns}
 
         with Transformer() as transformer:
-            to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+            to_write = transformer.transform(
+                rec, stream['schema'], metadata.to_map(stream['metadata']))
 
-        value = [ {field:rec[field]} for field in set(rec) - set(to_write) ]
+        value = [{field: rec[field]} for field in set(rec) - set(to_write)]
 
         if value:
             extra_data = {
                 s3.SDC_EXTRA_COLUMN: value
             }
-            update_to_write = {**to_write,**extra_data}
+            update_to_write = {**to_write, **extra_data}
         else:
             update_to_write = to_write
 
         # Transform again to validate _sdc_extra value.
         with Transformer() as transformer:
-            update_to_write = transformer.transform(update_to_write, stream['schema'], metadata.to_map(stream['metadata']))
+            update_to_write = transformer.transform(
+                update_to_write, stream['schema'], metadata.to_map(stream['metadata']))
 
         singer.write_record(table_name, update_to_write)
         records_synced += 1
@@ -128,11 +136,12 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
 def sync_table_file(config, s3_path, table_spec, stream):
 
     extention = s3_path.split(".").pop().lower()
-    
+
     if extention == "csv":
         return sync_csv_file(config, s3_path, table_spec, stream)
     elif extention == "jsonl":
         return sync_jsonl_file(config, s3_path, table_spec, stream)
     else:
-        LOGGER.warning("File having this .{} will not be synced.".format(extention))
+        LOGGER.warning(
+            "File having this .{} will not be synced.".format(extention))
         return 0

@@ -2,7 +2,8 @@ import singer
 
 LOGGER = singer.get_logger()
 
-def infer(key,datum,date_overrides):
+
+def infer(key, datum, date_overrides):
     """
     Returns the inferred data type
     """
@@ -16,7 +17,7 @@ def infer(key,datum,date_overrides):
             if not datum:
                 return "list"
             else:
-                return "list." + infer(key,datum[0],date_overrides)
+                return "list." + infer(key, datum[0], date_overrides)
         if key in date_overrides:
             return "date-time"
         elif type(datum) is int:
@@ -35,7 +36,7 @@ def count_sample(sample, counts, table_spec):
             counts[key] = {}
 
         date_overrides = table_spec.get('date_overrides', [])
-        datatype = infer(key,value,date_overrides)
+        datatype = infer(key, value, date_overrides)
 
         if datatype is not None:
             counts[key][datatype] = counts[key].get(datatype, 0) + 1
@@ -63,14 +64,14 @@ def pick_datatype(counts):
 
     if counts.get('list.integer', 0) > 0:
         return 'list.integer'
-    elif counts.get('list.number', 0) > 0: 
+    elif counts.get('list.number', 0) > 0:
         return 'list.number'
-    elif counts.get('list.date-time', 0) > 0: 
+    elif counts.get('list.date-time', 0) > 0:
         return 'list.date-time'
     elif counts.get('list.string', 0) > 0:
-        return 'list.string' 
+        return 'list.string'
     elif counts.get('list', 0) > 0:
-        return 'list' 
+        return 'list'
 
     if len(counts) == 1:
         if counts.get('integer', 0) > 0:
@@ -102,12 +103,13 @@ def generate_schema(samples, table_spec):
         elif datatype == "list":
             counts[key] = {
                 'type': "array",
-                "items": ['null','string']
+                "items": ['null', 'string']
             }
         else:
             counts[key] = datatype_schema(datatype)
 
     return counts
+
 
 def datatype_schema(datatype):
     if datatype == 'date-time':

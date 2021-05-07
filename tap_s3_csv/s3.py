@@ -33,7 +33,8 @@ def retry_pattern():
 
 
 def log_backoff_attempt(details):
-    LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
+    LOGGER.info(
+        "Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
 
 
 class AssumeRoleProvider():
@@ -81,7 +82,8 @@ def get_sampled_schema_for_table(config, table_spec):
 
     s3_files_gen = get_input_files_for_table(config, table_spec)
 
-    samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
+    samples = [sample for sample in sample_files(
+        config, table_spec, s3_files_gen)]
 
     if not samples:
         return {}
@@ -100,6 +102,7 @@ def get_sampled_schema_for_table(config, table_spec):
         'properties': merge_dicts(data_schema, metadata_schema)
     }
 
+
 def merge_dicts(first, second):
     to_return = first.copy()
 
@@ -115,8 +118,9 @@ def merge_dicts(first, second):
 
     return to_return
 
+
 def get_records_for_csv(s3_path, sample_rate, iterator):
-    
+
     current_row = 0
     sampled_row_count = 0
 
@@ -137,9 +141,9 @@ def get_records_for_csv(s3_path, sample_rate, iterator):
 
 
 def get_records_for_jsonl(s3_path, sample_rate, iterator):
-    
+
     current_row = 0
-    sampled_row_count = 0    
+    sampled_row_count = 0
 
     for row in iterator:
 
@@ -155,7 +159,8 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
 
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
-def check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_sample_records):
+
+def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records):
     all_keys = []
     for record in jsonl_sample_records:
         keys = record.keys()
@@ -164,7 +169,7 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_samp
                 all_keys.append(key)
 
     unique_headers = set(all_keys)
-    
+
     if table_spec.get('key_properties'):
         key_properties = set(table_spec['key_properties'])
         if not key_properties.issubset(unique_headers):
@@ -178,22 +183,25 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_samp
                             .format(date_overrides - unique_headers))
 
 
-
 def sample_file(config, table_spec, s3_path, sample_rate):
 
     file_handle = get_file_handle(config, s3_path)._raw_stream
-        
+
     extention = s3_path.split(".")[-1].lower()
 
     if extention == "csv":
-        iterator = csv.get_row_iterator(file_handle, table_spec) #pylint:disable=protected-access
+        iterator = csv.get_row_iterator(
+            file_handle, table_spec)  # pylint:disable=protected-access
         return get_records_for_csv(s3_path, sample_rate, iterator)
     elif extention == "jsonl":
         iterator = file_handle
-        jsonl_sample_records = get_records_for_jsonl(s3_path, sample_rate, iterator)
-        check_jsonl_sample_records,jsonl_sample_records = itertools.tee(jsonl_sample_records)
-        check_key_properties_and_date_overrides_for_jsonl_file(table_spec,check_jsonl_sample_records)
-        return jsonl_sample_records 
+        jsonl_sample_records = get_records_for_jsonl(
+            s3_path, sample_rate, iterator)
+        check_jsonl_sample_records, jsonl_sample_records = itertools.tee(
+            jsonl_sample_records)
+        check_key_properties_and_date_overrides_for_jsonl_file(
+            table_spec, check_jsonl_sample_records)
+        return jsonl_sample_records
     else:
         iterator = []
 
@@ -291,7 +299,8 @@ def list_files_in_bucket(bucket, search_prefix=None):
     if s3_object_count > 0:
         LOGGER.info("Found %s files.", s3_object_count)
     else:
-        LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
+        LOGGER.warning(
+            'Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
 
 
 @retry_pattern()
