@@ -11,18 +11,18 @@ def infer(key, datum, date_overrides):
         return None
 
     try:
-        if type(datum) is dict:
+        if isinstance(datum,dict):
             return 'dict'
-        elif type(datum) is list:
+        elif isinstance(datum,list):
             if not datum:
                 return "list"
             else:
                 return "list." + infer(key, datum[0], date_overrides)
-        if key in date_overrides:
+        elif key in date_overrides:
             return "date-time"
-        elif type(datum) is int:
+        elif isinstance(datum,int):
             return 'integer'
-        elif type(datum) is float:
+        elif isinstance(datum,float):
             return 'number'
     except (ValueError, TypeError):
         pass
