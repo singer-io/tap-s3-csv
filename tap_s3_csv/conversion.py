@@ -56,21 +56,21 @@ def pick_datatype(counts):
     """
     to_return = 'string'
 
-    if counts.get('date-time', 0) > 0:
-        return 'date-time'
-
-    if counts.get('list.dict', 0) > 0:
+    if counts.get('list.date-time', 0) > 0:
+        return 'list.date-time'
+    elif counts.get('list.dict', 0) > 0:
         return 'list.dict'
     if counts.get('list.integer', 0) > 0:
         return 'list.integer'
     elif counts.get('list.number', 0) > 0:
         return 'list.number'
-    elif counts.get('list.date-time', 0) > 0:
-        return 'list.date-time'
     elif counts.get('list.string', 0) > 0:
         return 'list.string'
     elif counts.get('list', 0) > 0:
         return 'list'
+
+    if counts.get('date-time', 0) > 0:
+        return 'date-time'
 
     if counts.get('dict', 0) > 0:
         return 'dict'
