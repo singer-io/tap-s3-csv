@@ -15,11 +15,11 @@ def infer(key, datum, date_overrides):
     try:
         if isinstance(datum, list):
             if not datum:
-                return "list"
-            return "list." + infer(key, datum[0], date_overrides)
+                return 'list'
+            return 'list.' + infer(key, datum[0], date_overrides)
 
         if key in date_overrides:
-            return "date-time"
+            return 'date-time'
 
         for datatype in data_type_list:
             if isinstance(datum, datatype):
@@ -28,7 +28,7 @@ def infer(key, datum, date_overrides):
     except (ValueError, TypeError):
         pass
 
-    return "string"
+    return 'string'
 
 
 def count_sample(sample, counts, table_spec):
@@ -85,19 +85,19 @@ def generate_schema(samples, table_spec):
         counts = count_sample(sample, counts, table_spec)
     for key, value in counts.items():
         datatype = pick_datatype(value)
-        if "list." in datatype:
-            child_datatype = datatype.split(".")[-1]
+        if 'list.' in datatype:
+            child_datatype = datatype.split('.')[-1]
             counts[key] = {
-                "anyOf": [
-                    {'type': "array", "items": datatype_schema(
+                'anyOf': [
+                    {'type': 'array', 'items': datatype_schema(
                         child_datatype)},
                     {'type': ['null', 'string']}
                 ]
             }
-        elif datatype == "list":
+        elif datatype == 'list':
             counts[key] = {
-                "anyOf": [
-                    {'type': "array", "items": ['null', 'string']},
+                'anyOf': [
+                    {'type': 'array', 'items': ['null', 'string']},
                     {'type': ['null', 'string']}
                 ]
             }
@@ -115,10 +115,10 @@ def datatype_schema(datatype):
                 {'type': ['null', 'string']}
             ]
         }
-    elif datatype == "dict":
+    elif datatype == 'dict':
         schema = {
-            "anyOf": [
-                {"type": "object", "properties": {}},
+            'anyOf': [
+                {'type': 'object', 'properties': {}},
                 {'type': ['null', 'string']}
             ]
         }
