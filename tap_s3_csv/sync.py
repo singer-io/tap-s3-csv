@@ -137,11 +137,12 @@ def sync_table_file(config, s3_path, table_spec, stream):
 
     extention = s3_path.split(".").pop().lower()
 
+    records_synced = 0
     if extention == "csv":
-        return sync_csv_file(config, s3_path, table_spec, stream)
+        records_synced = sync_csv_file(config, s3_path, table_spec, stream)
     elif extention == "jsonl":
-        return sync_jsonl_file(config, s3_path, table_spec, stream)
+        records_synced =  sync_jsonl_file(config, s3_path, table_spec, stream)
     else:
         LOGGER.warning(
-            "File having this .{} will not be synced.".format(extention))
-        return 0
+            "File having this %s will not be synced.",extention)
+    return records_synced

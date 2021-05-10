@@ -2,6 +2,8 @@ import singer
 
 LOGGER = singer.get_logger()
 
+data_type_list = {dict: 'dict', int: 'integer', float: 'number'}
+
 
 def infer(key, datum, date_overrides):
     """
@@ -14,20 +16,19 @@ def infer(key, datum, date_overrides):
         if isinstance(datum, list):
             if not datum:
                 return "list"
-            else:
-                return "list." + infer(key, datum[0], date_overrides)
-        elif key in date_overrides:
+            return "list." + infer(key, datum[0], date_overrides)
+
+        if key in date_overrides:
             return "date-time"
-        elif isinstance(datum, dict):
-            return 'dict'
-        elif isinstance(datum, int):
-            return 'integer'
-        elif isinstance(datum, float):
-            return 'number'
+
+        for datatype in data_type_list:
+            if isinstance(datum, datatype):
+                return data_type_list[datatype]
+
     except (ValueError, TypeError):
         pass
 
-    return 'string'
+    return "string"
 
 
 def count_sample(sample, counts, table_spec):
@@ -56,36 +57,24 @@ def pick_datatype(counts):
     """
     to_return = 'string'
 
-    if counts.get('list.date-time', 0) > 0:
-        return 'list.date-time'
-    elif counts.get('list.dict', 0) > 0:
-        return 'list.dict'
-    if counts.get('list.integer', 0) > 0:
-        return 'list.integer'
-    elif counts.get('list.number', 0) > 0:
-        return 'list.number'
-    elif counts.get('list.string', 0) > 0:
-        return 'list.string'
-    elif counts.get('list', 0) > 0:
-        return 'list'
+    list_of_datatypes = ['list.date-time', 'list.dict', 'list.integer',
+                         'list.number', 'list.string', 'list', 'date-time', 'dict']
 
-    if counts.get('date-time', 0) > 0:
-        return 'date-time'
-
-    if counts.get('dict', 0) > 0:
-        return 'dict'
+    for data_types in list_of_datatypes:
+        if counts.get(data_types, 0) > 0:
+            return data_types
 
     if len(counts) == 1:
         if counts.get('integer', 0) > 0:
             to_return = 'integer'
         elif counts.get('number', 0) > 0:
             to_return = 'number'
-
     elif(len(counts) == 2 and
          counts.get('integer', 0) > 0 and
          counts.get('number', 0) > 0):
         to_return = 'number'
-
+    else:
+        to_return = 'string'
     return to_return
 
 
@@ -120,14 +109,14 @@ def generate_schema(samples, table_spec):
 
 def datatype_schema(datatype):
     if datatype == 'date-time':
-        return {
+        schema = {
             'anyOf': [
                 {'type': ['null', 'string'], 'format': 'date-time'},
                 {'type': ['null', 'string']}
             ]
         }
     elif datatype == "dict":
-        return {
+        schema = {
             "anyOf": [
                 {"type": "object", "properties": {}},
                 {'type': ['null', 'string']}
@@ -137,6 +126,7 @@ def datatype_schema(datatype):
         types = ['null', datatype]
         if datatype != 'string':
             types.append('string')
-        return {
+        schema = {
             'type': types,
         }
+    return schema

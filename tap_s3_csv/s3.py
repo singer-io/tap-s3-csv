@@ -189,21 +189,23 @@ def sample_file(config, table_spec, s3_path, sample_rate):
 
     extention = s3_path.split(".")[-1].lower()
 
+    records = []
+
     if extention == "csv":
         iterator = csv.get_row_iterator(
             file_handle, table_spec)  # pylint:disable=protected-access
-        return get_records_for_csv(s3_path, sample_rate, iterator)
+        records = get_records_for_csv(s3_path, sample_rate, iterator)
     elif extention == "jsonl":
         iterator = file_handle
-        jsonl_sample_records = get_records_for_jsonl(
+        records = get_records_for_jsonl(
             s3_path, sample_rate, iterator)
-        check_jsonl_sample_records, jsonl_sample_records = itertools.tee(
-            jsonl_sample_records)
+        check_jsonl_sample_records, records = itertools.tee(
+            records)
         check_key_properties_and_date_overrides_for_jsonl_file(
             table_spec, check_jsonl_sample_records)
-        return jsonl_sample_records
     else:
-        return []
+        pass
+    return records
 
 
 # pylint: disable=too-many-arguments
