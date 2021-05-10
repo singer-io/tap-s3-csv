@@ -11,18 +11,18 @@ def infer(key, datum, date_overrides):
         return None
 
     try:
-        if isinstance(datum,dict):
+        if isinstance(datum, dict):
             return 'dict'
-        elif isinstance(datum,list):
+        elif isinstance(datum, list):
             if not datum:
                 return "list"
             else:
                 return "list." + infer(key, datum[0], date_overrides)
         elif key in date_overrides:
             return "date-time"
-        elif isinstance(datum,int):
+        elif isinstance(datum, int):
             return 'integer'
-        elif isinstance(datum,float):
+        elif isinstance(datum, float):
             return 'number'
     except (ValueError, TypeError):
         pass
@@ -97,13 +97,18 @@ def generate_schema(samples, table_spec):
         if "list." in datatype:
             child_datatype = datatype.split(".")[-1]
             counts[key] = {
-                'type': "array",
-                "items": datatype_schema(child_datatype)
+                "anyOf": [
+                    {'type': "array", "items": datatype_schema(
+                        child_datatype)},
+                    {'type': ['null', 'string']}
+                ]
             }
         elif datatype == "list":
             counts[key] = {
-                'type': "array",
-                "items": ['null', 'string']
+                "anyOf": [
+                    {'type': "array", "items": ['null', 'string']},
+                    {'type': ['null', 'string']}
+                ]
             }
         else:
             counts[key] = datatype_schema(datatype)
@@ -121,8 +126,10 @@ def datatype_schema(datatype):
         }
     elif datatype == "dict":
         return {
-            "type": "object",
-            "properties": {}
+            "anyOf": [
+                {"type": "object", "properties": {}},
+                {'type': ['null', 'string']}
+            ]
         }
     else:
         types = ['null', datatype]
