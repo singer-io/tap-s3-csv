@@ -11,15 +11,15 @@ def infer(key, datum, date_overrides):
         return None
 
     try:
-        if isinstance(datum, dict):
-            return 'dict'
-        elif isinstance(datum, list):
+        if isinstance(datum, list):
             if not datum:
                 return "list"
             else:
                 return "list." + infer(key, datum[0], date_overrides)
         elif key in date_overrides:
             return "date-time"
+        elif isinstance(datum, dict):
+            return 'dict'
         elif isinstance(datum, int):
             return 'integer'
         elif isinstance(datum, float):
@@ -59,9 +59,8 @@ def pick_datatype(counts):
     if counts.get('date-time', 0) > 0:
         return 'date-time'
 
-    if counts.get('dict', 0) > 0:
-        return 'dict'
-
+    if counts.get('list.dict', 0) > 0:
+        return 'list.dict'
     if counts.get('list.integer', 0) > 0:
         return 'list.integer'
     elif counts.get('list.number', 0) > 0:
@@ -72,6 +71,9 @@ def pick_datatype(counts):
         return 'list.string'
     elif counts.get('list', 0) > 0:
         return 'list'
+
+    if counts.get('dict', 0) > 0:
+        return 'dict'
 
     if len(counts) == 1:
         if counts.get('integer', 0) > 0:
