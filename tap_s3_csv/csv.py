@@ -84,7 +84,7 @@ def get_row_iterator(iterable, options=None):
 
     if len(dup_headers_idxs) > 0:
         duplicate_headers = set(map(all_csv_headers.__getitem__, dup_headers_idxs))
-        LOGGER.warn("Duplicate Header(s) %s found in the csv and its value will be stored in the \"_sdc_extra\" field",duplicate_headers)
+        LOGGER.warn("Duplicate Header(s) %s found in the csv and its value will be stored in the \"_sdc_extra\" field.",duplicate_headers)
 
     if options.get('key_properties'):
         key_properties = set(options['key_properties'])

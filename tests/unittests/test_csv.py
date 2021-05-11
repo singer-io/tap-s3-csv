@@ -73,7 +73,7 @@ class TestWarningForDupHeaders(unittest.TestCase):
         rows = [r for r in row_iterator]
         self.assertEqual(list(rows[0].keys()), ["columnA","columnB","columnC"])
 
-        mocked_logger.assert_called_with('Duplicate Header(s) %s found in the csv.', {'columnC'})
+        mocked_logger.assert_called_with('Duplicate Header(s) %s found in the csv and its value will be stored in the \"_sdc_extra\" field.', {'columnC'})
 
 class TestOptions(unittest.TestCase):
 
