@@ -2,13 +2,13 @@ import singer
 
 LOGGER = singer.get_logger()
 
-data_type_list = {dict: 'dict', int: 'integer', float: 'number'}
-
-
 def infer(key, datum, date_overrides, check_second_call=False):
     """
     Returns the inferred data type
     """
+
+    data_type_list = {dict: 'dict', int: 'integer', float: 'number'}
+    
     if datum is None or datum == '':
         return None
 
@@ -80,8 +80,7 @@ def pick_datatype(counts):
          counts.get('integer', 0) > 0 and
          counts.get('number', 0) > 0):
         to_return = 'number'
-    else:
-        to_return = 'string'
+
     return to_return
 
 

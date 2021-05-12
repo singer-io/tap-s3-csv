@@ -161,26 +161,23 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
 
 
 def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records):
-    all_keys = []
+
+    all_keys = set()
     for record in jsonl_sample_records:
         keys = record.keys()
-        for key in keys:
-            if key not in all_keys:
-                all_keys.append(key)
-
-    unique_headers = set(all_keys)
+        all_keys.update(keys)
 
     if table_spec.get('key_properties'):
         key_properties = set(table_spec['key_properties'])
-        if not key_properties.issubset(unique_headers):
+        if not key_properties.issubset(all_keys):
             raise Exception('JSONL file missing required key_properties key: {}'
-                            .format(key_properties - unique_headers))
+                            .format(key_properties - all_keys))
 
     if table_spec.get('date_overrides'):
         date_overrides = set(table_spec['date_overrides'])
-        if not date_overrides.issubset(unique_headers):
+        if not date_overrides.issubset(all_keys):
             raise Exception('JSONL file missing date_overrides key: {}'
-                            .format(date_overrides - unique_headers))
+                            .format(date_overrides - all_keys))
 
 
 def sample_file(config, table_spec, s3_path, sample_rate):
