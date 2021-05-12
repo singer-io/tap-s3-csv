@@ -2,13 +2,14 @@ import singer
 
 LOGGER = singer.get_logger()
 
+
 def infer(key, datum, date_overrides, check_second_call=False):
     """
     Returns the inferred data type
     """
 
     data_type_list = {dict: 'dict', int: 'integer', float: 'number'}
-    
+
     if datum is None or datum == '':
         return None
 
