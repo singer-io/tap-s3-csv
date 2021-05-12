@@ -38,6 +38,10 @@ class TestConversion(unittest.TestCase):
         res = conversion.infer(None,[5,6],[])
         self.assertEqual(res, "list.integer")
 
+    def test_infer_datum_equals_to_list_list(self):
+        res = conversion.infer(None,[[5,6],6],[])
+        self.assertEqual(res, "list.string")
+
     def test_infer_datum_equals_to_list_number(self):
         res = conversion.infer(None,[5.9,6.9],[])
         self.assertEqual(res, "list.number")

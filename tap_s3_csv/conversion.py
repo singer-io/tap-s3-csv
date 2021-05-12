@@ -5,7 +5,7 @@ LOGGER = singer.get_logger()
 data_type_list = {dict: 'dict', int: 'integer', float: 'number'}
 
 
-def infer(key, datum, date_overrides):
+def infer(key, datum, date_overrides, check_second_call=False):
     """
     Returns the inferred data type
     """
@@ -14,9 +14,16 @@ def infer(key, datum, date_overrides):
 
     try:
         if isinstance(datum, list):
-            if not datum:
-                return 'list'
-            return 'list.' + infer(key, datum[0], date_overrides)
+            data_type = 'string'
+            if check_second_call:
+                LOGGER.warning(
+                    'Unsupported type for "%s", List inside list is not supported hence will be treated as a string', key)
+            elif not datum:
+                data_type = 'list'
+            else:
+                data_type = 'list.' + \
+                    infer(key, datum[0], date_overrides, True)
+            return data_type
 
         if key in date_overrides:
             return 'date-time'
