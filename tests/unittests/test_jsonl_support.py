@@ -143,24 +143,27 @@ class TestJsonlSupport(unittest.TestCase):
         try:
             table_spec = {'search_prefix': '', 'search_pattern': 'test\\/.*\\.jsonl', 'table_name': 'jsonl_table', 'key_properties': ['idea'],'date_overrides': ['created_at'], 'delimiter': ','}
             jsonl_sample_records = [{"name":"test4","id":"4","tt":"tetete","ab":"bb","mark11":["221","222"],"student11":{"no":5,"col":6}}]
-            s3.check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_sample_records)
+            s3_path = "test.jsonl"
+            s3.check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_sample_records,s3_path)
         except Exception as err:
-            expected_message = "JSONL file missing required key_properties key: {'idea'}"
+            expected_message = "JSONL file \"test.jsonl\" is missing required key_properties key: {'idea'}"
             self.assertEqual(str(err),expected_message)
 
     def test_check_key_properties_and_date_overrides_for_jsonl_file_date_overrides_not_available(self):
         try:
             table_spec = {'search_prefix': '', 'search_pattern': 'test\\/.*\\.jsonl', 'table_name': 'jsonl_table', 'key_properties': ['id'],'date_overrides': ['created_at'], 'delimiter': ','}
             jsonl_sample_records = [{"name":"test4","id":"4","tt":"tetete","ab":"bb","mark11":["221","222"],"student11":{"no":5,"col":6}}]
-            s3.check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_sample_records)
+            s3_path = "test.jsonl"
+            s3.check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_sample_records,s3_path)
         except Exception as err:
-            expected_message = "JSONL file missing date_overrides key: {'created_at'}"
+            expected_message = "JSONL file \"test.jsonl\" is missing date_overrides key: {'created_at'}"
             self.assertEqual(str(err),expected_message)
 
     def test_check_key_properties_and_date_overrides_for_jsonl_file_no_exception(self):
         try:
             table_spec = {'search_prefix': '', 'search_pattern': 'test\\/.*\\.jsonl', 'table_name': 'jsonl_table', 'key_properties': ['id'],'date_overrides': ['created_at'], 'delimiter': ','}
             jsonl_sample_records = [{"name":"test4","id":"4","tt":"tetete","ab":"bb","mark11":["221","222"],"created_at":"24-12-1996","student11":{"no":5,"col":6}}]
-            s3.check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_sample_records)
+            s3_path = "test.jsonl"
+            s3.check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_sample_records,s3_path)
         except Exception as err:
             pass
