@@ -97,7 +97,11 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
 
     for row in iterator:
 
-        row = json.loads(row.decode('utf-8'))
+        decoded_row = row.decode('utf-8')
+        if decoded_row.strip():
+            row = json.loads(decoded_row)
+        else:
+            continue
 
         custom_columns = {
             s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
