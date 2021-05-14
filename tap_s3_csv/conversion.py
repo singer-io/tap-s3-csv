@@ -29,7 +29,7 @@ def infer(key, datum, date_overrides, check_second_call=False):
         if key in date_overrides:
             return 'date-time'
 
-        if isinstance(datum,dict):
+        if isinstance(datum, dict):
             return 'dict'
 
         for datatype in data_type_list:
@@ -37,7 +37,7 @@ def infer(key, datum, date_overrides, check_second_call=False):
                 if datatype(datum):
                     return data_type_list[datatype]
             except (ValueError, TypeError):
-                pass 
+                pass
 
     except (ValueError, TypeError):
         pass

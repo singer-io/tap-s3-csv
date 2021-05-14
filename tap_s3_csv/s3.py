@@ -176,13 +176,13 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
         key_properties = set(table_spec['key_properties'])
         if not key_properties.issubset(all_keys):
             raise Exception('JSONL file "{}" is missing required key_properties key: {}'
-                            .format(s3_path,key_properties - all_keys))
+                            .format(s3_path, key_properties - all_keys))
 
     if table_spec.get('date_overrides'):
         date_overrides = set(table_spec['date_overrides'])
         if not date_overrides.issubset(all_keys):
             raise Exception('JSONL file "{}" is missing date_overrides key: {}'
-                            .format(s3_path,date_overrides - all_keys))
+                            .format(s3_path, date_overrides - all_keys))
 
 
 def sample_file(config, table_spec, s3_path, sample_rate):
@@ -205,8 +205,10 @@ def sample_file(config, table_spec, s3_path, sample_rate):
             records)
         jsonl_sample_records = list(check_jsonl_sample_records)
         if len(jsonl_sample_records) == 0:
-            LOGGER.exception('No row sampled, Please check your JSONL file %s',s3_path)
-            raise Exception('No row sampled, Please check your JSONL file {}'.format(s3_path))
+            LOGGER.exception(
+                'No row sampled, Please check your JSONL file %s', s3_path)
+            raise Exception(
+                'No row sampled, Please check your JSONL file {}'.format(s3_path))
         check_key_properties_and_date_overrides_for_jsonl_file(
             table_spec, jsonl_sample_records, s3_path)
     else:
