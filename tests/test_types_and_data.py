@@ -528,8 +528,6 @@ class S3TypesAndData(unittest.TestCase):
         exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
         menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
 
-    def test_zzzv_stream_counts_and_pks(self):
-
         # Verify actual rows were synced
         record_count_by_stream = runner.examine_target_output_file(
             self,
@@ -551,7 +549,6 @@ class S3TypesAndData(unittest.TestCase):
 
         print("total replicated row count: {}".format(replicated_row_count))
 
-    def test_zzzw_non_rectangular_files(self):
         synced_records = runner.get_records_from_target_output()
 
         # verify that when header is longer, the end columns have null values
