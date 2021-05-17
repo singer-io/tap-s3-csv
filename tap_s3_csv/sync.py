@@ -116,6 +116,7 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
             to_write = transformer.transform(
                 rec, stream['schema'], metadata.to_map(stream['metadata']))
 
+        # collecting the value which was removed in transform to add those in _sdc_extra
         value = [{field: rec[field]} for field in set(rec) - set(to_write)]
 
         if value:
@@ -139,14 +140,14 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
 
 def sync_table_file(config, s3_path, table_spec, stream):
 
-    extention = s3_path.split(".").pop().lower()
+    extension = s3_path.split(".").pop().lower()
 
     records_synced = 0
-    if extention == "csv":
+    if extension == "csv" or extension == "txt":
         records_synced = sync_csv_file(config, s3_path, table_spec, stream)
-    elif extention == "jsonl":
+    elif extension == "jsonl":
         records_synced = sync_jsonl_file(config, s3_path, table_spec, stream)
     else:
         LOGGER.warning(
-            "File having this %s will not be synced.", extention)
+            "'%s' having the '.%s' extension will not be synced.", s3_path, extension)
     return records_synced

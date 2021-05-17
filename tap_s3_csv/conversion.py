@@ -34,7 +34,7 @@ def infer(key, datum, date_overrides, check_second_call=False):
 
         for datatype in data_type_list:
             try:
-                if datatype(datum) == datum:
+                if str(datatype(datum)) == str(datum):
                     return data_type_list[datatype]
             except (ValueError, TypeError):
                 pass

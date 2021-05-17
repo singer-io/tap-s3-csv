@@ -148,9 +148,6 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
     for row in iterator:
 
         if (current_row % sample_rate) == 0:
-            if (sampled_row_count % 200) == 0:
-                LOGGER.info("Sampled %s rows from %s",
-                            sampled_row_count, s3_path)
             decoded_row = row.decode('utf-8')
             if decoded_row.strip():
                 row = json.loads(decoded_row)
@@ -158,6 +155,9 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
                 current_row += 1
                 continue
             sampled_row_count += 1
+            if (sampled_row_count % 200) == 0:
+                LOGGER.info("Sampled %s rows from %s",
+                            sampled_row_count, s3_path)
             yield row
 
         current_row += 1
@@ -189,15 +189,15 @@ def sample_file(config, table_spec, s3_path, sample_rate):
 
     file_handle = get_file_handle(config, s3_path)._raw_stream
 
-    extention = s3_path.split(".")[-1].lower()
+    extension = s3_path.split(".")[-1].lower()
 
     records = []
 
-    if extention == "csv":
+    if extension == "csv" or extension == "txt":
         iterator = csv.get_row_iterator(
             file_handle, table_spec)  # pylint:disable=protected-access
         records = get_records_for_csv(s3_path, sample_rate, iterator)
-    elif extention == "jsonl":
+    elif extension == "jsonl":
         iterator = file_handle
         records = get_records_for_jsonl(
             s3_path, sample_rate, iterator)
@@ -212,6 +212,8 @@ def sample_file(config, table_spec, s3_path, sample_rate):
         check_key_properties_and_date_overrides_for_jsonl_file(
             table_spec, jsonl_sample_records, s3_path)
     else:
+        LOGGER.warning(
+            "'%s' having the '.%s' extension will not be sampled.", s3_path, extension)
         pass
     return records
 
