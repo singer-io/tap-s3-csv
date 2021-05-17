@@ -12,7 +12,13 @@ jobs:
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
             pip install .
             pip install pylint
-            pylint tap_s3_csv -d missing-docstring,invalid-name,line-too-long,too-many-locals,too-few-public-methods,fixme,stop-iteration-return,broad-except,bare-except,unused-variable,unnecessary-comprehension,no-member,deprecated-method
+            pylint tap_s3_csv -d missing-docstring,invalid-name,line-too-long,too-many-locals,too-few-public-methods,fixme,stop-iteration-return,broad-except,bare-except,unused-variable,unnecessary-comprehension,no-member,deprecated-method,protected-access
+      - run:
+          name: 'Unit Tests'
+          command: |
+            source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
+            pip install nose
+            nosetests tests/unittests/
       - add_ssh_keys
       - run:
           name: 'Integration Tests'
@@ -30,7 +36,6 @@ jobs:
                        --client-id=50 \
                        --token=$STITCH_API_TOKEN \
                        tests
-
 workflows:
   version: 2
   commit:

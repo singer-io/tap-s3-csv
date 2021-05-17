@@ -1,5 +1,6 @@
 import itertools
 import re
+import json
 import backoff
 import boto3
 import singer
@@ -20,6 +21,7 @@ LOGGER = singer.get_logger()
 SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
 SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
 SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
+SDC_EXTRA_COLUMN = "_sdc_extra"
 
 
 def retry_pattern():
@@ -31,7 +33,8 @@ def retry_pattern():
 
 
 def log_backoff_attempt(details):
-    LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
+    LOGGER.info(
+        "Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
 
 
 class AssumeRoleProvider():
@@ -79,7 +82,8 @@ def get_sampled_schema_for_table(config, table_spec):
 
     s3_files_gen = get_input_files_for_table(config, table_spec)
 
-    samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
+    samples = [sample for sample in sample_files(
+        config, table_spec, s3_files_gen)]
 
     if not samples:
         return {}
@@ -88,7 +92,7 @@ def get_sampled_schema_for_table(config, table_spec):
         SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
         SDC_SOURCE_FILE_COLUMN: {'type': 'string'},
         SDC_SOURCE_LINENO_COLUMN: {'type': 'integer'},
-        csv.SDC_EXTRA_COLUMN: {'type': 'array', 'items': {'type': 'string'}},
+        SDC_EXTRA_COLUMN: {'type': 'array', 'items': {'type': 'string'}}
     }
 
     data_schema = conversion.generate_schema(samples, table_spec)
@@ -97,6 +101,7 @@ def get_sampled_schema_for_table(config, table_spec):
         'type': 'object',
         'properties': merge_dicts(data_schema, metadata_schema)
     }
+
 
 def merge_dicts(first, second):
     to_return = first.copy()
@@ -114,15 +119,13 @@ def merge_dicts(first, second):
     return to_return
 
 
-def sample_file(config, table_spec, s3_path, sample_rate):
-    file_handle = get_file_handle(config, s3_path)
-    iterator = csv.get_row_iterator(file_handle._raw_stream, table_spec) #pylint:disable=protected-access
+def get_records_for_csv(s3_path, sample_rate, iterator):
 
     current_row = 0
-
     sampled_row_count = 0
 
     for row in iterator:
+
         if (current_row % sample_rate) == 0:
             if row.get(csv.SDC_EXTRA_COLUMN):
                 row.pop(csv.SDC_EXTRA_COLUMN)
@@ -134,9 +137,84 @@ def sample_file(config, table_spec, s3_path, sample_rate):
 
         current_row += 1
 
-    LOGGER.info("Sampled %s rows from %s",
-                sampled_row_count,
-                s3_path)
+    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
+
+
+def get_records_for_jsonl(s3_path, sample_rate, iterator):
+
+    current_row = 0
+    sampled_row_count = 0
+
+    for row in iterator:
+
+        if (current_row % sample_rate) == 0:
+            decoded_row = row.decode('utf-8')
+            if decoded_row.strip():
+                row = json.loads(decoded_row)
+            else:
+                current_row += 1
+                continue
+            sampled_row_count += 1
+            if (sampled_row_count % 200) == 0:
+                LOGGER.info("Sampled %s rows from %s",
+                            sampled_row_count, s3_path)
+            yield row
+
+        current_row += 1
+
+    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
+
+
+def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path):
+
+    all_keys = set()
+    for record in jsonl_sample_records:
+        keys = record.keys()
+        all_keys.update(keys)
+
+    if table_spec.get('key_properties'):
+        key_properties = set(table_spec['key_properties'])
+        if not key_properties.issubset(all_keys):
+            raise Exception('JSONL file "{}" is missing required key_properties key: {}'
+                            .format(s3_path, key_properties - all_keys))
+
+    if table_spec.get('date_overrides'):
+        date_overrides = set(table_spec['date_overrides'])
+        if not date_overrides.issubset(all_keys):
+            raise Exception('JSONL file "{}" is missing date_overrides key: {}'
+                            .format(s3_path, date_overrides - all_keys))
+
+
+def sample_file(config, table_spec, s3_path, sample_rate):
+
+    file_handle = get_file_handle(config, s3_path)._raw_stream
+
+    extension = s3_path.split(".")[-1].lower()
+
+    records = []
+
+    if extension in  ("csv","txt"):
+        iterator = csv.get_row_iterator(
+            file_handle, table_spec)  # pylint:disable=protected-access
+        records = get_records_for_csv(s3_path, sample_rate, iterator)
+    elif extension == "jsonl":
+        iterator = file_handle
+        records = get_records_for_jsonl(
+            s3_path, sample_rate, iterator)
+        check_jsonl_sample_records, records = itertools.tee(
+            records)
+        jsonl_sample_records = list(check_jsonl_sample_records)
+        if len(jsonl_sample_records) == 0:
+            LOGGER.exception(
+                'No row sampled, Please check your JSONL file %s', s3_path)
+            raise Exception(
+                'No row sampled, Please check your JSONL file {}'.format(s3_path))
+        check_key_properties_and_date_overrides_for_jsonl_file(
+            table_spec, jsonl_sample_records, s3_path)
+    else:
+        LOGGER.warning(
+            "'%s' having the '.%s' extension will not be sampled.", s3_path, extension)
+    return records
 
 
 # pylint: disable=too-many-arguments
@@ -232,7 +310,8 @@ def list_files_in_bucket(bucket, search_prefix=None):
     if s3_object_count > 0:
         LOGGER.info("Found %s files.", s3_object_count)
     else:
-        LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
+        LOGGER.warning(
+            'Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
 
 
 @retry_pattern()
