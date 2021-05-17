@@ -193,7 +193,7 @@ def sample_file(config, table_spec, s3_path, sample_rate):
 
     records = []
 
-    if extension == "csv" or extension == "txt":
+    if extension in  ("csv","txt"):
         iterator = csv.get_row_iterator(
             file_handle, table_spec)  # pylint:disable=protected-access
         records = get_records_for_csv(s3_path, sample_rate, iterator)
@@ -214,7 +214,6 @@ def sample_file(config, table_spec, s3_path, sample_rate):
     else:
         LOGGER.warning(
             "'%s' having the '.%s' extension will not be sampled.", s3_path, extension)
-        pass
     return records
 
 

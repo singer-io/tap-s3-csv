@@ -145,7 +145,7 @@ def sync_table_file(config, s3_path, table_spec, stream):
     extension = s3_path.split(".").pop().lower()
 
     records_synced = 0
-    if extension == "csv" or extension == "txt":
+    if extension in ("csv","txt"):
         records_synced = sync_csv_file(config, s3_path, table_spec, stream)
     elif extension == "jsonl":
         records_synced = sync_jsonl_file(config, s3_path, table_spec, stream)
