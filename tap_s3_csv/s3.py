@@ -194,7 +194,7 @@ def sample_file(config, table_spec, s3_path, sample_rate):
     records = []
 
     if extension in  ("csv","txt"):
-        iterator = csv.get_row_iterator(file_handle._raw_stream, table_spec, None, True) #pylint:disable=protected-access
+        iterator = csv.get_row_iterator(file_handle, table_spec, None, True) #pylint:disable=protected-access
         records = get_records_for_csv(s3_path, sample_rate, iterator)
     elif extension == "jsonl":
         iterator = file_handle
