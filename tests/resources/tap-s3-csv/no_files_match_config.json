@@ -1,0 +1,21 @@
+{
+  "start_date": "2017-01-01T00:00:00Z",
+  "bucket": "com-stitchdata-prod-circleci-assets",
+  "account_id": "218546966473",
+  "tables": [
+    {
+      "table_name": "no_files_matching",
+      "search_prefix": "tap_tester",
+      "search_pattern": "ttt123amn",
+      "key_properties": "",
+      "date_overrides": ""
+    },
+    {
+      "table_name": "missing_key_properties",
+      "search_prefix": "tap_tester",
+      "search_pattern": ".*?/primary_key_unique_values_and_nullable_integers\\.csv",
+      "key_properties": "",
+      "date_overrides": ""
+    }
+  ]
+}
