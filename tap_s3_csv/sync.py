@@ -7,7 +7,7 @@ from singer import Transformer
 from singer import utils
 
 import singer
-from tap_s3_csv import csv as csv_helper
+from singer_encodings import csv as singer_encodings_csv
 from tap_s3_csv import s3
 
 LOGGER = singer.get_logger()
@@ -59,8 +59,8 @@ def sync_csv_file(config, s3_path, table_spec, stream):
     # need to be fixed. The other consequence of this could be larger
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
-    iterator = csv_helper.get_row_iterator(
-        s3_file_handle._raw_stream, table_spec) #pylint:disable=protected-access
+    iterator = singer_encodings_csv.get_row_iterator(
+        s3_file_handle._raw_stream, table_spec, stream["schema"]["properties"].keys(), True) #pylint:disable=protected-access
 
     records_synced = 0
 

@@ -34,16 +34,6 @@ class S3DuplicateHeadersCSV(unittest.TestCase):
             'duplicate_headers': {"a0"}
         }
 
-    def expected_stream_row_counts(self):
-        row_count = 0
-        resource_name = "tap-s3-csv/duplicate_headers.csv"
-        with open(get_resources_path(resource_name), 'r', encoding='utf-8') as f:
-            for i, l in enumerate(f):
-                pass
-            row_count += i
-
-        return row_count
-
     def get_properties(self):
         with open(get_resources_path("tap-s3-csv/duplicate_headers_csv_config.json"), encoding='utf-8') as file:
             data = json.load(file)
@@ -103,17 +93,10 @@ class S3DuplicateHeadersCSV(unittest.TestCase):
 
         synced_records = runner.get_records_from_target_output()
         upsert_messages = [m for m in synced_records.get('duplicate_headers').get('messages') if m['action'] == 'upsert']
+        
+        records = [message.get('data') for message in upsert_messages]
+        
+        expected_records = [{'a0': 'a1', 'b0': 'b1', 'c0': 'c1', 'd0': 'd1', 'e0': 'e1', 'f0': 'f1', '_sdc_extra': ['{"a0": "a11"}', '{"b0": ["b11", "b12", "b13"]}', '{"c0": "c11"}'], '_sdc_source_bucket': 'qradars3test', '_sdc_source_file': 'tap_tester/tap-s3-csv/duplicate_headers.csv', '_sdc_source_lineno': 2}, {'a0': 'a2', 'b0': 'b2', 'c0': 'c2', 'd0': 'd2', 'e0': 'e2', 'f0': 'f2', '_sdc_extra': ['{"a0": "a21"}', '{"b0": "b21"}'], '_sdc_source_bucket': 'qradars3test', '_sdc_source_file': 'tap_tester/tap-s3-csv/duplicate_headers.csv', '_sdc_source_lineno': 3}, {'a0': 'a3', 'b0': 'b3', 'c0': 'c3', '_sdc_extra': ['{"a0": "a31"}'], '_sdc_source_bucket': 'qradars3test', '_sdc_source_file': 'tap_tester/tap-s3-csv/duplicate_headers.csv', '_sdc_source_lineno': 4}, {'a0': 'a4', '_sdc_source_bucket': 'qradars3test', '_sdc_source_file': 'tap_tester/tap-s3-csv/duplicate_headers.csv', '_sdc_source_lineno': 5}, {'a0': 'a5', 'b0': '', 'c0': 'c5', 'd0': 'd5', '_sdc_extra': ['{"a0": ""}'], '_sdc_source_bucket': 'qradars3test', '_sdc_source_file': 'tap_tester/tap-s3-csv/duplicate_headers.csv', '_sdc_source_lineno': 6}, {'a0': 'a6', 'b0': 'b6', 'c0': 'c6', 'd0': 'd6', 'e0': 'e6', 'f0': 'f6', '_sdc_extra': ['{"no_headers": ["g0", "h0", "i0"]}', '{"a0": "a61"}', '{"b0": ["b61", "b62", "b63"]}', '{"c0": "c61"}'], '_sdc_source_bucket': 'qradars3test', '_sdc_source_file': 'tap_tester/tap-s3-csv/duplicate_headers.csv', '_sdc_source_lineno': 7}]
 
-        # verify that when duplicate headers are present, the _sdc_extra has the values
-        sdc_extra = [message for message in upsert_messages
-                    if len(message.get('data').get('_sdc_extra', [])) == 5]
+        self.assertListEqual(expected_records, records)
 
-        self.assertEqual(len(sdc_extra), self.expected_stream_row_counts() - 1)
-
-        #Verify that when duplicate headers are present and extra values present, the _sdc_exra has the values
-        expected_sdc_extra_value = ['v9','w9','x9','y9','z9','aa0','aa1','aa2']
-        sdc_extra1 = [message.get('data').get('_sdc_extra') for message in upsert_messages
-                    if len(message.get('data').get('_sdc_extra', [])) == 8]
-
-        self.assertEqual(len(sdc_extra1), 1)
-        self.assertEqual(sdc_extra1[0], expected_sdc_extra_value)
