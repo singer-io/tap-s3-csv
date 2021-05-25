@@ -97,7 +97,8 @@ def get_sampled_schema_for_table(config, table_spec):
         SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
         SDC_SOURCE_FILE_COLUMN: {'type': 'string'},
         SDC_SOURCE_LINENO_COLUMN: {'type': 'integer'},
-        SDC_EXTRA_COLUMN: {'type': 'array', 'items': {'type': 'string'}}
+        SDC_EXTRA_COLUMN: {'type': 'array', 'items': {
+            'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}}
     }
 
     data_schema = conversion.generate_schema(samples, table_spec)
@@ -212,16 +213,19 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
 
+    # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
         return []
     if extension in ["csv", "txt"]:
+        # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle #pylint:disable=protected-access
         iterator = csv.get_row_iterator(file_handle, table_spec, None, True)
         return get_records_for_csv(s3_path, sample_rate, iterator)
     if extension == "gz":
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
     if extension == "jsonl":
+        # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle
         records = get_records_for_jsonl(
             s3_path, sample_rate, file_handle)
@@ -243,6 +247,20 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
 
 
 def get_files_to_sample(config, s3_files):
+    """
+    Returns the list of files for sampling, it checks the s3_files whether any zip or gz file exists or not
+    if exists then extract if and append in the list of files
+
+    Args:
+        config dict(): Configuration
+        s3_files list(): List of S3 Bucket files
+    Returns:
+        list(dict()) : List of Files for sampling
+             |_ s3_path str(): S3 Bucket File path
+             |_ file_handle StreamingBody(): file object
+             |_ type str(): Type of file which is used for extracted file
+             |_ extension str(): extension of file (for normal files only)
+    """
     sampled_files = []
 
     OTHER_FILES = ["csv","gz","jsonl","txt"]
@@ -255,12 +273,17 @@ def get_files_to_sample(config, s3_files):
             extension = file_name.split(".").pop().lower()
             file_handle = get_file_handle(config, file_key)
 
+            # Check whether file is without extension or not
             if not extension or file_name.lower() == extension:
                 LOGGER.warning('"%s" without extension will not be sampled.',file_key)
             elif extension == "zip":
                 files = compression.infer(io.BytesIO(file_handle.read()), file_name)
+
+                # Add only those extracted files which are supported by tap
+                # Prepare dictionary contains the zip file name, type i.e. unzipped and file object of extracted file
                 sampled_files.extend([{ "type" : "unzipped", "s3_path" : file_key, "file_handle" : de_file } for de_file in files if de_file.name.split(".")[-1].lower() in OTHER_FILES ])
             elif extension in OTHER_FILES:
+                # Prepare dictionary contains the s3 file path, extension of file and file object
                 sampled_files.append({ "s3_path" : file_key , "file_handle" : file_handle, "extension" : extension })
             else:
                 LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',file_key,extension)
@@ -280,7 +303,9 @@ def sample_files(config, table_spec, s3_files,
         file_type = s3_file.get("type")
         extension = s3_file.get("extension")
 
+        # Check whether the file is extracted from zip file.
         if file_type and file_type == "unzipped":
+            # Append the extracted file name with zip file.
             s3_path += "/" + file_handle.name
             extension = file_handle.name.split(".")[-1].lower()
 

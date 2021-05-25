@@ -52,6 +52,8 @@ def sync_stream(config, state, table_spec, stream):
 def sync_table_file(config, s3_path, table_spec, stream):
 
     extension = s3_path.split(".")[-1].lower()
+    
+    # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be synced.',s3_path)
         return 0
@@ -66,7 +68,11 @@ def sync_table_file(config, s3_path, table_spec, stream):
 
 # pylint: disable=too-many-arguments
 def handle_file(config, s3_path, table_spec, stream, extension, file_handler = None):
+    """
+    Used to sync normal supported files
+    """
 
+    # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be synced.',s3_path)
         return 0
@@ -74,10 +80,14 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
         return sync_gz_file(config, s3_path, table_spec, stream, file_handler)
 
     if extension in ["csv", "txt"]:
+
+        # If file is extracted from zip or gz use file object else get file object from s3 bucket
         file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream #pylint:disable=protected-access
         return sync_csv_file(config, file_handle, s3_path, table_spec, stream)
 
     if extension == "jsonl":
+        
+        # If file is extracted from zip or gz use file object else get file object from s3 bucket
         file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream
         return sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
 
@@ -90,6 +100,7 @@ def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
         LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
         return 0
 
+    # If file is extracted from zip use file object else get file object from s3 bucket
     file_object = file_handler if file_handler else s3.get_file_handle(config, s3_path)
 
     file_bytes = file_object.read()
@@ -121,6 +132,7 @@ def sync_compressed_file(config, s3_path, table_spec, stream):
         extension = decompressed_file.name.split(".")[-1].lower()
 
         if extension in ["csv", "jsonl", "gz", "txt"]:
+            # Append the extracted file name with zip file.
             s3_file_path = s3_path + "/" + decompressed_file.name
 
             records_streamed += handle_file(config, s3_file_path, table_spec, stream, extension, file_handler=decompressed_file)
