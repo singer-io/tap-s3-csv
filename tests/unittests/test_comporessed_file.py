@@ -46,7 +46,7 @@ class TestCompressedFileSupport(unittest.TestCase):
 
         mocked_get_file_handle.return_value = None
 
-        files = s3.get_files_to_sample(config, [sample_key])
+        files = s3.get_files_to_sample(config, [sample_key], 5)
 
         self.assertListEqual([], files)
 
@@ -67,7 +67,7 @@ class TestCompressedFileSupport(unittest.TestCase):
 
             mocked_get_file_handle.return_value = zip_file.fp
             mocked_infer.return_value = [zip_file.open(file) for file in zip_file.namelist()]
-            files = s3.get_files_to_sample(config, [sample_key])
+            files = s3.get_files_to_sample(config, [sample_key], 5)
 
             self.assertTrue(all([True for file in files if file["file_handle"].name.split(".")[-1].lower() in expected_extensions]))
 
@@ -80,9 +80,28 @@ class TestCompressedFileSupport(unittest.TestCase):
 
         mocked_get_file_handle.return_value = None
 
-        files = s3.get_files_to_sample(config, [sample_key])
+        files = s3.get_files_to_sample(config, [sample_key], 5)
 
         self.assertTrue("type" not in files[0])
+
+
+    @mock.patch("tap_s3_csv.s3.get_file_handle")
+    def test_breaking_loop_at_reaching_max_count(self, mocked_get_file_handle):
+        config = {}
+        max_files = 5
+        sample_keys = [
+            { "key" : "a.jsonl" },
+            { "key" : "b.csv" },
+            { "key" : "c.gz" },
+            { "key" : "d.txt" },
+            { "key" : "e.jsonl" },
+        ]
+
+        mocked_get_file_handle.return_value = None
+
+        files = s3.get_files_to_sample(config, sample_keys, max_files)
+
+        self.assertEquals(max_files, len(files))
 
 
     @mock.patch("tap_s3_csv.s3.get_file_handle")
@@ -93,7 +112,7 @@ class TestCompressedFileSupport(unittest.TestCase):
 
         mocked_get_file_handle.return_value = None
 
-        files = s3.get_files_to_sample(config, [sample_key])
+        files = s3.get_files_to_sample(config, [sample_key], 5)
 
         self.assertTrue("type" not in files[0])
 
@@ -214,6 +233,34 @@ class TestCompressedFileSupport(unittest.TestCase):
 
 @mock.patch("tap_s3_csv.sync.LOGGER.warning")
 class TestUnsupportedFiles(unittest.TestCase):
+
+    @mock.patch("tap_s3_csv.s3.get_file_handle")
+    def test_get_files_for_samples_of_tar_gz_file_samples(self, mocked_file_handle, mocked_logger):
+        config = {}
+        sample_key = { "key" : "unittest_compressed_files/sample_compressed.tar.gz" }
+        mocked_file_handle.return_value = None
+
+        actual_output = s3.get_files_to_sample(config, [sample_key], 5)
+
+        self.assertEquals(0,len(actual_output))
+
+        mocked_logger.assert_called_with('Skipping "%s" file as .tar.gz extension is not supported',sample_key["key"])
+
+    
+    @mock.patch("singer_encodings.compression.infer")
+    @mock.patch("tap_s3_csv.s3.get_file_handle")
+    def test_get_files_for_samples_of_zip_contains_tar_gz_file(self, mocked_file_handle, mocked_infer, mocked_logger):
+        config = {}
+        sample_key = { "key" : "unittest_compressed_files/sample_compressed.zip" }
+        mocked_file_handle.return_value = None
+
+        zip_file_path = get_resources_path("sample_compressed_zip_contains_tar_gz_file.zip", COMPRESSION_FOLDER_PATH)
+        with zipfile.ZipFile(zip_file_path, "r") as zip_file:
+
+            mocked_file_handle.return_value = zip_file.fp
+            mocked_infer.return_value = [zip_file.open(file) for file in zip_file.namelist()]
+            actual_output = s3.get_files_to_sample(config, [sample_key], 5)
+            self.assertEquals(0,len(actual_output))
 
 
     def test_sampling_of_tar_gz_file_samples(self, mocked_logger):
@@ -408,7 +455,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
         mocked_get_file_handle.return_value = None
 
-        files = s3.get_files_to_sample(config, [sample_key])
+        files = s3.get_files_to_sample(config, [sample_key], 5)
 
         self.assertTrue(len(files) == 0)
 
@@ -425,7 +472,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
         mocked_get_file_handle.return_value = None
 
-        files = s3.get_files_to_sample(config, [sample_key])
+        files = s3.get_files_to_sample(config, [sample_key], 5)
 
         self.assertTrue(len(files) == 0)
 

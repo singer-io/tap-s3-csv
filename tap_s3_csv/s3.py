@@ -246,7 +246,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     return []
 
 
-def get_files_to_sample(config, s3_files):
+def get_files_to_sample(config, s3_files, max_files):
     """
     Returns the list of files for sampling, it checks the s3_files whether any zip or gz file exists or not
     if exists then extract if and append in the list of files
@@ -268,6 +268,9 @@ def get_files_to_sample(config, s3_files):
     for s3_file in s3_files:
         file_key = s3_file.get('key')
 
+        if len(sampled_files) >= max_files:
+            break
+
         if file_key:
             file_name = file_key.split("/").pop()
             extension = file_name.split(".").pop().lower()
@@ -276,12 +279,14 @@ def get_files_to_sample(config, s3_files):
             # Check whether file is without extension or not
             if not extension or file_name.lower() == extension:
                 LOGGER.warning('"%s" without extension will not be sampled.',file_key)
+            elif file_key.endswith(".tar.gz"):
+                LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported', file_key)
             elif extension == "zip":
                 files = compression.infer(io.BytesIO(file_handle.read()), file_name)
 
                 # Add only those extracted files which are supported by tap
                 # Prepare dictionary contains the zip file name, type i.e. unzipped and file object of extracted file
-                sampled_files.extend([{ "type" : "unzipped", "s3_path" : file_key, "file_handle" : de_file } for de_file in files if de_file.name.split(".")[-1].lower() in OTHER_FILES ])
+                sampled_files.extend([{ "type" : "unzipped", "s3_path" : file_key, "file_handle" : de_file } for de_file in files if de_file.name.split(".")[-1].lower() in OTHER_FILES and not de_file.name.endswith(".tar.gz") ])
             elif extension in OTHER_FILES:
                 # Prepare dictionary contains the s3 file path, extension of file and file object
                 sampled_files.append({ "s3_path" : file_key , "file_handle" : file_handle, "extension" : extension })
@@ -296,7 +301,7 @@ def sample_files(config, table_spec, s3_files,
                  sample_rate=5, max_records=1000, max_files=5):
     LOGGER.info("Sampling files (max files: %s)", max_files)
 
-    for s3_file in itertools.islice(get_files_to_sample(config, s3_files), max_files):
+    for s3_file in itertools.islice(get_files_to_sample(config, s3_files, max_files), max_files):
 
         s3_path = s3_file.get("s3_path","")
         file_handle = s3_file.get("file_handle")
