@@ -1,3 +1,4 @@
+import simplejson
 import tap_tester.connections as connections
 import tap_tester.menagerie   as menagerie
 import tap_tester.runner      as runner
@@ -98,14 +99,44 @@ class S3AllFilesSupport(unittest.TestCase):
 
         runner.run_sync_job_and_check_status(self)
 
-        csv_records = 998
-        jsonl_records = 10
-        gz_has_csv_records = 998
-        gz_has_jsonl_records = 2
-        zip_records = 40
+        no_csv_records = 998
+        no_jsonl_records = 10
+        no_gz_has_csv_records = 998
+        no_gz_has_jsonl_records = 2
+        no_zip_records = 40
 
-        expected_records = csv_records + jsonl_records + gz_has_csv_records + gz_has_jsonl_records + zip_records
-        # Verify actual rows were synced
-        records  = runner.get_upserts_from_target_output()
+        expected_records = no_csv_records + no_jsonl_records + no_gz_has_csv_records + no_gz_has_jsonl_records + no_zip_records
 
-        self.assertEqual(expected_records, len(records))
+        with open(utils.get_resources_path("output_csv_records.json", ALL_SUPPORTED_FOLDER_PATH)) as json_file:
+            expected_csv_records = simplejson.load(json_file, use_decimal = True).get("records", [])
+        with open(utils.get_resources_path("output_jsonl_records.json", ALL_SUPPORTED_FOLDER_PATH)) as json_file:
+            expected_jsonl_records = simplejson.load(json_file, use_decimal = True).get("records", [])
+        with open(utils.get_resources_path("output_gz_csv_records.json", ALL_SUPPORTED_FOLDER_PATH)) as json_file:
+            expected_gz_has_csv_records = simplejson.load(json_file, use_decimal = True).get("records", [])
+        with open(utils.get_resources_path("output_gz_jsonl_records.json", ALL_SUPPORTED_FOLDER_PATH)) as json_file:
+            expected_gz_has_jsonl_records = simplejson.load(json_file, use_decimal = True).get("records", [])
+        with open(utils.get_resources_path("output_zip_records.json", ALL_SUPPORTED_FOLDER_PATH)) as json_file:
+            expected_zip_records = simplejson.load(json_file, use_decimal = True).get("records", [])
+
+        synced_records = runner.get_records_from_target_output()
+        
+        csv_upsert_messages = [m for m in synced_records.get('all_support_csv').get('messages') if m['action'] == 'upsert']
+        jsonl_upsert_messages = [m for m in synced_records.get('all_support_jsonl').get('messages') if m['action'] == 'upsert']
+        gz_with_csv_upsert_messages = [m for m in synced_records.get('all_support_gz_has_csv').get('messages') if m['action'] == 'upsert']
+        gz_with_jsonl_upsert_messages = [m for m in synced_records.get('all_support_gz_has_jsonl').get('messages') if m['action'] == 'upsert']
+        zip_upsert_messages = [m for m in synced_records.get('all_support_zip').get('messages') if m['action'] == 'upsert']
+        
+        csv_records = [message.get('data') for message in csv_upsert_messages]
+        jsonl_records = [message.get('data') for message in jsonl_upsert_messages]
+        gz_has_csv_records = [message.get('data') for message in gz_with_csv_upsert_messages]
+        gz_has_jsonl_records = [message.get('data') for message in gz_with_jsonl_upsert_messages]
+        zip_records = [message.get('data') for message in zip_upsert_messages]
+
+        no_records = len(csv_records) + len(jsonl_records) + len(gz_has_csv_records) + len(gz_has_jsonl_records) + len(zip_records)
+        self.assertEqual(expected_records, no_records)
+
+        self.assertEquals(expected_csv_records, csv_records)
+        self.assertEquals(expected_jsonl_records, jsonl_records)
+        self.assertEquals(expected_gz_has_csv_records, gz_has_csv_records)
+        self.assertEquals(expected_gz_has_jsonl_records, gz_has_jsonl_records)
+        self.assertEquals(expected_zip_records, zip_records)

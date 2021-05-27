@@ -44,10 +44,8 @@ class S3CompressedFile(unittest.TestCase):
     def get_properties(self):
         return {
             'start_date' : '2017-01-01 00:00:00',
-            'bucket': 'qradars3test',
-            'account_id': '520045580702',
-            'external_id': 'not-used',
-            'role_name': 'talend_test'
+            'bucket': 'com-stitchdata-prod-circleci-assets',
+            'account_id': '218546966473',
         }
 
     
