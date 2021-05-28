@@ -43,7 +43,7 @@ class S3CompressedFile(unittest.TestCase):
 
     def get_properties(self):
         return {
-            'start_date' : '2017-01-01 00:00:00',
+            'start_date' : '2017-01-01T00:00:00Z',
             'bucket': 'com-stitchdata-prod-circleci-assets',
             'account_id': '218546966473',
         }

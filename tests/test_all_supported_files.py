@@ -51,7 +51,7 @@ class S3AllFilesSupport(unittest.TestCase):
 
     def get_properties(self):
         return {
-            'start_date' : '2017-01-01 00:00:00',
+            'start_date' : '2017-01-01T00:00:00Z',
             "bucket": "com-stitchdata-prod-circleci-assets",
             "account_id": "218546966473",
             'tables' : "[{\"table_name\": \"all_support_csv\",\"search_prefix\": \"int_test_all_support_csv\",\"search_pattern\": \"int_test_all_support_csv\\\\/.*\\\\.csv\"},{\"table_name\": \"all_support_jsonl\",\"search_prefix\": \"int_test_all_support_jsonl\",\"search_pattern\": \"int_test_all_support_jsonl\\\\/.*\\\\.jsonl\"},{\"table_name\": \"all_support_gz_has_csv\",\"search_prefix\": \"int_test_all_support_gz_has_csv\",\"search_pattern\": \"int_test_all_support_gz_has_csv\\\\/.*\\\\.gz\"},{\"table_name\":\"all_support_gz_has_jsonl\",\"search_prefix\": \"int_test_all_support_gz_has_jsonl\",\"search_pattern\": \"int_test_all_support_gz_has_jsonl\\\\/.*\\\\.gz\"},{\"table_name\": \"all_support_zip\",\"search_prefix\": \"int_test_all_support_zip\",\"search_pattern\": \"int_test_all_support_zip\\\\/.*\\\\.zip\"}]"
