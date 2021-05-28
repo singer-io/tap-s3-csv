@@ -241,7 +241,9 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
             table_spec, jsonl_sample_records, s3_path)
 
         return records
-
+    if extension == "zip":
+        LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+        return []
     LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',s3_path,extension)
     return []
 

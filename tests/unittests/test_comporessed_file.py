@@ -321,6 +321,24 @@ class TestUnsupportedFiles(unittest.TestCase):
 
             mocked_logger.assert_called_with('Skipping "%s" file as it contains nested compression.',s3_path)
 
+    def test_sampling_of_gz_file_contains_zip_file_samples(self, mocked_logger):
+        table_spec = {}
+        s3_path = "unittest_compressed_files/sample_compressed_gz_file_contains_zip.gz"
+        sample_rate = 5
+        extension = s3_path.split(".")[-1].lower()
+
+        gz_file_path = get_resources_path("sample_compressed_gz_file_contains_zip.gz", COMPRESSION_FOLDER_PATH)
+
+        with gzip.GzipFile(gz_file_path) as gz_file:
+            
+            actual_output = [sample for sample in s3.sample_file(table_spec, s3_path, gz_file.fileobj, sample_rate, extension)]
+
+            self.assertTrue(len(actual_output)==0)
+
+            new_s3_path = "unittest_compressed_files/sample_compressed_gz_file_contains_zip.gz/csv_jsonl.zip"
+
+            mocked_logger.assert_called_with('Skipping "%s" file as it contains nested compression.',new_s3_path)
+
 
     @mock.patch("tap_s3_csv.utils.get_file_name_from_gzfile")
     def test_sampling_of_error_gz_file_samples(self, mocked_gz_file_name,mocked_logger):
@@ -422,6 +440,25 @@ class TestUnsupportedFiles(unittest.TestCase):
             records = sync.handle_file(config, s3_path, table_spec, {}, extension, gz_file.fileobj)
 
             mocked_logger.assert_called_with('Skipping "%s" file as it contains nested compression.',s3_path)
+            
+            self.assertEqual(records, 0)
+
+    def test_syncing_gz_file_contains_zip(self, mocked_logger):
+        config = {"bucket" : "bucket_name"}
+        table_spec = { "table_name" : "GZ_DATA"}
+
+        s3_path = "unittest_compressed_files/sample_compressed_gz_file_contains_zip.gz"
+        extension = "gz"
+
+        gz_file_path = get_resources_path("sample_compressed_gz_file_contains_zip.gz", COMPRESSION_FOLDER_PATH)
+
+        with gzip.GzipFile(gz_file_path) as gz_file:
+
+            records = sync.handle_file(config, s3_path, table_spec, {}, extension, gz_file.fileobj)
+
+            new_s3_path = "unittest_compressed_files/sample_compressed_gz_file_contains_zip.gz/csv_jsonl.zip"
+
+            mocked_logger.assert_called_with('Skipping "%s" file as it contains nested compression.',new_s3_path)
             
             self.assertEqual(records, 0)
 
