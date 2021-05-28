@@ -33,17 +33,15 @@ class S3CompressedGZFile(S3CompressedFile):
 
         runner.run_check_job_and_check_status(self)
 
-        conn_id = connections.ensure_connection(self)
-
-        found_catalogs = menagerie.get_catalogs(conn_id)
-        self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(conn_id))
+        found_catalogs = menagerie.get_catalogs(self.conn_id)
+        self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
 
         found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
         subset = self.expected_check_streams().issubset( found_catalog_names )
         self.assertTrue(subset, msg="Expected check streams are not subset of discovered catalog")
 
         # Clear state before our run
-        menagerie.set_state(conn_id, {})
+        menagerie.set_state(self.conn_id, {})
 
         self.select_specific_catalog(found_catalogs, "gz_has_csv_data")
 
