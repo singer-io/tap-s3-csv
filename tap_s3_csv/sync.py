@@ -52,7 +52,7 @@ def sync_stream(config, state, table_spec, stream):
 def sync_table_file(config, s3_path, table_spec, stream):
 
     extension = s3_path.split(".")[-1].lower()
-    
+
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be synced.',s3_path)
@@ -86,7 +86,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
         return sync_csv_file(config, file_handle, s3_path, table_spec, stream)
 
     if extension == "jsonl":
-        
+
         # If file is extracted from zip or gz use file object else get file object from s3 bucket
         file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream
         return sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
