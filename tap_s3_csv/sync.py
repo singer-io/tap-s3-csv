@@ -1,21 +1,28 @@
 import sys
 import csv
+import io
 import json
+import gzip
 
 from singer import metadata
 from singer import Transformer
-from singer import utils
+from singer import utils as singer_utils
 
 import singer
-from singer_encodings import csv as singer_encodings_csv
-from tap_s3_csv import s3
+from singer_encodings import (
+    compression,
+    csv as csv_helper
+)
+from tap_s3_csv import (
+    utils,
+    s3
+)
 
 LOGGER = singer.get_logger()
 
-
 def sync_stream(config, state, table_spec, stream):
     table_name = table_spec['table_name']
-    modified_since = utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
+    modified_since = singer_utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
                                             config['start_date'])
 
     LOGGER.info('Syncing table "%s".', table_name)
@@ -34,23 +41,115 @@ def sync_stream(config, state, table_spec, stream):
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
 
-        state = singer.write_bookmark(
-            state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
+        state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
         singer.write_state(state)
 
-    LOGGER.info('Wrote %s records for table "%s".',
-                records_streamed, table_name)
+    LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
 
     return records_streamed
 
 
-def sync_csv_file(config, s3_path, table_spec, stream):
+def sync_table_file(config, s3_path, table_spec, stream):
+
+    extension = s3_path.split(".")[-1].lower()
+
+    # Check whether file is without extension or not
+    if not extension or s3_path.lower() == extension:
+        LOGGER.warning('"%s" without extension will not be synced.',s3_path)
+        return 0
+    if extension == "zip":
+        return sync_compressed_file(config, s3_path, table_spec, stream)
+    if extension in ["csv", "gz", "jsonl", "txt"]:
+        return handle_file(config, s3_path, table_spec, stream, extension)
+
+    LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
+    return 0
+
+
+# pylint: disable=too-many-arguments
+def handle_file(config, s3_path, table_spec, stream, extension, file_handler = None):
+    """
+    Used to sync normal supported files
+    """
+
+    # Check whether file is without extension or not
+    if not extension or s3_path.lower() == extension:
+        LOGGER.warning('"%s" without extension will not be synced.',s3_path)
+        return 0
+    if extension == "gz":
+        return sync_gz_file(config, s3_path, table_spec, stream, file_handler)
+
+    if extension in ["csv", "txt"]:
+
+        # If file is extracted from zip or gz use file object else get file object from s3 bucket
+        file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream #pylint:disable=protected-access
+        return sync_csv_file(config, file_handle, s3_path, table_spec, stream)
+
+    if extension == "jsonl":
+
+        # If file is extracted from zip or gz use file object else get file object from s3 bucket
+        file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream
+        return sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
+
+    if extension == "zip":
+        LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+        return 0
+
+    LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
+    return 0
+
+
+def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
+    if s3_path.endswith(".tar.gz"):
+        LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
+        return 0
+
+    # If file is extracted from zip use file object else get file object from s3 bucket
+    file_object = file_handler if file_handler else s3.get_file_handle(config, s3_path)
+
+    file_bytes = file_object.read()
+    gz_file_obj = gzip.GzipFile(fileobj=io.BytesIO(file_bytes))
+
+    gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
+
+    if gz_file_name:
+
+        if gz_file_name.endswith(".gz"):
+            LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+            return 0
+
+        gz_file_extension = gz_file_name.split(".")[-1].lower()
+        return handle_file(config, s3_path + "/" + gz_file_name, table_spec, stream, gz_file_extension, io.BytesIO(gz_file_obj.read()))
+
+    raise Exception('"{}" file has some error(s)'.format(s3_path))
+
+
+def sync_compressed_file(config, s3_path, table_spec, stream):
+    LOGGER.info('Syncing Compressed file "%s".', s3_path)
+
+    records_streamed = 0
+    s3_file_handle = s3.get_file_handle(config, s3_path)
+
+    decompressed_files = compression.infer(io.BytesIO(s3_file_handle.read()), s3_path)
+
+    for decompressed_file in decompressed_files:
+        extension = decompressed_file.name.split(".")[-1].lower()
+
+        if extension in ["csv", "jsonl", "gz", "txt"]:
+            # Append the extracted file name with zip file.
+            s3_file_path = s3_path + "/" + decompressed_file.name
+
+            records_streamed += handle_file(config, s3_file_path, table_spec, stream, extension, file_handler=decompressed_file)
+
+    return records_streamed
+
+
+def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     bucket = config['bucket']
     table_name = table_spec['table_name']
 
-    s3_file_handle = s3.get_file_handle(config, s3_path)
     # We observed data who's field size exceeded the default maximum of
     # 131072. We believe the primary consequence of the following setting
     # is that a malformed, wide CSV would potentially parse into a single
@@ -59,8 +158,9 @@ def sync_csv_file(config, s3_path, table_spec, stream):
     # need to be fixed. The other consequence of this could be larger
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
-    iterator = singer_encodings_csv.get_row_iterator(
-        s3_file_handle._raw_stream, table_spec, stream["schema"]["properties"].keys(), True) #pylint:disable=protected-access
+
+    iterator = csv_helper.get_row_iterator(
+        file_handle, table_spec, stream["schema"]["properties"].keys(), True)
 
     records_synced = 0
 
@@ -75,8 +175,7 @@ def sync_csv_file(config, s3_path, table_spec, stream):
         rec = {**row, **custom_columns}
 
         with Transformer() as transformer:
-            to_write = transformer.transform(
-                rec, stream['schema'], metadata.to_map(stream['metadata']))
+            to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
 
         singer.write_record(table_name, to_write)
         records_synced += 1
@@ -84,14 +183,11 @@ def sync_csv_file(config, s3_path, table_spec, stream):
     return records_synced
 
 
-def sync_jsonl_file(config, s3_path, table_spec, stream):
+def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     bucket = config['bucket']
     table_name = table_spec['table_name']
-
-    file_handle = s3.get_file_handle(config, s3_path)._raw_stream
-    iterator = file_handle
 
     records_synced = 0
 
@@ -113,11 +209,9 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
         rec = {**row, **custom_columns}
 
         with Transformer() as transformer:
-            to_write = transformer.transform(
-                rec, stream['schema'], metadata.to_map(stream['metadata']))
-
+            to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
         # collecting the value which was removed in transform to add those in _sdc_extra
-        value = [{field: rec[field]} for field in set(rec) - set(to_write)]
+        value = [ {field:rec[field]} for field in set(rec) - set(to_write) ]
 
         if value:
             LOGGER.debug(
@@ -125,31 +219,15 @@ def sync_jsonl_file(config, s3_path, table_spec, stream):
             extra_data = {
                 s3.SDC_EXTRA_COLUMN: value
             }
-            update_to_write = {**to_write, **extra_data}
+            update_to_write = {**to_write,**extra_data}
         else:
             update_to_write = to_write
 
         # Transform again to validate _sdc_extra value.
         with Transformer() as transformer:
-            update_to_write = transformer.transform(
-                update_to_write, stream['schema'], metadata.to_map(stream['metadata']))
+            update_to_write = transformer.transform(update_to_write, stream['schema'], metadata.to_map(stream['metadata']))
 
         singer.write_record(table_name, update_to_write)
         records_synced += 1
 
-    return records_synced
-
-
-def sync_table_file(config, s3_path, table_spec, stream):
-
-    extension = s3_path.split(".").pop().lower()
-
-    records_synced = 0
-    if extension in ("csv","txt"):
-        records_synced = sync_csv_file(config, s3_path, table_spec, stream)
-    elif extension == "jsonl":
-        records_synced = sync_jsonl_file(config, s3_path, table_spec, stream)
-    else:
-        LOGGER.warning(
-            "'%s' having the '.%s' extension will not be synced.", s3_path, extension)
     return records_synced

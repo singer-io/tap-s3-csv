@@ -403,7 +403,7 @@ class S3TypesAndData(unittest.TestCase):
                     S3TypesAndData.conn_id, catalog['stream_id'])
                 annotated_schema = metadata_and_annotated_schema["annotated-schema"]
                 metadata = metadata_and_annotated_schema["metadata"]
-
+                
                 # verify that the annotated schema has the correct number of properties
                 self.assertEqual(
                     len(expected_properties),

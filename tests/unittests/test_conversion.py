@@ -104,8 +104,3 @@ class TestConversion(unittest.TestCase):
         res = conversion.generate_schema(samples, table_spec)
         expected_result = {'name': {'type': ['null', 'string']}, 'id': {'type': ['null', 'integer', 'string']}, 'marks': {'anyOf': [{'type': 'array', 'items': {'type': ['null', 'number', 'string']}}, {'type': ['null', 'string']}]}, 'students': {'anyOf': [{'type': 'object', 'properties': {}}, {'type': ['null', 'string']}]}, 'created_at': {'anyOf': [{'type': ['null', 'string'], 'format': 'date-time'}, {'type': ['null', 'string']}]}, 'tota': {'anyOf': [{'type': 'array', 'items': ['null', 'string']}, {'type': ['null', 'string']}]}}
         self.assertEqual(res, expected_result)
-
-        
-
-
-    
