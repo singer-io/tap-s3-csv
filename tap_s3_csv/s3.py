@@ -92,7 +92,8 @@ def get_sampled_schema_for_table(config, table_spec):
         SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
         SDC_SOURCE_FILE_COLUMN: {'type': 'string'},
         SDC_SOURCE_LINENO_COLUMN: {'type': 'integer'},
-        SDC_EXTRA_COLUMN: {'type': 'array', 'items': {'type': 'string'}}
+        SDC_EXTRA_COLUMN: {'type': 'array', 'items': {
+            'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}}
     }
 
     data_schema = conversion.generate_schema(samples, table_spec)
@@ -194,8 +195,7 @@ def sample_file(config, table_spec, s3_path, sample_rate):
     records = []
 
     if extension in  ("csv","txt"):
-        iterator = csv.get_row_iterator(
-            file_handle, table_spec)  # pylint:disable=protected-access
+        iterator = csv.get_row_iterator(file_handle, table_spec, None, True) #pylint:disable=protected-access
         records = get_records_for_csv(s3_path, sample_rate, iterator)
     elif extension == "jsonl":
         iterator = file_handle

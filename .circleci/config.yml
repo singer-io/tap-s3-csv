@@ -36,6 +36,7 @@ jobs:
                        --client-id=50 \
                        --token=$STITCH_API_TOKEN \
                        tests
+
 workflows:
   version: 2
   commit:

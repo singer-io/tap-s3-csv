@@ -554,16 +554,14 @@ class S3TypesAndData(unittest.TestCase):
         # verify that when header is longer, the end columns have null values
         upsert_message_header_longer = [m for m in synced_records.get('header_longer').get('messages') if m['action'] == 'upsert']
         data_null = [d for d in upsert_message_header_longer
-                if d["data"]["aa0"] == d["data"]["ab0"] == d["data"]["ac0"]
-                == d["data"]["ad0"] == d["data"]["ae0"] is None]
-        self.assertEqual(
-                S3TypesAndData.expected_stream_row_counts()['header_longer'],
-                len(data_null))
+                if d["data"].get("aa0") == d["data"].get("ab0") == d["data"].get("ac0")
+                == d["data"].get("ad0") == d["data"].get("ae0") is None]
+        self.assertEqual(94, len(data_null))
 
         # verify that when header is shorter, the _sdc_extra has the values
         upsert_message_header_shorter = [m for m in synced_records.get('header_shorter').get('messages') if m['action'] == 'upsert']
         s3_extra = [d for d in upsert_message_header_shorter
-                    if len(d["data"]["_sdc_extra"]) == 5]
+                    if len(d["data"]["_sdc_extra"]) == 1]
         self.assertEqual(
             S3TypesAndData.expected_stream_row_counts()['header_shorter'],
             len(s3_extra))
@@ -571,8 +569,8 @@ class S3TypesAndData(unittest.TestCase):
         # verify when one row is shorter and one longer one has _sdc_extra other has null
         upsert_message_rows_longer_shorter = [m for m in synced_records.get('rows_longer_and_shorter').get('messages') if m['action'] == 'upsert']
         data_null = [d for d in upsert_message_rows_longer_shorter
-                        if d["data"]["v0"] == d["data"]["w0"] == d["data"]["x0"]
-                        == d["data"]["y0"] == d["data"]["z0"] is None]
+                        if d["data"].get("v0") == d["data"].get("w0") == d["data"].get("x0")
+                        == d["data"].get("y0") == d["data"].get("z0") is None]
         s3_extra = [d for d in upsert_message_rows_longer_shorter
-                    if len(d["data"].get("_sdc_extra", [])) == 5]
+                    if len(d["data"].get("_sdc_extra", [])) == 1]
         self.assertTrue(len(data_null) == len(s3_extra) == 1)

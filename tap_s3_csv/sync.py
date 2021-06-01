@@ -60,7 +60,7 @@ def sync_csv_file(config, s3_path, table_spec, stream):
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
     iterator = singer_encodings_csv.get_row_iterator(
-        s3_file_handle._raw_stream, table_spec)  # pylint:disable=protected-access
+        s3_file_handle._raw_stream, table_spec, stream["schema"]["properties"].keys(), True) #pylint:disable=protected-access
 
     records_synced = 0
 

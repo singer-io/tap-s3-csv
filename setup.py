@@ -10,10 +10,10 @@ setup(name='tap-s3-csv',
       classifiers=['Programming Language :: Python :: 3 :: Only'],
       py_modules=['tap_s3_csv'],
       install_requires=[
-          'backoff==1.3.2',
+          'backoff==1.8.0',
           'boto3==1.9.57',
-          'singer-encodings==0.0.3',
-          'singer-python==5.1.5',
+          'singer-encodings==0.1.0',
+          'singer-python==5.12.1',
           'voluptuous==0.10.5'
       ],
       extras_require={
