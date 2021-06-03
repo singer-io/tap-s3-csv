@@ -215,7 +215,7 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
 
         if value:
             LOGGER.warning(
-                "\"%s\" field is not found in catalog and its value will be stored in the \"_sdc_extra\" field.", value)
+                "\"%s\" is not found in catalog and its value will be stored in the \"_sdc_extra\" field.", value)
             extra_data = {
                 s3.SDC_EXTRA_COLUMN: value
             }
