@@ -214,8 +214,8 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
         value = [ {field:rec[field]} for field in set(rec) - set(to_write) ]
 
         if value:
-            LOGGER.debug(
-                "The schema does not have \"%s\" so its entry got removed in transformation and is stored in \"_sdc_extra\" field.", value)
+            LOGGER.warning(
+                "\"%s\" is not found in catalog and its value will be stored in the \"_sdc_extra\" field.", value)
             extra_data = {
                 s3.SDC_EXTRA_COLUMN: value
             }
