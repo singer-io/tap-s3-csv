@@ -2,7 +2,7 @@ import singer
 
 LOGGER = singer.get_logger()
 
-
+#pylint: disable=too-many-return-statements
 def infer(key, datum, date_overrides, check_second_call=False):
     """
     Returns the inferred data type
