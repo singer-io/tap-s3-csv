@@ -36,7 +36,7 @@ def infer(key, datum, date_overrides, check_second_call=False):
             pass
         try:
             float(str(datum))
-            return 'integer'
+            return 'number'
         except (ValueError, TypeError):
             pass
 
