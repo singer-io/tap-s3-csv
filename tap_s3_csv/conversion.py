@@ -2,14 +2,11 @@ import singer
 
 LOGGER = singer.get_logger()
 
-
+#pylint: disable=too-many-return-statements
 def infer(key, datum, date_overrides, check_second_call=False):
     """
     Returns the inferred data type
     """
-
-    data_type_list = {int: 'integer', float: 'number'}
-
     if datum is None or datum == '':
         return None
 
@@ -32,12 +29,16 @@ def infer(key, datum, date_overrides, check_second_call=False):
         if isinstance(datum, dict):
             return 'dict'
 
-        for datatype in data_type_list:
-            try:
-                datatype(str(datum))
-                return data_type_list[datatype]
-            except (ValueError, TypeError):
-                pass
+        try:
+            int(str(datum))
+            return 'integer'
+        except (ValueError, TypeError):
+            pass
+        try:
+            float(str(datum))
+            return 'number'
+        except (ValueError, TypeError):
+            pass
 
     except (ValueError, TypeError):
         pass
