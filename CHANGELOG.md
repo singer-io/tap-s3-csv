@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.3.1
+  * Fixed bug that caused `integer`s to be discovered as `number` differently in different versions of python [#35](https://github.com/singer-io/tap-s3-csv/pull/35)
+
 ## 1.3.0
   * Adds support for Compressed files [#32](https://github.com/singer-io/tap-s3-csv/pull/32)
   * Adds support for JSONL files [#31](https://github.com/singer-io/tap-s3-csv/pull/31)
