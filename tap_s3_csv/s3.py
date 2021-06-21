@@ -217,7 +217,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
         return []
-    if extension in ["csv", "txt"]:
+    if extension in ["csv", "txt", "tsv"]:
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle #pylint:disable=protected-access
         iterator = csv.get_row_iterator(file_handle, table_spec, None, True)
