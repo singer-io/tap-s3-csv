@@ -22,8 +22,7 @@ def get_file_name_from_gzfile(filename=None, fileobj=None):
     # Case where the name is not in the header according to flag
     if not flag & gzip.FNAME:
         # Not stored in the header, use the filename sans .gz
-        fname = _fp.name
-        return fname[:-3] if fname.endswith('.gzip') else fname
+        return filename[:-3] if filename.endswith('.gzip') else filename
 
     if flag & gzip.FEXTRA:
         # Read & discard the extra field, if present
