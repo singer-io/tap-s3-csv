@@ -200,6 +200,11 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
 
+    # Skipping the .gz which gzip using --no-name.
+    if gz_file_name == "no-name-file":
+        LOGGER.warning('Skipping "%s" file as it gzip using --no-name, hence we can\'t get real file name back',s3_path)
+        return []
+
     if gz_file_name:
         if gz_file_name.endswith(".gz"):
             LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
