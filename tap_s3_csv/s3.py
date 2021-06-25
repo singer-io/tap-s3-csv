@@ -19,6 +19,7 @@ from singer_encodings import (
     compression,
     csv
 )
+#pylint disable=import-self
 from tap_s3_csv import (
     utils,
     conversion,
