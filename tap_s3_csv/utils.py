@@ -25,7 +25,7 @@ def get_file_name_from_gzfile(filename=None, fileobj=None):
         try:
             fname = _fp.name
             return fname[:-3] if fname.endswith('.gzip') else fname
-        except:
+        except AttributeError:
             # To skip the .gz which gzip using --no-name.
             return "no-name-file"
 

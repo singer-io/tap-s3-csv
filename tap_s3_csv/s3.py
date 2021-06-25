@@ -91,7 +91,7 @@ def get_sampled_schema_for_table(config, table_spec):
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
-    LOGGER.warn("%s files got skipped during the last sampling.",skipped_files_count)
+    LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
 
     if not samples:
         return {}
@@ -207,7 +207,7 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     # Skipping the .gz which gzip using --no-name.
     if gz_file_name == "no-name-file":
-        LOGGER.warning('Skipping "%s" file as it is gzip using --no-name, hence we can\'t get real file name back',s3_path)
+        LOGGER.warning('Skipping "%s" file as it is gzip using --no-name argument',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
 

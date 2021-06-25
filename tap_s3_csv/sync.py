@@ -117,7 +117,7 @@ def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
 
     # Skipping the .gz which gzip using --no-name.
     if gz_file_name == "no-name-file":
-        LOGGER.warning('Skipping "%s" file as it is gzip using --no-name, hence we can\'t get real file name back',s3_path)
+        LOGGER.warning('Skipping "%s" file as it is gzip using --no-name argument',s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
 
