@@ -44,6 +44,7 @@ def sync_stream(config, state, table_spec, stream):
         state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
         singer.write_state(state)
 
+    LOGGER.warn("%s files got skipped during the last sync.",s3.skipped_files_count)
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
 
     return records_streamed
@@ -93,6 +94,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
 
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+        s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
 
     LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
@@ -102,6 +104,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
 def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
     if s3_path.endswith(".tar.gz"):
         LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
+        s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
 
     # If file is extracted from zip use file object else get file object from s3 bucket
@@ -112,10 +115,17 @@ def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
 
     gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
 
+    # Skipping the .gz which gzip using --no-name.
+    if gz_file_name == "no-name-file":
+        LOGGER.warning('Skipping "%s" file as it is gzip using --no-name, hence we can\'t get real file name back',s3_path)
+        s3.skipped_files_count = s3.skipped_files_count + 1
+        return 0
+
     if gz_file_name:
 
         if gz_file_name.endswith(".gz"):
             LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+            s3.skipped_files_count = s3.skipped_files_count + 1
             return 0
 
         gz_file_extension = gz_file_name.split(".")[-1].lower()

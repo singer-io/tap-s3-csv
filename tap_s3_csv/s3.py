@@ -30,6 +30,7 @@ SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
 SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
 SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
 SDC_EXTRA_COLUMN = "_sdc_extra"
+skipped_files_count = 0
 
 def retry_pattern():
     return backoff.on_exception(backoff.expo,
@@ -89,6 +90,8 @@ def get_sampled_schema_for_table(config, table_spec):
     s3_files_gen = get_input_files_for_table(config, table_spec)
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
+
+    LOGGER.warn("%s files got skipped during the last sampling.",skipped_files_count)
 
     if not samples:
         return {}
@@ -191,8 +194,10 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
 
 
 def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
+    global skipped_files_count
     if s3_path.endswith(".tar.gz"):
         LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
 
     file_bytes = file_handle.read()
@@ -202,12 +207,14 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     # Skipping the .gz which gzip using --no-name.
     if gz_file_name == "no-name-file":
-        LOGGER.warning('Skipping "%s" file as it gzip using --no-name, hence we can\'t get real file name back',s3_path)
+        LOGGER.warning('Skipping "%s" file as it is gzip using --no-name, hence we can\'t get real file name back',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
 
     if gz_file_name:
         if gz_file_name.endswith(".gz"):
             LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+            skipped_files_count = skipped_files_count + 1
             return []
 
         gz_file_extension = gz_file_name.split(".")[-1].lower()
@@ -218,6 +225,7 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
 
+    global skipped_files_count
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
@@ -248,6 +256,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         return records
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
     LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',s3_path,extension)
     return []
@@ -268,6 +277,7 @@ def get_files_to_sample(config, s3_files, max_files):
              |_ type str(): Type of file which is used for extracted file
              |_ extension str(): extension of file (for normal files only)
     """
+    global skipped_files_count
     sampled_files = []
 
     OTHER_FILES = ["csv","gz","jsonl","txt"]
@@ -288,6 +298,7 @@ def get_files_to_sample(config, s3_files, max_files):
                 LOGGER.warning('"%s" without extension will not be sampled.',file_key)
             elif file_key.endswith(".tar.gz"):
                 LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported', file_key)
+                skipped_files_count = skipped_files_count + 1
             elif extension == "zip":
                 files = compression.infer(io.BytesIO(file_handle.read()), file_name)
 
@@ -329,6 +340,7 @@ def sample_files(config, table_spec, s3_files,
 
 
 def get_input_files_for_table(config, table_spec, modified_since=None):
+    global skipped_files_count
     bucket = config['bucket']
 
     to_return = []
@@ -354,7 +366,8 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         last_modified = s3_object['LastModified']
 
         if s3_object['Size'] == 0:
-            LOGGER.info('Skipping matched file "%s" as it is empty', key)
+            LOGGER.warning('Skipping matched file "%s" as it is empty', key)
+            skipped_files_count = skipped_files_count + 1
             unmatched_files_count += 1
             continue
 
