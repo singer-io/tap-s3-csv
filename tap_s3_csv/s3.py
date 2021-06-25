@@ -19,11 +19,10 @@ from singer_encodings import (
     compression,
     csv
 )
-#pylint: disable=import-self
+
 from tap_s3_csv import (
     utils,
-    conversion,
-    s3
+    conversion
 )
 
 LOGGER = singer.get_logger()
@@ -93,7 +92,7 @@ def get_sampled_schema_for_table(config, table_spec):
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
-    LOGGER.warning("%s files got skipped during the last sampling.",s3.skipped_files_count)
+    LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
 
     if not samples:
         return {}
@@ -194,11 +193,12 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
             raise Exception('JSONL file "{}" is missing date_overrides key: {}'
                             .format(s3_path, date_overrides - all_keys))
 
-
+#pylint: disable=global-statement
 def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
+    global skipped_files_count
     if s3_path.endswith(".tar.gz"):
         LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
-        s3.skipped_files_count = s3.skipped_files_count + 1
+        skipped_files_count = skipped_files_count + 1
         return []
 
     file_bytes = file_handle.read()
@@ -209,13 +209,13 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
     # Skipping the .gz which gzip using --no-name while sampling.
     if gz_file_name == "no-name-file":
         LOGGER.warning('Skipping "%s" file as it is gzip using --no-name argument',s3_path)
-        s3.skipped_files_count = s3.skipped_files_count + 1
+        skipped_files_count = skipped_files_count + 1
         return []
 
     if gz_file_name:
         if gz_file_name.endswith(".gz"):
             LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
-            s3.skipped_files_count = s3.skipped_files_count + 1
+            skipped_files_count = skipped_files_count + 1
             return []
 
         gz_file_extension = gz_file_name.split(".")[-1].lower()
@@ -223,8 +223,9 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
-
+#pylint: disable=global-statement
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+    global skipped_files_count
 
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
@@ -256,12 +257,12 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         return records
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
-        s3.skipped_files_count = s3.skipped_files_count + 1
+        skipped_files_count = skipped_files_count + 1
         return []
     LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',s3_path,extension)
     return []
 
-
+#pylint: disable=global-statement
 def get_files_to_sample(config, s3_files, max_files):
     """
     Returns the list of files for sampling, it checks the s3_files whether any zip or gz file exists or not
@@ -277,6 +278,7 @@ def get_files_to_sample(config, s3_files, max_files):
              |_ type str(): Type of file which is used for extracted file
              |_ extension str(): extension of file (for normal files only)
     """
+    global skipped_files_count
     sampled_files = []
 
     OTHER_FILES = ["csv","gz","jsonl","txt"]
@@ -297,7 +299,7 @@ def get_files_to_sample(config, s3_files, max_files):
                 LOGGER.warning('"%s" without extension will not be sampled.',file_key)
             elif file_key.endswith(".tar.gz"):
                 LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported', file_key)
-                s3.skipped_files_count = s3.skipped_files_count + 1
+                skipped_files_count = skipped_files_count + 1
             elif extension == "zip":
                 files = compression.infer(io.BytesIO(file_handle.read()), file_name)
 
@@ -337,8 +339,9 @@ def sample_files(config, table_spec, s3_files,
                     sample_rate)
         yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
 
-
+#pylint: disable=global-statement
 def get_input_files_for_table(config, table_spec, modified_since=None):
+    global skipped_files_count
     bucket = config['bucket']
 
     to_return = []
@@ -365,7 +368,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
 
         if s3_object['Size'] == 0:
             LOGGER.warning('Skipping matched file "%s" as it is empty', key)
-            s3.skipped_files_count = s3.skipped_files_count + 1
+            skipped_files_count = skipped_files_count + 1
             unmatched_files_count += 1
             continue
 
