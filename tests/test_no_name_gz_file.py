@@ -3,7 +3,7 @@ import tap_tester.connections as connections
 import tap_tester.menagerie   as menagerie
 import tap_tester.runner      as runner
 
-class S3CompressedGZTarGZFile(S3CompressedFile):
+class S3CompressedNoNameGZFile(S3CompressedFile):
 
     def resource_names(self):
         return ["sample_compressed_no_name.gz"]
