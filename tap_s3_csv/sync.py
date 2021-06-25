@@ -46,7 +46,7 @@ def sync_stream(config, state, table_spec, stream):
 
     if s3.skipped_files_count:
         LOGGER.warn("%s files got skipped during the last sync.",s3.skipped_files_count)
-        
+
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
 
     return records_streamed
