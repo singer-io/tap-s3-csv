@@ -92,7 +92,8 @@ def get_sampled_schema_for_table(config, table_spec):
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
-    LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
+    if skipped_files_count:
+        LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
 
     if not samples:
         return {}

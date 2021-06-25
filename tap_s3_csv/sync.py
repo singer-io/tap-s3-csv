@@ -44,7 +44,9 @@ def sync_stream(config, state, table_spec, stream):
         state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
         singer.write_state(state)
 
-    LOGGER.warn("%s files got skipped during the last sync.",s3.skipped_files_count)
+    if s3.skipped_files_count:
+        LOGGER.warn("%s files got skipped during the last sync.",s3.skipped_files_count)
+        
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
 
     return records_streamed
