@@ -205,7 +205,7 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
 
-    # Skipping the .gz which gzip using --no-name.
+    # Skipping the .gz which gzip using --no-name while sampling.
     if gz_file_name == "no-name-file":
         LOGGER.warning('Skipping "%s" file as it is gzip using --no-name argument',s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
