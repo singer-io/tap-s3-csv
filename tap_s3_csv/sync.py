@@ -172,11 +172,8 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
 
-    if "properties" in stream["schema"]:
-        iterator = csv_helper.get_row_iterator(
-            file_handle, table_spec, stream["schema"]["properties"].keys(), True)
-    else:
-        iterator = csv_helper.get_row_iterator(file_handle, table_spec)
+    iterator = csv_helper.get_row_iterator(
+        file_handle, table_spec, stream["schema"]["properties"].keys(), True)
 
     records_synced = 0
 
