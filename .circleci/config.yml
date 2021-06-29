@@ -35,7 +35,7 @@ jobs:
                        --password=$SANDBOX_PASSWORD \
                        --client-id=50 \
                        --token=$STITCH_API_TOKEN \
-                       tests
+                       tests/test_catalog_without_properties.py
 
 workflows:
   version: 2

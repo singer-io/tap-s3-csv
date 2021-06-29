@@ -70,6 +70,9 @@ class S3CatalogWithoutProperties(unittest.TestCase):
         self.assertTrue(
             subset, msg="Expected check streams are not subset of discovered catalog")
 
+        print('FOUND CATALOGS----------------------------')
+        print(found_catalogs)
+
         our_catalogs = [c for c in found_catalogs if c.get(
             'tap_stream_id') in self.expected_streams()]
 
@@ -83,6 +86,9 @@ class S3CatalogWithoutProperties(unittest.TestCase):
                 self.conn_id, c['stream_id'])
             connections.select_catalog_and_fields_via_metadata(
                 self.conn_id, c, c_annotated, [], [])
+
+        print('----------------------------------------------')
+        print(c_annotated)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
