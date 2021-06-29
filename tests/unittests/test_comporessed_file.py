@@ -473,6 +473,29 @@ class TestUnsupportedFiles(unittest.TestCase):
 
         mocked_logger.assert_called_with('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
 
+    @mock.patch("tap_s3_csv.sync.handle_file", side_effect=mock_csv_sample_file)
+    def test_syncing_of_gz_file_with_csv_extantion(self, mock_csv_sample_file,mocked_logger):
+        config = {"bucket" : "bucket_name"}
+        table_spec = { "table_name" : "GZ_DATA"}
+        stream = {}
+        s3_path = "unittest_compressed_files/gz_stored_as_csv.csv"
+        extension = "csv"
+        records = sync.sync_table_file(config, s3_path, table_spec, stream)
+
+        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extention of the file.',s3_path)
+        self.assertEqual(0, records)
+
+    @mock.patch("tap_s3_csv.sync.handle_file", side_effect=mock_jsonl_sample_file)
+    def test_syncing_of_gz_file_with_jsonl_extantion(self, mock_jsonl_sample_file,mocked_logger):
+        config = {"bucket" : "bucket_name"}
+        table_spec = { "table_name" : "GZ_DATA"}
+        stream = {}
+        s3_path = "unittest_compressed_files/gz_stored_as_jsonl.jsonl"
+        extension = "jsonl"
+        records = sync.sync_table_file(config, s3_path, table_spec, stream)
+
+        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extention of the file.',s3_path)
+        self.assertEqual(0, records)
 
     def test_syncing_tar_gz_file(self, mocked_logger):
         config = {}
