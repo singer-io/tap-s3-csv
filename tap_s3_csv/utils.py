@@ -26,7 +26,7 @@ def get_file_name_from_gzfile(filename=None, fileobj=None):
             fname = _fp.name
             return fname[:-3] if fname.endswith('.gzip') else fname
         except AttributeError:
-            # If a file is compressed using gzip command with --no-name attribute, 
+            # If a file is compressed using gzip command with --no-name attribute,
             # It will not return the file name and timestamp. Hence we will skip such files.
             return "file with --no-name"
 
