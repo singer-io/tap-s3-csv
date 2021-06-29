@@ -106,14 +106,14 @@ class S3CatalogWithoutProperties(unittest.TestCase):
         #as catalog is without any fields.
 
         expected_records = [
-            {'id': '1', 'name': 'John', '_sdc_extra': [{'name': 'carl'}], '_sdc_source_bucket': 'qradars3test',
+            {'id': '1', 'name': 'John', '_sdc_extra': [{'name': 'carl'}], '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets',
                 '_sdc_source_file': 'tap_tester/test_empty_catalog_7.csv', '_sdc_source_lineno': 2},
-            {'id': '2', 'name': 'Bob', '_sdc_source_bucket': 'qradars3test',
+            {'id': '2', 'name': 'Bob', '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets',
                 '_sdc_source_file': 'tap_tester/test_empty_catalog_7.csv', '_sdc_source_lineno': 3},
-            {'id': '3', '_sdc_source_bucket': 'qradars3test',
+            {'id': '3', '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets',
                 '_sdc_source_file': 'tap_tester/test_empty_catalog_7.csv', '_sdc_source_lineno': 4},
             {'id': '4', 'name': 'Alice', '_sdc_extra': [{'no_headers': ['Ben', '5']}, {
-                'name': 'Barak'}], '_sdc_source_bucket': 'qradars3test', '_sdc_source_file': 'tap_tester/test_empty_catalog_7.csv', '_sdc_source_lineno': 5}
+                'name': 'Barak'}], '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets', '_sdc_source_file': 'tap_tester/test_empty_catalog_7.csv', '_sdc_source_lineno': 5}
         ]
 
         self.assertListEqual(expected_records, records)
