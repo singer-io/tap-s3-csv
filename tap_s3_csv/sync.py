@@ -59,6 +59,7 @@ def sync_table_file(config, s3_path, table_spec, stream):
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be synced.',s3_path)
+        s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
     if extension == "zip":
         return sync_compressed_file(config, s3_path, table_spec, stream)
@@ -66,6 +67,7 @@ def sync_table_file(config, s3_path, table_spec, stream):
         return handle_file(config, s3_path, table_spec, stream, extension)
 
     LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
+    s3.skipped_files_count = s3.skipped_files_count + 1
     return 0
 
 
@@ -78,6 +80,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be synced.',s3_path)
+        s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
     if extension == "gz":
         return sync_gz_file(config, s3_path, table_spec, stream, file_handler)
@@ -100,6 +103,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
         return 0
 
     LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
+    s3.skipped_files_count = s3.skipped_files_count + 1
     return 0
 
 
