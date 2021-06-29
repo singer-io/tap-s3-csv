@@ -19,6 +19,7 @@ from singer_encodings import (
     compression,
     csv
 )
+
 from tap_s3_csv import (
     utils,
     conversion
@@ -30,6 +31,7 @@ SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
 SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
 SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
 SDC_EXTRA_COLUMN = "_sdc_extra"
+skipped_files_count=0
 
 def retry_pattern():
     return backoff.on_exception(backoff.expo,
@@ -298,12 +300,14 @@ def get_files_to_sample(config, s3_files, max_files):
     return sampled_files
 
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,global-statement
 def sample_files(config, table_spec, s3_files,
                  sample_rate=5, max_records=1000, max_files=5):
+    global skipped_files_count
     LOGGER.info("Sampling files (max files: %s)", max_files)
 
     for s3_file in itertools.islice(get_files_to_sample(config, s3_files, max_files), max_files):
+
 
         s3_path = s3_file.get("s3_path","")
         file_handle = s3_file.get("file_handle")
@@ -320,7 +324,11 @@ def sample_files(config, table_spec, s3_files,
                     s3_path,
                     max_records,
                     sample_rate)
-        yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
+        try: 
+            yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
+        except (UnicodeDecodeError,json.decoder.JSONDecodeError):
+            LOGGER.warn("Skipping %s file as parsing failed. Verify an extention of the file.",s3_path)
+            skipped_files_count = skipped_files_count + 1
 
 
 def get_input_files_for_table(config, table_spec, modified_since=None):

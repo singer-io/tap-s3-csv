@@ -234,6 +234,31 @@ class TestCompressedFileSupport(unittest.TestCase):
 @mock.patch("tap_s3_csv.sync.LOGGER.warning")
 class TestUnsupportedFiles(unittest.TestCase):
 
+    def mock_get_files_to_sample_csv(config, s3_files, max_files):
+        gz_file_path = get_resources_path("gz_stored_as_csv.csv", COMPRESSION_FOLDER_PATH)
+
+        with gzip.GzipFile(gz_file_path) as gz_file:
+            
+            file_handle = gz_file.fileobj
+
+            return [{'s3_path': 'unittest_compressed_files/gz_stored_as_csv.csv', 'file_handle': file_handle, 'extension': 'csv'}]
+
+    def mock_csv_sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+        raise UnicodeDecodeError("test",b"'utf-8' codec can't decode byte 0x8b in position 1: invalid start byte",42, 43, 'the universe and everything else')
+    
+    def mock_get_files_to_sample_jsonl(config, s3_files, max_files):
+        gz_file_path = get_resources_path("gz_stored_as_jsonl.jsonl", COMPRESSION_FOLDER_PATH)
+
+        with gzip.GzipFile(gz_file_path) as gz_file:
+            
+            file_handle = gz_file.fileobj
+
+            return [{'s3_path': 'unittest_compressed_files/gz_stored_as_jsonl.jsonl', 'file_handle': file_handle, 'extension': 'jsonl'}]
+
+    def mock_jsonl_sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+        # To raise json decoder error.
+        return json.loads(b"'{'}")
+
     @mock.patch("tap_s3_csv.s3.get_file_handle")
     def test_get_files_for_samples_of_tar_gz_file_samples(self, mocked_file_handle, mocked_logger):
         config = {}
@@ -320,6 +345,42 @@ class TestUnsupportedFiles(unittest.TestCase):
             self.assertTrue(len(actual_output)==0)
 
             mocked_logger.assert_called_with('Skipping "%s" file as it contains nested compression.',s3_path)
+
+    @mock.patch("tap_s3_csv.s3.get_files_to_sample",side_effect=mock_get_files_to_sample_csv)
+    @mock.patch("tap_s3_csv.s3.get_file_handle")
+    @mock.patch("tap_s3_csv.s3.sample_file", side_effect=mock_csv_sample_file)
+    def test_sampling_of_gz_file_stored_with_csv_Extention(self, mock_csv_sample_file, mock_get_file_handle, mock_get_files_to_sample_csv, mocked_logger):
+        table_spec = {}
+        s3_files = "unittest_compressed_files/gz_stored_as_csv.csv"
+        sample_rate = 5
+        config = []
+
+
+        actual_output = [sample for sample in s3.sample_files(config, table_spec, s3_files, sample_rate)]
+
+        self.assertTrue(len(actual_output)==0)
+
+        new_s3_path = "unittest_compressed_files/gz_stored_as_csv.csv"
+
+        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extention of the file.',new_s3_path)
+
+    @mock.patch("tap_s3_csv.s3.get_files_to_sample",side_effect=mock_get_files_to_sample_jsonl)
+    @mock.patch("tap_s3_csv.s3.get_file_handle")
+    @mock.patch("tap_s3_csv.s3.sample_file", side_effect=mock_jsonl_sample_file)
+    def test_sampling_of_gz_file_stored_with_jsonl_Extention(self, mock_jsonl_sample_file, mock_get_file_handle, mock_get_files_to_sample_csv, mocked_logger):
+        table_spec = {}
+        s3_files = "unittest_compressed_files/gz_stored_as_jsonl.jsonl"
+        sample_rate = 5
+        config = []
+
+
+        actual_output = [sample for sample in s3.sample_files(config, table_spec, s3_files, sample_rate)]
+
+        self.assertTrue(len(actual_output)==0)
+
+        new_s3_path = "unittest_compressed_files/gz_stored_as_jsonl.jsonl"
+
+        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extention of the file.',new_s3_path)
 
     def test_sampling_of_gz_file_contains_zip_file_samples(self, mocked_logger):
         table_spec = {}

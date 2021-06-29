@@ -57,10 +57,14 @@ def sync_table_file(config, s3_path, table_spec, stream):
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be synced.',s3_path)
         return 0
-    if extension == "zip":
-        return sync_compressed_file(config, s3_path, table_spec, stream)
-    if extension in ["csv", "gz", "jsonl", "txt"]:
-        return handle_file(config, s3_path, table_spec, stream, extension)
+    try:
+        if extension == "zip":
+            return sync_compressed_file(config, s3_path, table_spec, stream)
+        if extension in ["csv", "gz", "jsonl", "txt"]:
+            return handle_file(config, s3_path, table_spec, stream, extension)
+    except (UnicodeDecodeError,json.decoder.JSONDecodeError):
+            LOGGER.warn("Skipping %s file as parsing failed. Verify an extention of the file.",s3_path)
+            s3.skipped_files_count = s3.skipped_files_count + 1
 
     LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
     return 0
