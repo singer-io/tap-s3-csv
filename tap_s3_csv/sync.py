@@ -163,7 +163,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
         iterator = csv_helper.get_row_iterator(
             file_handle, table_spec, stream["schema"]["properties"].keys(), True)
     else:
-        iterator = csv_helper.get_row_iterator(file_handle, table_spec)
+        iterator = csv_helper.get_row_iterator(file_handle, table_spec, None, True)
 
     records_synced = 0
 
