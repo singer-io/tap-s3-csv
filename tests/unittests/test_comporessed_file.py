@@ -235,7 +235,7 @@ class TestCompressedFileSupport(unittest.TestCase):
 class TestUnsupportedFiles(unittest.TestCase):
 
     def mock_get_file_name_from_gzfile(self):
-        return "no-name-file"
+        return "file with --no-name"
 
     @mock.patch("tap_s3_csv.s3.get_file_handle")
     def test_get_files_for_samples_of_tar_gz_file_samples(self, mocked_file_handle, mocked_logger):

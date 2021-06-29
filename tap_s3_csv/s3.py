@@ -208,8 +208,8 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
     gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
 
     # Skipping the .gz which gzip using --no-name while sampling.
-    if gz_file_name == "no-name-file":
-        LOGGER.warning('Skipping "%s" file as it is gzip using --no-name argument',s3_path)
+    if gz_file_name == "file with --no-name":
+        LOGGER.warning('Skipping "%s" file as we did not get the original file name',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
 
@@ -231,6 +231,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
     if extension in ["csv", "txt"]:
         # If file object read from s3 bucket file else use extracted file object from zip or gz
@@ -261,6 +262,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         skipped_files_count = skipped_files_count + 1
         return []
     LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',s3_path,extension)
+    skipped_files_count = skipped_files_count + 1
     return []
 
 #pylint: disable=global-statement
@@ -298,6 +300,7 @@ def get_files_to_sample(config, s3_files, max_files):
             # Check whether file is without extension or not
             if not extension or file_name.lower() == extension:
                 LOGGER.warning('"%s" without extension will not be sampled.',file_key)
+                skipped_files_count = skipped_files_count + 1
             elif file_key.endswith(".tar.gz"):
                 LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported', file_key)
                 skipped_files_count = skipped_files_count + 1
@@ -312,6 +315,7 @@ def get_files_to_sample(config, s3_files, max_files):
                 sampled_files.append({ "s3_path" : file_key , "file_handle" : file_handle, "extension" : extension })
             else:
                 LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',file_key,extension)
+                skipped_files_count = skipped_files_count + 1
 
     return sampled_files
 
