@@ -70,15 +70,8 @@ class S3CatalogWithoutProperties(unittest.TestCase):
         self.assertTrue(
             subset, msg="Expected check streams are not subset of discovered catalog")
 
-        print('FOUND CATALOGS----------------------------')
-        print(found_catalogs)
-
         our_catalogs = [c for c in found_catalogs if c.get(
             'tap_stream_id') in self.expected_streams()]
-
-        # Schema should be empty as all 5 files considered in sampling are containing headers only.
-        # for c in our_catalogs:
-        #     self.assertEqual(c['schema'], {})
 
         # Select our catalogs
         for c in our_catalogs:
@@ -87,8 +80,11 @@ class S3CatalogWithoutProperties(unittest.TestCase):
             connections.select_catalog_and_fields_via_metadata(
                 self.conn_id, c, c_annotated, [], [])
 
-        print('----------------------------------------------')
-        print(c_annotated)
+        # Stream properties should be zero as all 5 files considered in sampling are containing headers only.
+        # No fields with breadcumb will be present in schema
+        metadata = c_annotated["metadata"]
+        stream_properties = [item for item in metadata if item.get("breadcrumb") != []]
+        self.assertEqual(len(stream_properties), 0)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
