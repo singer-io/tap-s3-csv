@@ -322,7 +322,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
             self.assertTrue(len(actual_output)==0)
 
-            mocked_logger.assert_called_with('Skipping "%s" file as it is gzip using --no-name argument',s3_path)
+            mocked_logger.assert_called_with('Skipping "%s" file as we did not get the original file name',s3_path)
 
 
     def test_sampling_of_gz_file_contains_gz_file_samples(self, mocked_logger):
@@ -459,7 +459,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
             self.assertEqual(records, 0)
 
-            mocked_logger.assert_called_with('Skipping "%s" file as it is gzip using --no-name argument',s3_path)
+            mocked_logger.assert_called_with('Skipping "%s" file as we did not get the original file name',s3_path)
 
 
     def test_syncing_gz_file_contains_gz(self, mocked_logger):
