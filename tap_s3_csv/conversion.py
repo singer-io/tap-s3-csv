@@ -91,7 +91,8 @@ def pick_datatype(counts):
 
     return to_return
 
-
+#TODO: Remove this once master branch code backmerged
+#pylint: disable=use-maxsplit-arg
 def generate_schema(samples, table_spec):
     counts = {}
     for sample in samples:
