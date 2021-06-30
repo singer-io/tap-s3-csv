@@ -212,7 +212,7 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
-
+# pylint: disable=global-statement
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
 
     global skipped_files_count
@@ -224,12 +224,13 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle #pylint:disable=protected-access
         iterator = csv.get_row_iterator(file_handle, table_spec, None, True)
+        csv_records = []
         if iterator:
-            return get_records_for_csv(s3_path, sample_rate, iterator)
+            csv_records = get_records_for_csv(s3_path, sample_rate, iterator)
         else:
             LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
             skipped_files_count = skipped_files_count + 1
-            return []
+        return csv_records       
     if extension == "gz":
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
     if extension == "jsonl":
@@ -330,7 +331,7 @@ def sample_files(config, table_spec, s3_files,
                     s3_path,
                     max_records,
                     sample_rate)
-        try: 
+        try:
             yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
         except (UnicodeDecodeError,json.decoder.JSONDecodeError):
             LOGGER.warn("Skipping %s file as parsing failed. Verify an extention of the file.",s3_path)
