@@ -230,7 +230,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         else:
             LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
             skipped_files_count = skipped_files_count + 1
-        return csv_records       
+        return csv_records
     if extension == "gz":
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
     if extension == "jsonl":
