@@ -215,6 +215,7 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
 
+    global skipped_files_count
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
@@ -223,7 +224,11 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle #pylint:disable=protected-access
         iterator = csv.get_row_iterator(file_handle, table_spec, None, True)
-        return get_records_for_csv(s3_path, sample_rate, iterator)
+        if iterator:
+            return get_records_for_csv(s3_path, sample_rate, iterator)
+        else:
+            LOGGER.warning("Skipping '%s' file as it is empty",s3_path)
+            skipped_files_count = skipped_files_count + 1
     if extension == "gz":
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
     if extension == "jsonl":
