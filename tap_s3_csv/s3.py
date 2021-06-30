@@ -227,8 +227,9 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         if iterator:
             return get_records_for_csv(s3_path, sample_rate, iterator)
         else:
-            LOGGER.warning("Skipping '%s' file as it is empty",s3_path)
+            LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
             skipped_files_count = skipped_files_count + 1
+            return []
     if extension == "gz":
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
     if extension == "jsonl":

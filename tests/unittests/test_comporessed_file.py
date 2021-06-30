@@ -346,6 +346,24 @@ class TestUnsupportedFiles(unittest.TestCase):
 
             mocked_logger.assert_called_with('Skipping "%s" file as it contains nested compression.',s3_path)
 
+    def test_sampling_of_empty_csv_converted_to_gz(self, mocked_logger):
+        table_spec = {}
+        s3_path = "unittest_compressed_files/empty_csv_gz.gz"
+        sample_rate = 5
+        extension = s3_path.split(".")[-1].lower()
+
+        gz_file_path = get_resources_path("empty_csv_gz.gz", COMPRESSION_FOLDER_PATH)
+
+        with gzip.GzipFile(gz_file_path) as gz_file:
+            
+            actual_output = [sample for sample in s3.sample_file(table_spec, s3_path, gz_file.fileobj, sample_rate, extension)]
+
+            self.assertTrue(len(actual_output)==0)
+
+            new_s3_path = "unittest_compressed_files/empty_csv_gz.gz/empty_csv.csv"
+
+            mocked_logger.assert_called_with('Skipping "%s" file as it is empty',new_s3_path)
+
     @mock.patch("tap_s3_csv.s3.get_files_to_sample",side_effect=mock_get_files_to_sample_csv)
     @mock.patch("tap_s3_csv.s3.get_file_handle")
     @mock.patch("tap_s3_csv.s3.sample_file", side_effect=mock_csv_sample_file)

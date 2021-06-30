@@ -184,7 +184,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
             singer.write_record(table_name, to_write)
             records_synced += 1
     else:
-        LOGGER.warning("Skipping '%s' file as it is empty",s3_path)
+        LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
 
     return records_synced

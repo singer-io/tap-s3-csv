@@ -3,27 +3,27 @@ import tap_tester.connections as connections
 import tap_tester.menagerie   as menagerie
 import tap_tester.runner      as runner
 
-class S3CompressedGZFileHavingExtantionCSVorJSONL(S3CompressedFile):
+class S3CompressedGZFileHavingEmptyCSV(S3CompressedFile):
 
     def resource_names(self):
-        return ["gz_stored_as_csv.csv","gz_stored_as_jsonl.jsonl"]
+        return ["gempty_csv_gz.gz"]
 
     def name(self):
-        return "test_gz_file_with_csv_and_jsonl_extantion"
+        return "test_gz_file_having_empty_csv"
 
     def expected_check_streams(self):
         return {
-            'gz_file_with_csv_and_jsonl_extantion'
+            'gz_file_having_empty_csv'
         }
 
     def expected_sync_streams(self):
         return {
-            'gz_file_with_csv_and_jsonl_extantion'
+            'gz_file_having_empty_csv'
         }
 
     def get_properties(self):
         properties = super().get_properties()
-        properties["tables"] = "[{\"table_name\": \"gz_file_with_csv_and_jsonl_extantion\",\"search_prefix\": \"compressed_files_gz_file_with_csv_and_jsonl_extantion\",\"search_pattern\": \"compressed_files_gz_file_with_csv_and_jsonl_extantion\\\\/.*\\\\.(csv|jsonl)\"}]"
+        properties["tables"] = "[{\"table_name\": \"gz_file_having_empty_csv\",\"search_prefix\": \"compressed_files_gz_file_having_empty_csv\",\"search_pattern\": \"compressed_files_gz_file_having_empty_csv\\\\/.*\\\\.(gz)\"}]"
         return properties
 
 
@@ -43,7 +43,7 @@ class S3CompressedGZFileHavingExtantionCSVorJSONL(S3CompressedFile):
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
 
-        self.select_specific_catalog(found_catalogs, "gz_file_with_csv_and_jsonl_extantion")
+        self.select_specific_catalog(found_catalogs, "gz_file_having_empty_csv")
 
         runner.run_sync_job_and_check_status(self)
 
