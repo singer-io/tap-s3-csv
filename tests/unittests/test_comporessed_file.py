@@ -234,6 +234,9 @@ class TestCompressedFileSupport(unittest.TestCase):
 @mock.patch("tap_s3_csv.sync.LOGGER.warning")
 class TestUnsupportedFiles(unittest.TestCase):
 
+    def mock_get_file_name_from_gzfile(self):
+        return "file with --no-name"
+
     @mock.patch("tap_s3_csv.s3.get_file_handle")
     def test_get_files_for_samples_of_tar_gz_file_samples(self, mocked_file_handle, mocked_logger):
         config = {}
@@ -303,6 +306,23 @@ class TestUnsupportedFiles(unittest.TestCase):
         self.assertTrue(len(actual_output)==0)
 
         mocked_logger.assert_called_with('"%s" without extension will not be sampled.',s3_path)
+
+
+    def test_sampling_of_file_gzip_using_no_name(self, mocked_logger):
+        table_spec = {}
+        s3_path = "unittest_compressed_files/sample_compressed.gz"
+        sample_rate = 5
+        extension = "gz"
+
+        gz_file_path = get_resources_path("sample_compressed_no_name.gz", COMPRESSION_FOLDER_PATH)
+
+        with gzip.GzipFile(gz_file_path) as gz_file:
+
+            actual_output = [sample for sample in s3.sample_file(table_spec, s3_path, gz_file.fileobj, sample_rate, extension)]
+
+            self.assertTrue(len(actual_output)==0)
+
+            mocked_logger.assert_called_with('Skipping "%s" file as we did not get the original file name',s3_path)
 
 
     def test_sampling_of_gz_file_contains_gz_file_samples(self, mocked_logger):
@@ -424,6 +444,22 @@ class TestUnsupportedFiles(unittest.TestCase):
         self.assertTrue(records == 0)
 
         mocked_logger.assert_called_with('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
+
+    def test_syncing_gz_file_of_file_gzip_using_no_name(self, mocked_logger):
+        config = {"bucket" : "bucket_name"}
+        table_spec = { "table_name" : "GZ_DATA"}
+        s3_path = "unittest_compressed_files/sample_compressed.gz"
+        extension = "gz"
+
+        gz_file_path = get_resources_path("sample_compressed_no_name.gz", COMPRESSION_FOLDER_PATH)
+
+        with gzip.GzipFile(gz_file_path) as gz_file:
+
+            records = sync.handle_file(config, s3_path, table_spec, {}, extension, gz_file.fileobj)
+
+            self.assertEqual(records, 0)
+
+            mocked_logger.assert_called_with('Skipping "%s" file as we did not get the original file name',s3_path)
 
 
     def test_syncing_gz_file_contains_gz(self, mocked_logger):

@@ -19,6 +19,7 @@ from singer_encodings import (
     compression,
     csv
 )
+
 from tap_s3_csv import (
     utils,
     conversion
@@ -30,6 +31,7 @@ SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
 SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
 SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
 SDC_EXTRA_COLUMN = "_sdc_extra"
+skipped_files_count = 0
 
 def retry_pattern():
     return backoff.on_exception(backoff.expo,
@@ -89,6 +91,9 @@ def get_sampled_schema_for_table(config, table_spec):
     s3_files_gen = get_input_files_for_table(config, table_spec)
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
+
+    if skipped_files_count:
+        LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
 
     if not samples:
         return {}
@@ -189,20 +194,31 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
             raise Exception('JSONL file "{}" is missing date_overrides key: {}'
                             .format(s3_path, date_overrides - all_keys))
 
-
+#pylint: disable=global-statement
 def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
+    global skipped_files_count
     if s3_path.endswith(".tar.gz"):
         LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
 
     file_bytes = file_handle.read()
     gz_file_obj = gzip.GzipFile(fileobj=io.BytesIO(file_bytes))
 
-    gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
+    try:
+        gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
+    except AttributeError as err:
+        # If a file is compressed using gzip command with --no-name attribute,
+        # It will not return the file name and timestamp. Hence we will skip such files.
+        # We also seen this issue occur when tar is used to compress the file
+        LOGGER.warning('Skipping "%s" file as we did not get the original file name',s3_path)
+        skipped_files_count = skipped_files_count + 1
+        return []
 
     if gz_file_name:
         if gz_file_name.endswith(".gz"):
             LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+            skipped_files_count = skipped_files_count + 1
             return []
 
         gz_file_extension = gz_file_name.split(".")[-1].lower()
@@ -210,12 +226,14 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
-
+#pylint: disable=global-statement
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+    global skipped_files_count
 
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
     if extension in ["csv", "txt"]:
         # If file object read from s3 bucket file else use extracted file object from zip or gz
@@ -243,11 +261,13 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         return records
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
     LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',s3_path,extension)
+    skipped_files_count = skipped_files_count + 1
     return []
 
-
+#pylint: disable=global-statement
 def get_files_to_sample(config, s3_files, max_files):
     """
     Returns the list of files for sampling, it checks the s3_files whether any zip or gz file exists or not
@@ -263,6 +283,7 @@ def get_files_to_sample(config, s3_files, max_files):
              |_ type str(): Type of file which is used for extracted file
              |_ extension str(): extension of file (for normal files only)
     """
+    global skipped_files_count
     sampled_files = []
 
     OTHER_FILES = ["csv","gz","jsonl","txt"]
@@ -281,8 +302,10 @@ def get_files_to_sample(config, s3_files, max_files):
             # Check whether file is without extension or not
             if not extension or file_name.lower() == extension:
                 LOGGER.warning('"%s" without extension will not be sampled.',file_key)
+                skipped_files_count = skipped_files_count + 1
             elif file_key.endswith(".tar.gz"):
                 LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported', file_key)
+                skipped_files_count = skipped_files_count + 1
             elif extension == "zip":
                 files = compression.infer(io.BytesIO(file_handle.read()), file_name)
 
@@ -294,6 +317,7 @@ def get_files_to_sample(config, s3_files, max_files):
                 sampled_files.append({ "s3_path" : file_key , "file_handle" : file_handle, "extension" : extension })
             else:
                 LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',file_key,extension)
+                skipped_files_count = skipped_files_count + 1
 
     return sampled_files
 
@@ -322,8 +346,9 @@ def sample_files(config, table_spec, s3_files,
                     sample_rate)
         yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
 
-
+#pylint: disable=global-statement
 def get_input_files_for_table(config, table_spec, modified_since=None):
+    global skipped_files_count
     bucket = config['bucket']
 
     to_return = []
@@ -349,7 +374,8 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         last_modified = s3_object['LastModified']
 
         if s3_object['Size'] == 0:
-            LOGGER.info('Skipping matched file "%s" as it is empty', key)
+            LOGGER.warning('Skipping matched file "%s" as it is empty', key)
+            skipped_files_count = skipped_files_count + 1
             unmatched_files_count += 1
             continue
 
