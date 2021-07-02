@@ -91,8 +91,6 @@ def pick_datatype(counts):
 
     return to_return
 
-#TODO: Remove this once master branch code backmerged
-#pylint: disable=use-maxsplit-arg
 def generate_schema(samples, table_spec):
     counts = {}
     for sample in samples:
@@ -101,7 +99,7 @@ def generate_schema(samples, table_spec):
     for key, value in counts.items():
         datatype = pick_datatype(value)
         if 'list.' in datatype:
-            child_datatype = datatype.split('.')[-1]
+            child_datatype = datatype.rsplit('.', maxsplit=1)[-1]
             counts[key] = {
                 'anyOf': [
                     {'type': 'array', 'items': datatype_schema(
