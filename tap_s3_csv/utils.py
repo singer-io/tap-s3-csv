@@ -22,13 +22,8 @@ def get_file_name_from_gzfile(filename=None, fileobj=None):
     # Case where the name is not in the header according to flag
     if not flag & gzip.FNAME:
         # Not stored in the header, use the filename sans .gz
-        try:
-            fname = _fp.name
-            return fname[:-3] if fname.endswith('.gzip') else fname
-        except AttributeError:
-            # If a file is compressed using gzip command with --no-name attribute,
-            # It will not return the file name and timestamp. Hence we will skip such files.
-            return "file with --no-name"
+        fname = _fp.name
+        return fname[:-3] if fname.endswith('.gzip') else fname
 
     if flag & gzip.FEXTRA:
         # Read & discard the extra field, if present

@@ -119,11 +119,9 @@ def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
     file_bytes = file_object.read()
     gz_file_obj = gzip.GzipFile(fileobj=io.BytesIO(file_bytes))
 
-    gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
-
-    # Skipping the .gz which gzip using --no-name while sync.
-    if gz_file_name == "file with --no-name":
-
+    try:
+        gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
+    except AttributeError as err:
         LOGGER.warning('Skipping "%s" file as we did not get the original file name',s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
@@ -131,6 +129,8 @@ def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
     if gz_file_name:
 
         if gz_file_name.endswith(".gz"):
+            # If a file is compressed using gzip command with --no-name attribute,
+            # It will not return the file name and timestamp. Hence we will skip such files.
             LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
             s3.skipped_files_count = s3.skipped_files_count + 1
             return 0
