@@ -2,6 +2,7 @@
 
 ## 1.3.2
   * Skip files without a name [#37](https://github.com/singer-io/tap-s3-csv/pull/37)
+  * Fix an issue to allow the tap to run with a catalog without schemas [#38](https://github.com/singer-io/tap-s3-csv/pull/38)
 
 ## 1.3.1
   * Fixed bug that caused `integer`s to be discovered as `number` differently in different versions of python [#35](https://github.com/singer-io/tap-s3-csv/pull/35)
