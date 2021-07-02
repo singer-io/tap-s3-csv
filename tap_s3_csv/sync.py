@@ -119,6 +119,7 @@ def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
     file_bytes = file_object.read()
     gz_file_obj = gzip.GzipFile(fileobj=io.BytesIO(file_bytes))
 
+    # pylint: disable=duplicate-code
     try:
         gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
     except AttributeError as err:
