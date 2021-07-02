@@ -124,6 +124,7 @@ def sync_gz_file(config, s3_path, table_spec, stream, file_handler):
     except AttributeError as err:
         # If a file is compressed using gzip command with --no-name attribute,
         # It will not return the file name and timestamp. Hence we will skip such files.
+        # We also seen this issue occur when tar is used to compress the file
         LOGGER.warning('Skipping "%s" file as we did not get the original file name',s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
