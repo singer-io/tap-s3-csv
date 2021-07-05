@@ -253,3 +253,17 @@ class TestJsonlSupport(unittest.TestCase):
         
         sync.sync_table_file(config, s3_path, table_spec, stream)
         self.assertEqual(mock_sync_csv_file.call_count, 1)
+
+    @mock.patch("tap_s3_csv.s3.LOGGER.info")
+    def test_get_record_for_jsonl_with_empty_json(self,mocked_logger):
+    
+        s3_path = "test\\abc.jsonl"
+        sample_rate = 5
+        iterator = [b'{}\n']
+
+        expected_output = s3.get_records_for_jsonl(s3_path, sample_rate, iterator)
+        try:
+            next(expected_output)
+        except StopIteration:
+            pass
+        mocked_logger.assert_called_with("Sampled %s rows from %s", 0, s3_path)
