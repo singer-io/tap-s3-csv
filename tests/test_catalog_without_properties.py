@@ -73,6 +73,9 @@ class S3CatalogWithoutProperties(unittest.TestCase):
         our_catalogs = [c for c in found_catalogs if c.get(
             'tap_stream_id') in self.expected_streams()]
 
+        print('-------------------------')
+        print(our_catalogs)
+
         # Select our catalogs
         for c in our_catalogs:
             c_annotated = menagerie.get_annotated_schema(

@@ -65,8 +65,6 @@ class S3DuplicateHeadersCSV(unittest.TestCase):
 
         found_catalogs = menagerie.get_catalogs(self.conn_id)
 
-        print('-------------------------')
-        print(found_catalogs)
         self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
 
         found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
