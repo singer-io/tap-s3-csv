@@ -161,6 +161,7 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
             decoded_row = row.decode('utf-8')
             if decoded_row.strip():
                 row = json.loads(decoded_row)
+                # Skipping the empty json.
                 if len(row) == 0:
                     current_row += 1
                     continue

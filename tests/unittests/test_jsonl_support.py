@@ -267,3 +267,14 @@ class TestJsonlSupport(unittest.TestCase):
         except StopIteration:
             pass
         mocked_logger.assert_called_with("Sampled %s rows from %s", 0, s3_path)
+
+    def test_sync_jsonl_file_with_empty_json(self):
+    
+        s3_path = "test\\abc.jsonl"
+        iterator = [b'{}\n']
+        table_spec = {'table_name': 'test_table'}
+        config = {'bucket':'Test'}
+        stream = {'stream': 'jsonl_table', 'tap_stream_id': 'jsonl_table', "schema": {},"metadata": [{"breadcrumb": [],"metadata": {"table-key-properties": []}}]}
+
+        expected_output = sync.sync_jsonl_file(config, iterator, s3_path, table_spec, stream)
+        self.assertEqual(expected_output, 0)

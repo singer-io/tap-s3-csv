@@ -224,6 +224,9 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
         decoded_row = row.decode('utf-8')
         if decoded_row.strip():
             row = json.loads(decoded_row)
+            # Skipping the empty json.
+            if len(row) == 0:
+                continue
         else:
             continue
 

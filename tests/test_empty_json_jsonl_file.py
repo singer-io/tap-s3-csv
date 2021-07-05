@@ -3,10 +3,10 @@ import tap_tester.connections as connections
 import tap_tester.menagerie   as menagerie
 import tap_tester.runner      as runner
 
-class S3CompressedNoNameGZFile(S3CompressedFile):
+class S3EmptyJsonJsonlFile(S3CompressedFile):
 
     def resource_names(self):
-        return ["empty_json.jsonl"]
+        return ["empty_json.jsonl","multiple_empty_json.jsonl"]
 
     def name(self):
         return "test_empty_json_jsonl_file"
