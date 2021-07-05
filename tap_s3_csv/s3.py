@@ -96,7 +96,11 @@ def get_sampled_schema_for_table(config, table_spec):
         LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
 
     if not samples:
-        return {}
+        #Return empty properties for accept everything from data if no samples found
+        return {
+            'type': 'object',
+            'properties': {}
+        }
 
     metadata_schema = {
         SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
