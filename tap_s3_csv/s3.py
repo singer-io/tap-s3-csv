@@ -136,6 +136,11 @@ def get_records_for_csv(s3_path, sample_rate, iterator):
 
     for row in iterator:
 
+        # Skipping the empty line of CSV.
+        if len(row) == 0:
+            current_row += 1
+            continue
+
         if (current_row % sample_rate) == 0:
             if row.get(csv.SDC_EXTRA_COLUMN):
                 row.pop(csv.SDC_EXTRA_COLUMN)

@@ -190,6 +190,11 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
 
     if iterator:
         for row in iterator:
+
+            #Skipping the empty line of CSV
+            if len(row) == 0:
+                continue
+
             custom_columns = {
                 s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
                 s3.SDC_SOURCE_FILE_COLUMN: s3_path,
