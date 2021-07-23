@@ -6,7 +6,7 @@ import tap_tester.runner      as runner
 class S3CompressedGZFileHavingEmptyCSV(S3CompressedFile):
 
     def resource_names(self):
-        return ["gempty_csv_gz.gz"]
+        return ["empty_csv_gz.gz"]
 
     def name(self):
         return "test_gz_file_having_empty_csv"
