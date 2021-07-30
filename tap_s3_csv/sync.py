@@ -68,6 +68,9 @@ def sync_table_file(config, s3_path, table_spec, stream):
             return handle_file(config, s3_path, table_spec, stream, extension)
         LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
     except (UnicodeDecodeError,json.decoder.JSONDecodeError):
+        # UnicodeDecodeError will be raised if non csv file parsed to csv parser
+        # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
+        # Handled both error and skipping file with wrong extantion.
         LOGGER.warning("Skipping %s file as parsing failed. Verify an extention of the file.",s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
     return 0

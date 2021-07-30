@@ -362,6 +362,9 @@ def sample_files(config, table_spec, s3_files,
         try:
             yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
         except (UnicodeDecodeError,json.decoder.JSONDecodeError):
+            # UnicodeDecodeError will be raised if non csv file parsed to csv parser
+            # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
+            # Handled both error and skipping file with wrong extantion.
             LOGGER.warn("Skipping %s file as parsing failed. Verify an extention of the file.",s3_path)
             skipped_files_count = skipped_files_count + 1
 
