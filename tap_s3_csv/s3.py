@@ -239,7 +239,6 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     global skipped_files_count
 
-    global skipped_files_count
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
