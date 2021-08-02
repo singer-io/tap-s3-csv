@@ -384,7 +384,7 @@ class TestUnsupportedFiles(unittest.TestCase):
     @mock.patch("tap_s3_csv.s3.get_files_to_sample",side_effect=mock_get_files_to_sample_csv)
     @mock.patch("tap_s3_csv.s3.get_file_handle")
     @mock.patch("tap_s3_csv.s3.sample_file", side_effect=mock_csv_sample_file)
-    def test_sampling_of_gz_file_stored_with_csv_Extention(self, mock_csv_sample_file, mock_get_file_handle, mock_get_files_to_sample_csv, mocked_logger):
+    def test_sampling_of_gz_file_stored_with_csv_Extension(self, mock_csv_sample_file, mock_get_file_handle, mock_get_files_to_sample_csv, mocked_logger):
         table_spec = {}
         s3_files = "unittest_compressed_files/gz_stored_as_csv.csv"
         sample_rate = 5
@@ -397,12 +397,12 @@ class TestUnsupportedFiles(unittest.TestCase):
 
         new_s3_path = "unittest_compressed_files/gz_stored_as_csv.csv"
 
-        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extention of the file.',new_s3_path)
+        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extension of the file.',new_s3_path)
 
     @mock.patch("tap_s3_csv.s3.get_files_to_sample",side_effect=mock_get_files_to_sample_jsonl)
     @mock.patch("tap_s3_csv.s3.get_file_handle")
     @mock.patch("tap_s3_csv.s3.sample_file", side_effect=mock_jsonl_sample_file)
-    def test_sampling_of_gz_file_stored_with_jsonl_Extention(self, mock_jsonl_sample_file, mock_get_file_handle, mock_get_files_to_sample_csv, mocked_logger):
+    def test_sampling_of_gz_file_stored_with_jsonl_Extension(self, mock_jsonl_sample_file, mock_get_file_handle, mock_get_files_to_sample_csv, mocked_logger):
         table_spec = {}
         s3_files = "unittest_compressed_files/gz_stored_as_jsonl.jsonl"
         sample_rate = 5
@@ -415,7 +415,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
         new_s3_path = "unittest_compressed_files/gz_stored_as_jsonl.jsonl"
 
-        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extention of the file.',new_s3_path)
+        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extension of the file.',new_s3_path)
 
     def test_sampling_of_gz_file_contains_zip_file_samples(self, mocked_logger):
         table_spec = {}
@@ -517,7 +517,7 @@ class TestUnsupportedFiles(unittest.TestCase):
         extension = "csv"
         records = sync.sync_table_file(config, s3_path, table_spec, stream)
 
-        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extention of the file.',s3_path)
+        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extension of the file.',s3_path)
         self.assertEqual(0, records)
 
     @mock.patch("tap_s3_csv.sync.handle_file", side_effect=mock_jsonl_sample_file)
@@ -529,7 +529,7 @@ class TestUnsupportedFiles(unittest.TestCase):
         extension = "jsonl"
         records = sync.sync_table_file(config, s3_path, table_spec, stream)
 
-        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extention of the file.',s3_path)
+        mocked_logger.assert_called_with('Skipping %s file as parsing failed. Verify an extension of the file.',s3_path)
         self.assertEqual(0, records)
 
     def test_syncing_tar_gz_file(self, mocked_logger):

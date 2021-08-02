@@ -365,7 +365,7 @@ def sample_files(config, table_spec, s3_files,
             # UnicodeDecodeError will be raised if non csv file parsed to csv parser
             # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
             # Handled both error and skipping file with wrong extantion.
-            LOGGER.warn("Skipping %s file as parsing failed. Verify an extention of the file.",s3_path)
+            LOGGER.warn("Skipping %s file as parsing failed. Verify an extension of the file.",s3_path)
             skipped_files_count = skipped_files_count + 1
 
 #pylint: disable=global-statement
