@@ -266,7 +266,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
             records)
         jsonl_sample_records = list(check_jsonl_sample_records)
         if len(jsonl_sample_records) == 0:
-            LOGGER.warning('Skipping the file "%s" as it has no record.', s3_path)
+            LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
             skipped_files_count = skipped_files_count + 1
         check_key_properties_and_date_overrides_for_jsonl_file(
             table_spec, jsonl_sample_records, s3_path)
