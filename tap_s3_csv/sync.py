@@ -70,7 +70,7 @@ def sync_table_file(config, s3_path, table_spec, stream):
     except (UnicodeDecodeError,json.decoder.JSONDecodeError):
         # UnicodeDecodeError will be raised if non csv file passed to csv parser
         # JSONDecodeError will be raised if non JSONL file passed to JSON parser
-        # Handled both error and skipping file with wrong extantion.
+        # Handled both error and skipping file with wrong extension.
         LOGGER.warning("Skipping %s file as parsing failed. Verify an extension of the file.",s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
     return 0

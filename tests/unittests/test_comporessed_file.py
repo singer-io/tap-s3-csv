@@ -509,7 +509,7 @@ class TestUnsupportedFiles(unittest.TestCase):
         mocked_logger.assert_called_with('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
 
     @mock.patch("tap_s3_csv.sync.handle_file", side_effect=mock_csv_sample_file)
-    def test_syncing_of_gz_file_with_csv_extantion(self, mock_csv_sample_file,mocked_logger):
+    def test_syncing_of_gz_file_with_csv_extension(self, mock_csv_sample_file,mocked_logger):
         config = {"bucket" : "bucket_name"}
         table_spec = { "table_name" : "GZ_DATA"}
         stream = {}
@@ -521,7 +521,7 @@ class TestUnsupportedFiles(unittest.TestCase):
         self.assertEqual(0, records)
 
     @mock.patch("tap_s3_csv.sync.handle_file", side_effect=mock_jsonl_sample_file)
-    def test_syncing_of_gz_file_with_jsonl_extantion(self, mock_jsonl_sample_file,mocked_logger):
+    def test_syncing_of_gz_file_with_jsonl_extension(self, mock_jsonl_sample_file,mocked_logger):
         config = {"bucket" : "bucket_name"}
         table_spec = { "table_name" : "GZ_DATA"}
         stream = {}
