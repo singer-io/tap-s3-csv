@@ -102,7 +102,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
         file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream
         records =  sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
         if records == 0:
-            # Only space isn't the valid json but it is valid csv header hence skipping skipping the jsonl filed having only space.
+            # Only space isn't the valid JSON but it is a valid CSV header hence skipping the jsonl file with only space.
             s3.skipped_files_count = s3.skipped_files_count + 1
             LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
         return records
