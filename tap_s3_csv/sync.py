@@ -100,7 +100,12 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
 
         # If file is extracted from zip or gz use file object else get file object from s3 bucket
         file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream
-        return sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
+        records =  sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
+        if records == 0:
+            # Only space isn't the valid json but it is valid csv header hence skipping skipping the jsonl filed having only space.
+            s3.skipped_files_count = s3.skipped_files_count + 1
+            LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
+        return records
 
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
@@ -219,7 +224,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
     return records_synced
 
 
-def sync_jsonl_file(config, file_handle, s3_path, table_spec, stream):
+def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     bucket = config['bucket']
@@ -227,53 +232,46 @@ def sync_jsonl_file(config, file_handle, s3_path, table_spec, stream):
 
     records_synced = 0
 
-    # Copying iterator to list as iterator will flush out data after 'if iterator' statement below
-    iterator = list(file_handle)
+    for row in iterator:
 
-    if iterator:
-        for row in iterator:
-
-            decoded_row = row.decode('utf-8')
-            if decoded_row.strip():
-                row = json.loads(decoded_row)
-                # Skipping the empty json.
-                if len(row) == 0:
-                    continue
-            else:
+        decoded_row = row.decode('utf-8')
+        if decoded_row.strip():
+            row = json.loads(decoded_row)
+            # Skipping the empty json row.
+            if len(row) == 0:
                 continue
+        else:
+            continue
 
-            custom_columns = {
-                s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
-                s3.SDC_SOURCE_FILE_COLUMN: s3_path,
+        custom_columns = {
+            s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
+            s3.SDC_SOURCE_FILE_COLUMN: s3_path,
 
-                # index zero and then starting from 1
-                s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 1
+            # index zero and then starting from 1
+            s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 1
+        }
+        rec = {**row, **custom_columns}
+
+        with Transformer() as transformer:
+            to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+        # collecting the value which was removed in transform to add those in _sdc_extra
+        value = [ {field:rec[field]} for field in set(rec) - set(to_write) ]
+
+        if value:
+            LOGGER.warning(
+                "\"%s\" is not found in catalog and its value will be stored in the \"_sdc_extra\" field.", value)
+            extra_data = {
+                s3.SDC_EXTRA_COLUMN: value
             }
-            rec = {**row, **custom_columns}
+            update_to_write = {**to_write,**extra_data}
+        else:
+            update_to_write = to_write
 
-            with Transformer() as transformer:
-                to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
-            # collecting the value which was removed in transform to add those in _sdc_extra
-            value = [ {field:rec[field]} for field in set(rec) - set(to_write) ]
+        # Transform again to validate _sdc_extra value.
+        with Transformer() as transformer:
+            update_to_write = transformer.transform(update_to_write, stream['schema'], metadata.to_map(stream['metadata']))
 
-            if value:
-                LOGGER.warning(
-                    "\"%s\" is not found in catalog and its value will be stored in the \"_sdc_extra\" field.", value)
-                extra_data = {
-                    s3.SDC_EXTRA_COLUMN: value
-                }
-                update_to_write = {**to_write,**extra_data}
-            else:
-                update_to_write = to_write
-
-            # Transform again to validate _sdc_extra value.
-            with Transformer() as transformer:
-                update_to_write = transformer.transform(update_to_write, stream['schema'], metadata.to_map(stream['metadata']))
-
-            singer.write_record(table_name, update_to_write)
-            records_synced += 1
-    else:
-        LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
-        s3.skipped_files_count = s3.skipped_files_count + 1
+        singer.write_record(table_name, update_to_write)
+        records_synced += 1
 
     return records_synced
