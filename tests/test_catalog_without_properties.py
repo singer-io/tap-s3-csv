@@ -80,6 +80,13 @@ class S3CatalogWithoutProperties(unittest.TestCase):
             connections.select_catalog_and_fields_via_metadata(
                 self.conn_id, c, c_annotated, [], [])
 
+        #Verify that schema contains empty properties
+        expected_schema = {
+            'type': 'object',
+            'properties': {}
+        }
+        self.assertEqual(expected_schema, c_annotated.get('annotated-schema', {}))
+
         # Stream properties should be zero as all 5 files considered in sampling are containing headers only.
         # No fields with breadcumb will be present in schema
         metadata = c_annotated["metadata"]
