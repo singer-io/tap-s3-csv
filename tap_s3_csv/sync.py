@@ -61,13 +61,18 @@ def sync_table_file(config, s3_path, table_spec, stream):
         LOGGER.warning('"%s" without extension will not be synced.',s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
-    if extension == "zip":
-        return sync_compressed_file(config, s3_path, table_spec, stream)
-    if extension in ["csv", "gz", "jsonl", "txt"]:
-        return handle_file(config, s3_path, table_spec, stream, extension)
-
-    LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
-    s3.skipped_files_count = s3.skipped_files_count + 1
+    try:
+        if extension == "zip":
+            return sync_compressed_file(config, s3_path, table_spec, stream)
+        if extension in ["csv", "gz", "jsonl", "txt"]:
+            return handle_file(config, s3_path, table_spec, stream, extension)
+        LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
+    except (UnicodeDecodeError,json.decoder.JSONDecodeError):
+        # UnicodeDecodeError will be raised if non csv file passed to csv parser
+        # JSONDecodeError will be raised if non JSONL file passed to JSON parser
+        # Handled both error and skipping file with wrong extension.
+        LOGGER.warning("Skipping %s file as parsing failed. Verify an extension of the file.",s3_path)
+        s3.skipped_files_count = s3.skipped_files_count + 1
     return 0
 
 
@@ -95,7 +100,12 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
 
         # If file is extracted from zip or gz use file object else get file object from s3 bucket
         file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream
-        return sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
+        records =  sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
+        if records == 0:
+            # Only space isn't the valid JSON but it is a valid CSV header hence skipping the jsonl file with only space.
+            s3.skipped_files_count = s3.skipped_files_count + 1
+            LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
+        return records
 
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
@@ -186,21 +196,30 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
 
     records_synced = 0
 
-    for row in iterator:
-        custom_columns = {
-            s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
-            s3.SDC_SOURCE_FILE_COLUMN: s3_path,
+    if iterator:
+        for row in iterator:
 
-            # index zero, +1 for header row
-            s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 2
-        }
-        rec = {**row, **custom_columns}
+            #Skipping the empty line of CSV
+            if len(row) == 0:
+                continue
 
-        with Transformer() as transformer:
-            to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+            custom_columns = {
+                s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
+                s3.SDC_SOURCE_FILE_COLUMN: s3_path,
 
-        singer.write_record(table_name, to_write)
-        records_synced += 1
+                # index zero, +1 for header row
+                s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 2
+            }
+            rec = {**row, **custom_columns}
+
+            with Transformer() as transformer:
+                to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+
+            singer.write_record(table_name, to_write)
+            records_synced += 1
+    else:
+        LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+        s3.skipped_files_count = s3.skipped_files_count + 1
 
     return records_synced
 
@@ -218,6 +237,9 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
         decoded_row = row.decode('utf-8')
         if decoded_row.strip():
             row = json.loads(decoded_row)
+            # Skipping the empty json row.
+            if len(row) == 0:
+                continue
         else:
             continue
 

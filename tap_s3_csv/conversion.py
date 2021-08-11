@@ -91,7 +91,6 @@ def pick_datatype(counts):
 
     return to_return
 
-
 def generate_schema(samples, table_spec):
     counts = {}
     for sample in samples:

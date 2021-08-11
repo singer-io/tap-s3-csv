@@ -140,6 +140,11 @@ def get_records_for_csv(s3_path, sample_rate, iterator):
 
     for row in iterator:
 
+        # Skipping the empty line of CSV.
+        if len(row) == 0:
+            current_row += 1
+            continue
+
         if (current_row % sample_rate) == 0:
             if row.get(csv.SDC_EXTRA_COLUMN):
                 row.pop(csv.SDC_EXTRA_COLUMN)
@@ -165,6 +170,10 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
             decoded_row = row.decode('utf-8')
             if decoded_row.strip():
                 row = json.loads(decoded_row)
+                # Skipping the empty json.
+                if len(row) == 0:
+                    current_row += 1
+                    continue
             else:
                 current_row += 1
                 continue
@@ -243,7 +252,13 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle #pylint:disable=protected-access
         iterator = csv.get_row_iterator(file_handle, table_spec, None, True)
-        return get_records_for_csv(s3_path, sample_rate, iterator)
+        csv_records = []
+        if iterator:
+            csv_records = get_records_for_csv(s3_path, sample_rate, iterator)
+        else:
+            LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+            skipped_files_count = skipped_files_count + 1
+        return csv_records
     if extension == "gz":
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
     if extension == "jsonl":
@@ -255,10 +270,8 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
             records)
         jsonl_sample_records = list(check_jsonl_sample_records)
         if len(jsonl_sample_records) == 0:
-            LOGGER.exception(
-                'No row sampled, Please check your JSONL file %s', s3_path)
-            raise Exception(
-                'No row sampled, Please check your JSONL file {}'.format(s3_path))
+            LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
+            skipped_files_count = skipped_files_count + 1
         check_key_properties_and_date_overrides_for_jsonl_file(
             table_spec, jsonl_sample_records, s3_path)
 
@@ -326,12 +339,14 @@ def get_files_to_sample(config, s3_files, max_files):
     return sampled_files
 
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,global-statement
 def sample_files(config, table_spec, s3_files,
                  sample_rate=5, max_records=1000, max_files=5):
+    global skipped_files_count
     LOGGER.info("Sampling files (max files: %s)", max_files)
 
     for s3_file in itertools.islice(get_files_to_sample(config, s3_files, max_files), max_files):
+
 
         s3_path = s3_file.get("s3_path","")
         file_handle = s3_file.get("file_handle")
@@ -348,7 +363,14 @@ def sample_files(config, table_spec, s3_files,
                     s3_path,
                     max_records,
                     sample_rate)
-        yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
+        try:
+            yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
+        except (UnicodeDecodeError,json.decoder.JSONDecodeError):
+            # UnicodeDecodeError will be raised if non csv file parsed to csv parser
+            # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
+            # Handled both error and skipping file with wrong extension.
+            LOGGER.warn("Skipping %s file as parsing failed. Verify an extension of the file.",s3_path)
+            skipped_files_count = skipped_files_count + 1
 
 #pylint: disable=global-statement
 def get_input_files_for_table(config, table_spec, modified_since=None):
