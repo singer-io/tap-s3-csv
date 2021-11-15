@@ -1,5 +1,4 @@
 import unittest
-import requests
 from tap_s3_csv import s3
 from unittest import mock
 
