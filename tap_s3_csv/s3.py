@@ -140,16 +140,7 @@ def maximize_csv_field_width():
     field_size_limit = sys.maxsize
 
     if current_field_size_limit != field_size_limit:
-        # Credit: https://til.simonwillison.net/python/csv-error-column-too-large
-        while True:
-            try:
-                if field_size_limit < current_field_size_limit:
-                    break
-                csv.csv.field_size_limit(field_size_limit)
-                break
-            except OverflowError:
-                field_size_limit = int(field_size_limit / 10)
-
+        csv.csv.field_size_limit(field_size_limit)
         LOGGER.info(f"Changed the CSV field size limit from {current_field_size_limit} to {field_size_limit}")
 
 def get_records_for_csv(s3_path, sample_rate, iterator):
