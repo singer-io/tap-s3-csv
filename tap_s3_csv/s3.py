@@ -141,7 +141,9 @@ def maximize_csv_field_width():
 
     if current_field_size_limit != field_size_limit:
         csv.csv.field_size_limit(field_size_limit)
-        LOGGER.info(f"Changed the CSV field size limit from {current_field_size_limit} to {field_size_limit}")
+        LOGGER.info("Changed the CSV field size limit from %s to %s",
+                    current_field_size_limit,
+                    field_size_limit)
 
 def get_records_for_csv(s3_path, sample_rate, iterator):
 
