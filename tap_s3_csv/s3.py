@@ -148,7 +148,7 @@ def maximize_csv_field_width():
                 csv.csv.field_size_limit(field_size_limit)
                 break
             except OverflowError:
-                field_size_lifield_size_limitmit = int(field_size_limit / 10)
+                field_size_limit = int(field_size_limit / 10)
 
         LOGGER.info(f"Changed the CSV field size limit from {current_field_size_limit} to {field_size_limit}")
 
