@@ -1,4 +1,5 @@
 import itertools
+import functools
 import re
 import io
 import json
@@ -13,9 +14,10 @@ from botocore.credentials import (
     DeferredRefreshableCredentials,
     JSONFileCache
 )
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ConnectTimeoutError, ReadTimeoutError
 from botocore.session import Session
 from botocore.config import Config
+from botocore.paginate import PageIterator
 from singer_encodings import (
     compression,
     csv
@@ -37,17 +39,30 @@ skipped_files_count = 0
 # timeout request after 300 seconds
 REQUEST_TIMEOUT = 300
 
-def retry_pattern():
-    return backoff.on_exception(backoff.expo,
-                                ClientError,
-                                max_tries=5,
-                                on_backoff=log_backoff_attempt,
-                                factor=10)
+def retry_pattern(fnc):
+    @backoff.on_exception(backoff.expo,
+                          (ConnectTimeoutError, ReadTimeoutError),
+                          max_tries=5,
+                          on_backoff=log_backoff_attempt,
+                          factor=2)
+    @backoff.on_exception(backoff.expo,
+                          ClientError,
+                          max_tries=5,
+                          on_backoff=log_backoff_attempt,
+                          factor=10)
+    @functools.wraps(fnc)
+    def wrapper(*args, **kwargs):
+        return fnc(*args, **kwargs)
+    return wrapper
 
 
 def log_backoff_attempt(details):
     LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
 
+
+# Added decorator over functions of botocore SDK as functions from SDK returns generator and
+# tap is yielding data from that function so backoff is not working over tap function(list_files_in_bucket()).
+PageIterator._make_request = retry_pattern(PageIterator._make_request)
 
 class AssumeRoleProvider():
     METHOD = 'assume-role'
@@ -62,7 +77,7 @@ class AssumeRoleProvider():
         )
 
 
-@retry_pattern()
+@retry_pattern
 def setup_aws_client(config):
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
                                                 config['role_name'])
@@ -445,7 +460,7 @@ def get_request_timeout(config):
         request_timeout = REQUEST_TIMEOUT
     return request_timeout
 
-@retry_pattern()
+@retry_pattern
 def list_files_in_bucket(config, search_prefix=None):
     # Set connect and read timeout for resource
     timeout = get_request_timeout(config)
@@ -478,7 +493,7 @@ def list_files_in_bucket(config, search_prefix=None):
         LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
 
 
-@retry_pattern()
+@retry_pattern
 def get_file_handle(config, s3_path):
     bucket = config['bucket']
     # Set connect and read timeout for resource
