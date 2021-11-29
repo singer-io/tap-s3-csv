@@ -33,6 +33,7 @@ Here is an example of basic config, and a bit of a run down on each of the prope
     "bucket": "my-bucket",
     "external_id": "my_optional_secret_external_id",
     "tables": "[{\"search_prefix\":\"exports\",\"search_pattern\":\"my_table\\\\/.*\\\\.csv\",\"table_name\":\"my_table\",\"key_properties\":\"id\",\"date_overrides\":\"created_at\",\"delimiter\":\",\"}]",
+    "request_timeout": 300
 }
 ```
 
@@ -42,6 +43,7 @@ Here is an example of basic config, and a bit of a run down on each of the prope
 - **bucket**: The name of the bucket to search for files under.
 - **external_id**: (potentially optional) Running this locally, you should be able to omit this property, it is provided to allow the tap to access buckets in accounts where the user doesn't have access to the account itself, but is able to assume a role in that account, through a shared secret. This is that secret, in that case.
 - **tables**: An escaped JSON string that the tap will use to search for files, and emit records as "tables" from those files. Will be used by a [`voluptuous`](https://github.com/alecthomas/voluptuous)-based configuration checker.
+- **request_timeout**: (optional) The maximum time for which request should wait to get a response. Default request_timeout is 300 seconds.
 
 The `table` field consists of one or more objects, JSON encoded as an array and escaped using backslashes (e.g., `\"` for `"` and `\\` for `\`), that describe how to find files and emit records. A more detailed (and unescaped) example below:
 
