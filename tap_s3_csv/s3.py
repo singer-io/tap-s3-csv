@@ -6,6 +6,7 @@ import gzip
 import backoff
 import boto3
 import singer
+import os
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -60,29 +61,10 @@ class AssumeRoleProvider():
 
 @retry_pattern()
 def setup_aws_client(config):
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
-                                                config['role_name'])
-    session = Session()
-    fetcher = AssumeRoleCredentialFetcher(
-        session.create_client,
-        session.get_credentials(),
-        role_arn,
-        extra_args={
-            'DurationSeconds': 3600,
-            'RoleSessionName': 'TapS3CSV',
-            'ExternalId': config['external_id']
-        },
-        cache=JSONFileCache()
-    )
+    key = config.get('aws_access_key_id', os.environ.get("aws_access_key_id"))
+    secret = config.get('aws_secret_access_key', os.environ.get("aws_secret_access_key"))
 
-    refreshable_session = Session()
-    refreshable_session.register_component(
-        'credential_provider',
-        CredentialResolver([AssumeRoleProvider(fetcher)])
-    )
-
-    LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
-    boto3.setup_default_session(botocore_session=refreshable_session)
+    return boto3.session.Session(aws_access_key_id=key, aws_secret_access_key=secret)
 
 
 def get_sampled_schema_for_table(config, table_spec):
