@@ -3,6 +3,11 @@ import csv
 import io
 import json
 import gzip
+import os
+import tempfile
+import pathlib
+import boto3
+import pyarrow.parquet as pq
 
 from singer import metadata
 from singer import Transformer
@@ -64,9 +69,10 @@ def sync_table_file(config, s3_path, table_spec, stream):
     try:
         if extension == "zip":
             return sync_compressed_file(config, s3_path, table_spec, stream)
-        if extension in ["csv", "gz", "jsonl", "txt"]:
+        if extension in ["csv", "gz", "jsonl", "txt", "parquet"]:
             return handle_file(config, s3_path, table_spec, stream, extension)
         LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
+        raise Exception(f"Extension {extension} not supported.")
     except (UnicodeDecodeError,json.decoder.JSONDecodeError):
         # UnicodeDecodeError will be raised if non csv file passed to csv parser
         # JSONDecodeError will be raised if non JSONL file passed to JSON parser
@@ -101,6 +107,16 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
         # If file is extracted from zip or gz use file object else get file object from s3 bucket
         file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream
         records =  sync_jsonl_file(config, file_handle, s3_path, table_spec, stream)
+        if records == 0:
+            # Only space isn't the valid JSON but it is a valid CSV header hence skipping the jsonl file with only space.
+            s3.skipped_files_count = s3.skipped_files_count + 1
+            LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
+        return records
+
+    if extension == "parquet":
+
+        # If file is extracted from zip or gz use file object else get file object from s3 bucket
+        records =  sync_parquet_file(config, None, s3_path, table_spec, stream)
         if records == 0:
             # Only space isn't the valid JSON but it is a valid CSV header hence skipping the jsonl file with only space.
             s3.skipped_files_count = s3.skipped_files_count + 1
@@ -164,7 +180,7 @@ def sync_compressed_file(config, s3_path, table_spec, stream):
     for decompressed_file in decompressed_files:
         extension = decompressed_file.name.split(".")[-1].lower()
 
-        if extension in ["csv", "jsonl", "gz", "txt"]:
+        if extension in ["csv", "jsonl", "gz", "txt", "parquet"]:
             # Append the extracted file name with zip file.
             s3_file_path = s3_path + "/" + decompressed_file.name
 
@@ -273,5 +289,65 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
 
         singer.write_record(table_name, update_to_write)
         records_synced += 1
+
+    return records_synced
+
+
+def sync_parquet_file(config, iterator, s3_path, table_spec, stream):
+    LOGGER.info('Syncing file "%s".', s3_path)
+    
+    bucket = config['bucket']
+    table_name = table_spec['table_name']
+
+    local_path = os.path.join(tempfile.gettempdir(), s3_path)
+    pathlib.Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+
+    if os.path.isfile(local_path):
+        LOGGER.info(f"Skipping download, file exists: {local_path}")
+    else:
+        LOGGER.info(f"Downloading {s3_path} to {local_path}")
+        boto3.resource("s3").Bucket(config["bucket"]).download_file(s3_path, local_path)
+
+    parquet_file = pq.ParquetFile(local_path)
+    records_synced = 0
+
+    for i in range(parquet_file.num_row_groups):
+        table = parquet_file.read_row_group(i)
+        for batch in table.to_batches():
+            for row in zip(*batch.columns):
+                custom_columns = {
+                    s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
+                    s3.SDC_SOURCE_FILE_COLUMN: s3_path,
+
+                    # index zero and then starting from 1
+                    s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 1
+                }
+                raw_rec = {
+                    table.column_names[i]: val.as_py()
+                    for i, val in enumerate(row, start=0)
+                }
+                rec = {**raw_rec, **custom_columns}
+
+                with Transformer() as transformer:
+                    to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+                # collecting the value which was removed in transform to add those in _sdc_extra
+                value = [ {field:rec[field]} for field in set(rec) - set(to_write) ]
+
+                if value:
+                    LOGGER.warning(
+                        "\"%s\" is not found in catalog and its value will be stored in the \"_sdc_extra\" field.", value)
+                    extra_data = {
+                        s3.SDC_EXTRA_COLUMN: value
+                    }
+                    update_to_write = {**to_write,**extra_data}
+                else:
+                    update_to_write = to_write
+
+                # Transform again to validate _sdc_extra value.
+                with Transformer() as transformer:
+                    update_to_write = transformer.transform(update_to_write, stream['schema'], metadata.to_map(stream['metadata']))
+
+                singer.write_record(table_name, update_to_write)
+                records_synced += 1
 
     return records_synced

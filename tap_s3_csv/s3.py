@@ -6,7 +6,10 @@ import gzip
 import backoff
 import boto3
 import singer
+import tempfile
+import pathlib
 import os
+import pyarrow.parquet as pq
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -170,6 +173,37 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
 
+def get_records_for_parquet(s3_bucket, s3_path, sample_rate):
+
+    local_path = os.path.join(tempfile.gettempdir(), s3_path)
+    pathlib.Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+
+    if os.path.isfile(local_path):
+        LOGGER.info(f"Skipping download, file exists: {local_path}")
+    else:
+        LOGGER.info(f"Downloading {s3_path} to {local_path}")
+        boto3.resource("s3").Bucket(s3_bucket).download_file(s3_path, local_path)
+
+    parquet_file = pq.ParquetFile(local_path)
+
+    current_row = 0
+    sampled_row_count = 0
+
+    for i in range(parquet_file.num_row_groups):
+        table = parquet_file.read_row_group(i)
+        for batch in table.to_batches():
+            for row in zip(*batch.columns):
+                if (current_row % sample_rate) == 0:                                
+                    current_row += 1
+                    sampled_row_count += 1
+                    yield {
+                        table.column_names[i]: val.as_py()
+                        for i, val in enumerate(row, start=0)
+                    }
+
+    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
+
+
 def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path):
 
     all_keys = set()
@@ -180,13 +214,13 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
     if table_spec.get('key_properties'):
         key_properties = set(table_spec['key_properties'])
         if not key_properties.issubset(all_keys):
-            raise Exception('JSONL file "{}" is missing required key_properties key: {}'
+            raise Exception('JSONL/parquet file "{}" is missing required key_properties key: {}'
                             .format(s3_path, key_properties - all_keys))
 
     if table_spec.get('date_overrides'):
         date_overrides = set(table_spec['date_overrides'])
         if not date_overrides.issubset(all_keys):
-            raise Exception('JSONL file "{}" is missing date_overrides key: {}'
+            raise Exception('JSONL/parquet file "{}" is missing date_overrides key: {}'
                             .format(s3_path, date_overrides - all_keys))
 
 #pylint: disable=global-statement
@@ -222,7 +256,7 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
 #pylint: disable=global-statement
-def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+def sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extension):
     global skipped_files_count
 
     # Check whether file is without extension or not
@@ -246,17 +280,24 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     if extension == "jsonl":
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle
-        records = get_records_for_jsonl(
-            s3_path, sample_rate, file_handle)
-        check_jsonl_sample_records, records = itertools.tee(
-            records)
+        records = get_records_for_jsonl(s3_path, sample_rate, file_handle)
+        check_jsonl_sample_records, records = itertools.tee(records)
         jsonl_sample_records = list(check_jsonl_sample_records)
         if len(jsonl_sample_records) == 0:
             LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
             skipped_files_count = skipped_files_count + 1
-        check_key_properties_and_date_overrides_for_jsonl_file(
-            table_spec, jsonl_sample_records, s3_path)
+        check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path)
 
+        return records
+    if extension == "parquet":
+        records = get_records_for_parquet(s3_bucket, s3_path, sample_rate)
+        check_jsonl_sample_records, records = itertools.tee(records)
+        jsonl_sample_records = list(check_jsonl_sample_records)
+        if len(jsonl_sample_records) == 0:
+            LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
+            skipped_files_count = skipped_files_count + 1
+        check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path)
+        
         return records
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
@@ -285,7 +326,7 @@ def get_files_to_sample(config, s3_files, max_files):
     global skipped_files_count
     sampled_files = []
 
-    OTHER_FILES = ["csv","gz","jsonl","txt"]
+    OTHER_FILES = ["csv","gz","jsonl","txt","parquet"]
 
     for s3_file in s3_files:
         file_key = s3_file.get('key')
@@ -329,7 +370,7 @@ def sample_files(config, table_spec, s3_files,
 
     for s3_file in itertools.islice(get_files_to_sample(config, s3_files, max_files), max_files):
 
-
+        s3_bucket = config['bucket']
         s3_path = s3_file.get("s3_path","")
         file_handle = s3_file.get("file_handle")
         file_type = s3_file.get("type")
@@ -346,7 +387,7 @@ def sample_files(config, table_spec, s3_files,
                     max_records,
                     sample_rate)
         try:
-            yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
+            yield from itertools.islice(sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extension), max_records)
         except (UnicodeDecodeError,json.decoder.JSONDecodeError):
             # UnicodeDecodeError will be raised if non csv file parsed to csv parser
             # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
