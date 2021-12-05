@@ -75,7 +75,7 @@ def main():
     config['tables'] = validate_table_config(config)
 
     try:
-        for page in s3.list_files_in_bucket(config['bucket']):
+        for page in s3.list_files_in_bucket(config['bucket'], config=config):
             break
         LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
     except:

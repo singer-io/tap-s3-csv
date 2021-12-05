@@ -34,7 +34,7 @@ def sync_stream(config, state, table_spec, stream):
     LOGGER.info('Getting files modified since %s.', modified_since)
 
     s3_files = s3.get_input_files_for_table(
-        config, table_spec, modified_since)
+        config, table_spec, modified_since, modified_until=config.get('end_date'))
 
     records_streamed = 0
 
@@ -306,7 +306,8 @@ def sync_parquet_file(config, iterator, s3_path, table_spec, stream):
         LOGGER.info(f"Skipping download, file exists: {local_path}")
     else:
         LOGGER.info(f"Downloading {s3_path} to {local_path}")
-        boto3.resource("s3").Bucket(config["bucket"]).download_file(s3_path, local_path)
+        session = s3.setup_aws_client(config)
+        session.resource("s3").Bucket(config["bucket"]).download_file(s3_path, local_path)
 
     parquet_file = pq.ParquetFile(local_path)
     records_synced = 0

@@ -10,7 +10,9 @@ import tempfile
 import pathlib
 import os
 import pyarrow.parquet as pq
+import pytz
 
+from dateutil.parser import parse
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
     CredentialResolver,
@@ -73,7 +75,7 @@ def setup_aws_client(config):
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
-    s3_files_gen = get_input_files_for_table(config, table_spec)
+    s3_files_gen = get_input_files_for_table(config, table_spec, modified_until=config.get('end_date'))
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
@@ -173,7 +175,7 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
 
-def get_records_for_parquet(s3_bucket, s3_path, sample_rate):
+def get_records_for_parquet(s3_bucket, s3_path, sample_rate, config):
 
     local_path = os.path.join(tempfile.gettempdir(), s3_path)
     pathlib.Path(local_path).parent.mkdir(parents=True, exist_ok=True)
@@ -182,7 +184,8 @@ def get_records_for_parquet(s3_bucket, s3_path, sample_rate):
         LOGGER.info(f"Skipping download, file exists: {local_path}")
     else:
         LOGGER.info(f"Downloading {s3_path} to {local_path}")
-        boto3.resource("s3").Bucket(s3_bucket).download_file(s3_path, local_path)
+        session = setup_aws_client(config)
+        session.resource("s3").Bucket(s3_bucket).download_file(s3_path, local_path)
 
     parquet_file = pq.ParquetFile(local_path)
 
@@ -224,7 +227,7 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
                             .format(s3_path, date_overrides - all_keys))
 
 #pylint: disable=global-statement
-def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
+def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate, config):
     global skipped_files_count
     if s3_path.endswith(".tar.gz"):
         LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
@@ -251,12 +254,12 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
             return []
 
         gz_file_extension = gz_file_name.split(".")[-1].lower()
-        return sample_file(table_spec, s3_path + "/" + gz_file_name, io.BytesIO(gz_file_obj.read()), sample_rate, gz_file_extension)
+        return sample_file(table_spec, s3_path + "/" + gz_file_name, io.BytesIO(gz_file_obj.read()), sample_rate, gz_file_extension, config)
 
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
 #pylint: disable=global-statement
-def sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extension):
+def sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extension, config):
     global skipped_files_count
 
     # Check whether file is without extension or not
@@ -276,7 +279,7 @@ def sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extens
             skipped_files_count = skipped_files_count + 1
         return csv_records
     if extension == "gz":
-        return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
+        return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate, config)
     if extension == "jsonl":
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle
@@ -290,7 +293,7 @@ def sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extens
 
         return records
     if extension == "parquet":
-        records = get_records_for_parquet(s3_bucket, s3_path, sample_rate)
+        records = get_records_for_parquet(s3_bucket, s3_path, sample_rate, config)
         check_jsonl_sample_records, records = itertools.tee(records)
         jsonl_sample_records = list(check_jsonl_sample_records)
         if len(jsonl_sample_records) == 0:
@@ -387,7 +390,7 @@ def sample_files(config, table_spec, s3_files,
                     max_records,
                     sample_rate)
         try:
-            yield from itertools.islice(sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extension), max_records)
+            yield from itertools.islice(sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extension, config), max_records)
         except (UnicodeDecodeError,json.decoder.JSONDecodeError):
             # UnicodeDecodeError will be raised if non csv file parsed to csv parser
             # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
@@ -396,7 +399,7 @@ def sample_files(config, table_spec, s3_files,
             skipped_files_count = skipped_files_count + 1
 
 #pylint: disable=global-statement
-def get_input_files_for_table(config, table_spec, modified_since=None):
+def get_input_files_for_table(config, table_spec, modified_since=None, modified_until=None):
     global skipped_files_count
     bucket = config['bucket']
 
@@ -412,13 +415,13 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
              "https://docs.python.org/3.5/library/re.html#regular-expression-syntax").format(table_spec['table_name']),
             pattern) from e
 
-    LOGGER.info(
-        'Checking bucket "%s" for keys matching "%s"', bucket, pattern)
+    LOGGER.info('Checking bucket "%s" for keys matching "%s"', bucket, pattern)
+    LOGGER.info('Window period: since %s until %s',modified_since,modified_until)
 
     matched_files_count = 0
     unmatched_files_count = 0
     max_files_before_log = 30000
-    for s3_object in list_files_in_bucket(bucket, table_spec.get('search_prefix')):
+    for s3_object in list_files_in_bucket(bucket, table_spec.get('search_prefix'), config=config):
         key = s3_object['Key']
         last_modified = s3_object['LastModified']
 
@@ -431,10 +434,9 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         if matcher.search(key):
             matched_files_count += 1
             if modified_since is None or modified_since < last_modified:
-                LOGGER.info('Will download key "%s" as it was last modified %s',
-                            key,
-                            last_modified)
-                yield {'key': key, 'last_modified': last_modified}
+                if modified_until is None or last_modified.replace(tzinfo=pytz.UTC) < parse(modified_until).replace(tzinfo=pytz.UTC):
+                    LOGGER.info('Will download key "%s" as it was last modified %s',key,last_modified)
+                    yield {'key': key, 'last_modified': last_modified}
         else:
             unmatched_files_count += 1
 
@@ -454,8 +456,8 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
 
 
 @retry_pattern()
-def list_files_in_bucket(bucket, search_prefix=None):
-    s3_client = boto3.client('s3')
+def list_files_in_bucket(bucket, search_prefix=None, config=None):
+    s3_client = setup_aws_client(config).client('s3')
 
     s3_object_count = 0
 
@@ -485,7 +487,7 @@ def list_files_in_bucket(bucket, search_prefix=None):
 @retry_pattern()
 def get_file_handle(config, s3_path):
     bucket = config['bucket']
-    s3_client = boto3.resource('s3')
+    s3_client = setup_aws_client(config).resource('s3')
 
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
