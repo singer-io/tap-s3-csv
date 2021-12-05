@@ -369,6 +369,7 @@ def get_files_to_sample(config, s3_files, max_files):
 def sample_files(config, table_spec, s3_files,
                  sample_rate=5, max_records=1000, max_files=5):
     global skipped_files_count
+    max_files = config.get("max_sample_files", max_files)
     LOGGER.info("Sampling files (max files: %s)", max_files)
 
     for s3_file in itertools.islice(get_files_to_sample(config, s3_files, max_files), max_files):
