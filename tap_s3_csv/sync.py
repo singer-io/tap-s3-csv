@@ -351,4 +351,7 @@ def sync_parquet_file(config, iterator, s3_path, table_spec, stream):
                 singer.write_record(table_name, update_to_write)
                 records_synced += 1
 
+    LOGGER.info(f"Cleaning file: {local_path}")
+    os.remove(local_path)
+
     return records_synced
