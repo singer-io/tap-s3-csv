@@ -75,7 +75,11 @@ def setup_aws_client(config):
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
-    s3_files_gen = get_input_files_for_table(config, table_spec, modified_until=config.get('end_date'))
+    s3_files_gen = get_input_files_for_table(
+        config, 
+        table_spec,
+        modified_since=parse(config.get('start_date')).replace(tzinfo=pytz.UTC),
+        modified_until=config.get('end_date'))
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
