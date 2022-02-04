@@ -3,6 +3,7 @@ import re
 import io
 import json
 import gzip
+import sys
 import backoff
 import boto3
 import singer
@@ -133,10 +134,23 @@ def merge_dicts(first, second):
     return to_return
 
 
+def maximize_csv_field_width():
+
+    current_field_size_limit = csv.csv.field_size_limit()
+    field_size_limit = sys.maxsize
+
+    if current_field_size_limit != field_size_limit:
+        csv.csv.field_size_limit(field_size_limit)
+        LOGGER.info("Changed the CSV field size limit from %s to %s",
+                    current_field_size_limit,
+                    field_size_limit)
+
 def get_records_for_csv(s3_path, sample_rate, iterator):
 
     current_row = 0
     sampled_row_count = 0
+
+    maximize_csv_field_width()
 
     for row in iterator:
 
