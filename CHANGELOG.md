@@ -1,7 +1,7 @@
 # Changelog
 
-##1.3.4
- * Bump singer-encodings to 0.1.2 [21](https://github.com/singer-io/singer-encodings/pull/21)
+## 1.3.4
+  * Bump singer-encodings to 0.1.2 [#21](https://github.com/singer-io/singer-encodings/pull/21)
 
 ## 1.3.3
   * Bump singer-encodings to 0.1.1 [#41](https://github.com/singer-io/tap-s3-csv/pull/41)
