@@ -27,16 +27,17 @@ def stream_is_selected(mdata):
     return mdata.get((), {}).get('selected', False)
 
 
-def do_sync(config, catalog, state):
+def do_sync(config, catalog, state, skip_stream_is_selected=False):
     LOGGER.info('Starting sync.')
 
     for stream in catalog['streams']:
         stream_name = stream['tap_stream_id']
         mdata = metadata.to_map(stream['metadata'])
         table_spec = next(s for s in config['tables'] if s['table_name'] == stream_name)
-        if not stream_is_selected(mdata):
-            LOGGER.info("%s: Skipping - not selected", stream_name)
-            continue
+        if not skip_stream_is_selected:
+            if not stream_is_selected(mdata):
+                LOGGER.info("%s: Skipping - not selected", stream_name)
+                continue
 
         singer.write_state(state)
         key_properties = metadata.get(mdata, (), 'table-key-properties')
@@ -84,7 +85,11 @@ def main():
     if args.discover:
         do_discover(args.config)
     elif args.properties:
-        do_sync(config, args.properties, args.state)
+        skip_stream_validation = str(config.get("skip_stream_is_selected")).lower() == "true"
+        if skip_stream_validation:
+            do_sync(config, args.properties, args.state, skip_stream_is_selected=skip_stream_validation)
+        else:
+            do_sync(config, args.properties, args.state)
 
 
 if __name__ == '__main__':
