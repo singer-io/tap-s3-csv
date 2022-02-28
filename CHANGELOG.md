@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.3.0
+
+- Reintroduce ability to assume role for external AWS account
+- Add optional parameter `recursive_seach` to table config. When set to false, will prevent searching for files in subfolders within S3 bucket
+
+- Merge in upstream changes, below:
+- Bump singer-encodings to 0.1.2 [21](https://github.com/singer-io/singer-encodings/pull/21)
+- Bump singer-encodings to 0.1.1 [#41](https://github.com/singer-io/tap-s3-csv/pull/41)
+- Skip files without a name [#37](https://github.com/singer-io/tap-s3-csv/pull/37)
+- Fix an issue to allow the tap to run with a catalog without schemas [#38](https://github.com/singer-io/tap-s3-csv/pull/38)
+- Fixed bug that caused `integer`s to be discovered as `number` differently in different versions of python [#35](https://github.com/singer-io/tap-s3-csv/pull/35)
+- Adds support for Compressed files [#32](https://github.com/singer-io/tap-s3-csv/pull/32)
+- Adds support for JSONL files [#31](https://github.com/singer-io/tap-s3-csv/pull/31)
+- Adds support for duplicated headers in CSV files [#30](https://github.com/singer-io/tap-s3-csv/pull/30)
+- Adds testing [#29](https://github.com/singer-io/tap-s3-csv/pull/29)
+- Updates `backoff`, `singer-encodings`, and `singer-python` dependencies
+- Updates logging messages
+
+## 1.2.3
+
+- Fix issue relating to search_prefix config values
+
 ## 1.0.5
 
 - Removed Singer-specific `_sdc_` columns

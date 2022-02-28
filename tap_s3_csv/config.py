@@ -7,5 +7,6 @@ CONFIG_CONTRACT = Schema([{
     Optional('search_prefix'): str,
     Optional('date_overrides'): [str],
     Optional('delimiter'): str,
-    Optional('escape_char'): str
+    Optional('escape_char'): str,
+    Optional('recursive_search'): bool
 }])

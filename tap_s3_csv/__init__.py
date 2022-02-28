@@ -11,6 +11,7 @@ from tap_s3_csv.config import CONFIG_CONTRACT
 LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = ["bucket"]
+REQUIRED_CONFIG_KEYS_EXTERNAL_SOURCE = ["bucket", "account_id", "external_id", "role_name"]
 
 
 def do_discover(config):
@@ -54,6 +55,8 @@ def validate_table_config(config):
     tables_config = config['tables']
 
     for table_config in tables_config:
+        if ('search_prefix' in table_config) and (table_config.get('search_prefix') is None):
+            table_config.pop('search_prefix')
         if table_config.get('key_properties') == "" or table_config.get('key_properties') is None:
             table_config['key_properties'] = []
         elif table_config.get('key_properties'):
@@ -61,7 +64,7 @@ def validate_table_config(config):
 
         if table_config.get('date_overrides') == "" or table_config.get('date_overrides') is None:
             table_config['date_overrides'] = []
-        elif table_config.get('date_overrides'):
+        elif table_config.get('date_overrides') and isinstance(table_config['date_overrides'], str):
             table_config['date_overrides'] = [s.strip() for s in table_config['date_overrides'].split(',')]
 
     # Reassign the config tables to the validated object
@@ -72,14 +75,25 @@ def main():
     args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
     config = args.config
 
+    external_source = False
+
+    if 'external_id' in config:
+        args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS_EXTERNAL_SOURCE)
+        config = args.config
+        external_source = True
+
     config['tables'] = validate_table_config(config)
 
-    # Check that boto can access S3
-    try:
-        for page in s3.list_files_in_bucket(config['bucket']):
-            break
-    except err:
-        LOGGER.error(err)
+    # If external_id is provided, we are trying to access files in another AWS account, and need to assume the role
+    if external_source:
+        s3.setup_aws_client(config)
+    # Otherwise, confirm that we can access the bucket in our own AWS account
+    else:
+        try:
+            for page in s3.list_files_in_bucket(config['bucket']):
+                break
+        except BaseException as err:
+            LOGGER.error(err)
 
     if args.discover:
         do_discover(args.config)
