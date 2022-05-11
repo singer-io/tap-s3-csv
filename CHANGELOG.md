@@ -1,21 +1,33 @@
 # Changelog
 
-## 1.3.1
-
-- Merge in upstream changes, below:
-- Increase the limit on the width of a field in the CSV files read by the tap [#47](https://github.com/singer-io/singer-encodings/pull/47)
-
-## 1.3.0
+## 1.3.6
 
 - Reintroduce ability to assume role for external AWS account
 - Add optional parameter `recursive_seach` to table config. When set to false, will prevent searching for files in subfolders within S3 bucket
 
-- Merge in upstream changes, below:
-- Bump singer-encodings to 0.1.2 [21](https://github.com/singer-io/singer-encodings/pull/21)
+## 1.3.5
+
+- Increase the limit on the width of a field in the CSV files read by the tap [#47](https://github.com/singer-io/singer-encodings/pull/47)
+
+## 1.3.4
+
+- Bump singer-encodings to 0.1.2 [#21](https://github.com/singer-io/singer-encodings/pull/21)
+
+## 1.3.3
+
 - Bump singer-encodings to 0.1.1 [#41](https://github.com/singer-io/tap-s3-csv/pull/41)
+
+## 1.3.2
+
 - Skip files without a name [#37](https://github.com/singer-io/tap-s3-csv/pull/37)
 - Fix an issue to allow the tap to run with a catalog without schemas [#38](https://github.com/singer-io/tap-s3-csv/pull/38)
+
+## 1.3.1
+
 - Fixed bug that caused `integer`s to be discovered as `number` differently in different versions of python [#35](https://github.com/singer-io/tap-s3-csv/pull/35)
+
+## 1.3.0
+
 - Adds support for Compressed files [#32](https://github.com/singer-io/tap-s3-csv/pull/32)
 - Adds support for JSONL files [#31](https://github.com/singer-io/tap-s3-csv/pull/31)
 - Adds support for duplicated headers in CSV files [#30](https://github.com/singer-io/tap-s3-csv/pull/30)
