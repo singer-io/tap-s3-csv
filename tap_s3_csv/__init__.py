@@ -11,7 +11,8 @@ from tap_s3_csv.config import CONFIG_CONTRACT
 LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = ["bucket"]
-REQUIRED_CONFIG_KEYS_EXTERNAL_SOURCE = ["bucket", "account_id", "external_id", "role_name"]
+REQUIRED_CONFIG_KEYS_EXTERNAL_SOURCE = [
+    "bucket", "account_id", "external_id", "role_name"]
 
 
 def do_discover(config):
@@ -34,7 +35,8 @@ def do_sync(config, catalog, state):
     for stream in catalog['streams']:
         stream_name = stream['tap_stream_id']
         mdata = metadata.to_map(stream['metadata'])
-        table_spec = next(s for s in config['tables'] if s['table_name'] == stream_name)
+        table_spec = next(
+            s for s in config['tables'] if s['table_name'] == stream_name)
         if not stream_is_selected(mdata):
             LOGGER.info("%s: Skipping - not selected", stream_name)
             continue
@@ -50,6 +52,7 @@ def do_sync(config, catalog, state):
 
     LOGGER.info('Done syncing.')
 
+
 def validate_table_config(config):
     # Parse the incoming tables config as JSON
     tables_config = config['tables']
@@ -59,16 +62,18 @@ def validate_table_config(config):
             table_config.pop('search_prefix')
         if table_config.get('key_properties') == "" or table_config.get('key_properties') is None:
             table_config['key_properties'] = []
-        elif table_config.get('key_properties'):
-            table_config['key_properties'] = [s.strip() for s in table_config['key_properties']]
-
+        elif table_config.get('key_properties') and isinstance(table_config['key_properties'], str):
+            table_config['key_properties'] = [s.strip()
+                                              for s in table_config['key_properties'].split(',')]
         if table_config.get('date_overrides') == "" or table_config.get('date_overrides') is None:
             table_config['date_overrides'] = []
         elif table_config.get('date_overrides') and isinstance(table_config['date_overrides'], str):
-            table_config['date_overrides'] = [s.strip() for s in table_config['date_overrides'].split(',')]
+            table_config['date_overrides'] = [s.strip()
+                                              for s in table_config['date_overrides'].split(',')]
 
     # Reassign the config tables to the validated object
     return CONFIG_CONTRACT(tables_config)
+
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
