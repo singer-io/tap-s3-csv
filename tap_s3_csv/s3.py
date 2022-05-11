@@ -3,7 +3,6 @@ import re
 import io
 import json
 import gzip
-import sys
 import backoff
 import boto3
 import singer
@@ -28,7 +27,6 @@ LOGGER = singer.get_logger()
 
 skipped_files_count = 0
 
-
 def retry_pattern():
     return backoff.on_exception(backoff.expo,
                                 ClientError,
@@ -38,8 +36,7 @@ def retry_pattern():
 
 
 def log_backoff_attempt(details):
-    LOGGER.info(
-        "Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
+    LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
 
 
 class AssumeRoleProvider():
@@ -87,28 +84,24 @@ def get_sampled_schema_for_table(config, table_spec):
 
     s3_files_gen = get_input_files_for_table(config, table_spec)
 
-    samples = [sample for sample in sample_files(
-        config, table_spec, s3_files_gen)]
+    samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
     if skipped_files_count:
-        LOGGER.warning(
-            "%s files got skipped during the last sampling.", skipped_files_count)
+        LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
 
     if not samples:
-        # Return empty properties for accept everything from data if no samples found
+        #Return empty properties for accept everything from data if no samples found
         return {
             'type': 'object',
             'properties': {}
         }
 
-    data_schema = conversion.generate_schema(
-        samples, table_spec, config.get('string_max_length', False))
+    data_schema = conversion.generate_schema(samples, table_spec, config.get('string_max_length', False))
 
     return {
         'type': 'object',
         'properties': data_schema
     }
-
 
 def merge_dicts(first, second):
     to_return = first.copy()
@@ -126,24 +119,10 @@ def merge_dicts(first, second):
     return to_return
 
 
-def maximize_csv_field_width():
-
-    current_field_size_limit = csv_iterator.csv.field_size_limit()
-    field_size_limit = sys.maxsize
-
-    if current_field_size_limit != field_size_limit:
-        csv_iterator.csv.field_size_limit(field_size_limit)
-        LOGGER.info("Changed the CSV field size limit from %s to %s",
-                    current_field_size_limit,
-                    field_size_limit)
-
-
 def get_records_for_csv(s3_path, sample_rate, iterator):
 
     current_row = 0
     sampled_row_count = 0
-
-    maximize_csv_field_width()
 
     for row in iterator:
 
@@ -212,14 +191,11 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
             raise Exception('JSONL file "{}" is missing date_overrides key: {}'
                             .format(s3_path, date_overrides - all_keys))
 
-# pylint: disable=global-statement
-
-
+#pylint: disable=global-statement
 def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
     global skipped_files_count
     if s3_path.endswith(".tar.gz"):
-        LOGGER.warning(
-            'Skipping "%s" file as .tar.gz extension is not supported', s3_path)
+        LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
 
@@ -227,21 +203,18 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
     gz_file_obj = gzip.GzipFile(fileobj=io.BytesIO(file_bytes))
 
     try:
-        gz_file_name = utils.get_file_name_from_gzfile(
-            fileobj=io.BytesIO(file_bytes))
+        gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
     except AttributeError as err:
         # If a file is compressed using gzip command with --no-name attribute,
         # It will not return the file name and timestamp. Hence we will skip such files.
         # We also seen this issue occur when tar is used to compress the file
-        LOGGER.warning(
-            'Skipping "%s" file as we did not get the original file name', s3_path)
+        LOGGER.warning('Skipping "%s" file as we did not get the original file name',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
 
     if gz_file_name:
         if gz_file_name.endswith(".gz"):
-            LOGGER.warning(
-                'Skipping "%s" file as it contains nested compression.', s3_path)
+            LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
             skipped_files_count = skipped_files_count + 1
             return []
 
@@ -250,35 +223,31 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
-# pylint: disable=global-statement
-
-
+#pylint: disable=global-statement
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     global skipped_files_count
 
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
-        LOGGER.warning('"%s" without extension will not be sampled.', s3_path)
+        LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
     if extension in ["csv", "txt"]:
         # If file object read from s3 bucket file else use extracted file object from zip or gz
-        file_handle = file_handle._raw_stream if hasattr(
-            file_handle, "_raw_stream") else file_handle  # pylint:disable=protected-access
+        file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle #pylint:disable=protected-access
         iterator = csv_iterator.get_row_iterator(file_handle, table_spec)
         csv_records = []
         if iterator:
             csv_records = get_records_for_csv(s3_path, sample_rate, iterator)
         else:
-            LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
+            LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
             skipped_files_count = skipped_files_count + 1
         return csv_records
     if extension == "gz":
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
     if extension == "jsonl":
         # If file object read from s3 bucket file else use extracted file object from zip or gz
-        file_handle = file_handle._raw_stream if hasattr(
-            file_handle, "_raw_stream") else file_handle
+        file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle
         records = get_records_for_jsonl(
             s3_path, sample_rate, file_handle)
         check_jsonl_sample_records, records = itertools.tee(
@@ -292,18 +261,14 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
 
         return records
     if extension == "zip":
-        LOGGER.warning(
-            'Skipping "%s" file as it contains nested compression.', s3_path)
+        LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
-    LOGGER.warning(
-        '"%s" having the ".%s" extension will not be sampled.', s3_path, extension)
+    LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',s3_path,extension)
     skipped_files_count = skipped_files_count + 1
     return []
 
-# pylint: disable=global-statement
-
-
+#pylint: disable=global-statement
 def get_files_to_sample(config, s3_files, max_files):
     """
     Returns the list of files for sampling, it checks the s3_files whether any zip or gz file exists or not
@@ -322,7 +287,7 @@ def get_files_to_sample(config, s3_files, max_files):
     global skipped_files_count
     sampled_files = []
 
-    OTHER_FILES = ["csv", "gz", "jsonl", "txt"]
+    OTHER_FILES = ["csv","gz","jsonl","txt"]
 
     for s3_file in s3_files:
         file_key = s3_file.get('key')
@@ -337,28 +302,22 @@ def get_files_to_sample(config, s3_files, max_files):
 
             # Check whether file is without extension or not
             if not extension or file_name.lower() == extension:
-                LOGGER.warning(
-                    '"%s" without extension will not be sampled.', file_key)
+                LOGGER.warning('"%s" without extension will not be sampled.',file_key)
                 skipped_files_count = skipped_files_count + 1
             elif file_key.endswith(".tar.gz"):
-                LOGGER.warning(
-                    'Skipping "%s" file as .tar.gz extension is not supported', file_key)
+                LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported', file_key)
                 skipped_files_count = skipped_files_count + 1
             elif extension == "zip":
-                files = compression.infer(
-                    io.BytesIO(file_handle.read()), file_name)
+                files = compression.infer(io.BytesIO(file_handle.read()), file_name)
 
                 # Add only those extracted files which are supported by tap
                 # Prepare dictionary contains the zip file name, type i.e. unzipped and file object of extracted file
-                sampled_files.extend([{"type": "unzipped", "s3_path": file_key, "file_handle": de_file} for de_file in files if de_file.name.split(
-                    ".")[-1].lower() in OTHER_FILES and not de_file.name.endswith(".tar.gz")])
+                sampled_files.extend([{ "type" : "unzipped", "s3_path" : file_key, "file_handle" : de_file } for de_file in files if de_file.name.split(".")[-1].lower() in OTHER_FILES and not de_file.name.endswith(".tar.gz") ])
             elif extension in OTHER_FILES:
                 # Prepare dictionary contains the s3 file path, extension of file and file object
-                sampled_files.append(
-                    {"s3_path": file_key, "file_handle": file_handle, "extension": extension})
+                sampled_files.append({ "s3_path" : file_key , "file_handle" : file_handle, "extension" : extension })
             else:
-                LOGGER.warning(
-                    '"%s" having the ".%s" extension will not be sampled.', file_key, extension)
+                LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',file_key,extension)
                 skipped_files_count = skipped_files_count + 1
 
     return sampled_files
@@ -372,7 +331,8 @@ def sample_files(config, table_spec, s3_files,
 
     for s3_file in itertools.islice(get_files_to_sample(config, s3_files, max_files), max_files):
 
-        s3_path = s3_file.get("s3_path", "")
+
+        s3_path = s3_file.get("s3_path","")
         file_handle = s3_file.get("file_handle")
         file_type = s3_file.get("type")
         extension = s3_file.get("extension")
@@ -389,17 +349,14 @@ def sample_files(config, table_spec, s3_files,
                     sample_rate)
         try:
             yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
-        except (UnicodeDecodeError, json.decoder.JSONDecodeError):
+        except (UnicodeDecodeError,json.decoder.JSONDecodeError):
             # UnicodeDecodeError will be raised if non csv file parsed to csv parser
             # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
             # Handled both error and skipping file with wrong extension.
-            LOGGER.warn(
-                "Skipping %s file as parsing failed. Verify an extension of the file.", s3_path)
+            LOGGER.warn("Skipping %s file as parsing failed. Verify an extension of the file.",s3_path)
             skipped_files_count = skipped_files_count + 1
 
-# pylint: disable=global-statement
-
-
+#pylint: disable=global-statement
 def get_input_files_for_table(config, table_spec, modified_since=None):
     global skipped_files_count
     bucket = config['bucket']
@@ -472,8 +429,7 @@ def list_files_in_bucket(bucket, search_prefix=None, recursive_search=True):
     if not recursive_search:
         if search_prefix is not None and search_prefix != "" and not search_prefix.endswith('/'):
             search_prefix += '/'
-        # This will limit results to the exact folder specified by the prefix, without going into subfolders
-        args['Delimiter'] = '/'
+        args['Delimiter'] = '/' # This will limit results to the exact folder specified by the prefix, without going into subfolders
 
     if search_prefix is not None:
         args['Prefix'] = search_prefix
@@ -489,8 +445,7 @@ def list_files_in_bucket(bucket, search_prefix=None, recursive_search=True):
     if s3_object_count > 0:
         LOGGER.info("Found %s files.", s3_object_count)
     else:
-        LOGGER.warning(
-            'Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
+        LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
 
 
 @retry_pattern()

@@ -1,10 +1,5 @@
 # Changelog
 
-## 1.3.1
-
-- Merge in upstream changes, below:
-- Increase the limit on the width of a field in the CSV files read by the tap [#47](https://github.com/singer-io/singer-encodings/pull/47)
-
 ## 1.3.0
 
 - Reintroduce ability to assume role for external AWS account

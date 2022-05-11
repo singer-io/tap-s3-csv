@@ -2,9 +2,7 @@ import singer
 
 LOGGER = singer.get_logger()
 
-# pylint: disable=too-many-return-statements
-
-
+#pylint: disable=too-many-return-statements
 def infer(key, datum, date_overrides, check_second_call=False):
     """
     Returns the inferred data type
@@ -52,7 +50,7 @@ def process_sample(sample, counts, lengths, table_spec):
     for key, value in sample.items():
         if key not in counts:
             counts[key] = {}
-
+        
         length = len(value)
         if key not in lengths or length > lengths[key]:
             lengths[key] = length
@@ -97,7 +95,6 @@ def pick_datatype(counts):
 
     return to_return
 
-
 def generate_schema(samples, table_spec, string_max_length: bool):
     counts, lengths = {}, {}
     for sample in samples:
@@ -128,8 +125,7 @@ def generate_schema(samples, table_spec, string_max_length: bool):
             if string_max_length:
                 schema[key]['anyOf'][1]['maxLength'] = lengths[key]
         else:
-            schema[key] = datatype_schema(
-                datatype, lengths[key], string_max_length)
+            schema[key] = datatype_schema(datatype, lengths[key], string_max_length)
 
     return schema
 
@@ -143,7 +139,7 @@ def datatype_schema(datatype, length, string_max_length: bool):
             ]
         }
         if string_max_length:
-            schema['anyOf'][1]['maxLength'] = length
+                schema['anyOf'][1]['maxLength'] = length
     elif datatype == 'dict':
         schema = {
             'anyOf': [
@@ -152,7 +148,7 @@ def datatype_schema(datatype, length, string_max_length: bool):
             ]
         }
         if string_max_length:
-            schema['anyOf'][1]['maxLength'] = length
+                schema['anyOf'][1]['maxLength'] = length
     else:
         types = ['null', datatype]
         if datatype != 'string':
@@ -161,5 +157,5 @@ def datatype_schema(datatype, length, string_max_length: bool):
             'type': types,
         }
         if string_max_length:
-            schema['maxLength'] = length
+                schema['maxLength'] = length
     return schema
