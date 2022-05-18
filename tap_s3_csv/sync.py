@@ -5,7 +5,6 @@ import json
 import gzip
 
 from singer import metadata
-from singer import Transformer
 from singer import utils as singer_utils
 
 import singer
@@ -13,7 +12,8 @@ from singer_encodings import compression
 from tap_s3_csv import (
     utils,
     s3,
-    csv_iterator
+    csv_iterator,
+    transform
 )
 
 
@@ -213,15 +213,18 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
     records_synced = 0
 
     if iterator:
+        mdata = metadata.to_map(stream['metadata'])
+        auto_fields, filter_fields = transform.resolve_filter_fields(mdata)
+
         for row in iterator:
 
             # Skipping the empty line of CSV
             if len(row) == 0:
                 continue
 
-            with Transformer() as transformer:
+            with transform.Transformer() as transformer:
                 to_write = transformer.transform(
-                    row, stream['schema'], metadata.to_map(stream['metadata']))
+                    row, stream['schema'], auto_fields, filter_fields)
 
             singer.write_record(table_name, to_write)
             records_synced += 1
@@ -239,6 +242,9 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
 
     records_synced = 0
 
+    mdata = metadata.to_map(stream['metadata'])
+    auto_fields, filter_fields = transform.resolve_filter_fields(mdata)
+
     for row in iterator:
 
         decoded_row = row.decode('utf-8')
@@ -250,9 +256,9 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
         else:
             continue
 
-        with Transformer() as transformer:
+        with transform.Transformer() as transformer:
             to_write = transformer.transform(
-                row, stream['schema'], metadata.to_map(stream['metadata']))
+                row, stream['schema'], auto_fields, filter_fields)
 
         singer.write_record(table_name, to_write)
         records_synced += 1
