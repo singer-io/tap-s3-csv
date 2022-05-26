@@ -3,7 +3,7 @@ import csv
 
 def get_row_iterator(iterable, options=None):
     options = options or {}
-    file_stream = codecs.iterdecode(iterable, encoding='utf-8')
+    file_stream = codecs.iterdecode(iterable, encoding=options.get('encoding', 'utf-8'))
 
     field_names = None
 
@@ -12,9 +12,23 @@ def get_row_iterator(iterable, options=None):
         (line.replace('\0', '') for line in file_stream), 
         fieldnames=field_names, 
         delimiter=options.get('delimiter', ','),
-        escapechar=options.get('escape_char', '\\'))
+        escapechar=options.get('escape_char', '\\'),
+        quotechar=options.get('quotechar', '"'))
 
     headers = set(reader.fieldnames)
+
+    # Check for duplicate columns
+    if len(reader.fieldnames) != len(headers):
+        fieldnames = set()
+        duplicate_cols = set()
+        for fieldname in reader.fieldnames:
+            if fieldname in fieldnames:
+                duplicate_cols.add(fieldname)
+            else:
+                fieldnames.add(fieldname)
+
+        raise Exception('CSV file contains duplicate columns: {}'.format(duplicate_cols))
+
     if options.get('key_properties'):
         key_properties = set(options['key_properties'])
         if not key_properties.issubset(headers):

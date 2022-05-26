@@ -7,6 +7,7 @@ from tap_s3_csv.discover import discover_streams
 from tap_s3_csv import s3
 from tap_s3_csv.sync import sync_stream
 from tap_s3_csv.config import CONFIG_CONTRACT
+from tap_s3_csv import dialect
 
 LOGGER = singer.get_logger()
 
@@ -99,6 +100,9 @@ def main():
                 break
         except BaseException as err:
             LOGGER.error(err)
+        
+        # If not external source, it is from importing csv (replacement for tap-csv) 
+        dialect.detect_tables_dialect(config)
 
     if args.discover:
         do_discover(args.config)
