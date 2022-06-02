@@ -6,9 +6,13 @@ import clevercsv
 
 from tap_s3_csv import s3
 
+# We started using tap_s3_csv in 3.4 for both s3 and csv imports. Dialect detection
+# is only run for csv imports
 def detect_tables_dialect(config):
     # there is only one table in the array
     for table in config['tables']:
+        # set is_csv_connector_import to True for imports from csv connector in Symon
+        table['is_csv_connector_import'] = True
         # will return all matching files in s3 with given prefix and table name in config
         s3_files = s3.get_input_files_for_table(config, table)
 

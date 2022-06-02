@@ -8,5 +8,6 @@ CONFIG_CONTRACT = Schema([{
     Optional('date_overrides'): [str],
     Optional('delimiter'): str,
     Optional('escape_char'): str,
-    Optional('recursive_search'): bool
+    Optional('recursive_search'): bool,
+    Optional('quotechar'): str
 }])
