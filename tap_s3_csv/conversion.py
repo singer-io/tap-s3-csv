@@ -53,7 +53,7 @@ def process_sample(sample, counts, lengths, table_spec):
         if key not in counts:
             counts[key] = {}
 
-        length = len(value)
+        length = len(value) if value is not None else 0
         if key not in lengths or length > lengths[key]:
             lengths[key] = length
 
