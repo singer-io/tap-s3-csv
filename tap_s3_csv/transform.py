@@ -319,9 +319,9 @@ class Transformer:
         elif typ == "integer":
             if isinstance(data, str):
                 data = data.replace(",", "")
-
             try:
-                return True, int(data)
+                int(data)
+                return True, str(data)
             except:
                 return False, None
 
@@ -330,7 +330,8 @@ class Transformer:
                 data = data.replace(",", "")
 
             try:
-                return True, float(data)
+                float(data)
+                return True, str(data)
             except:
                 return False, None
 
