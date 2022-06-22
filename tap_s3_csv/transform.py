@@ -1,3 +1,4 @@
+from dataclasses import replace
 import datetime
 import decimal
 import logging
@@ -317,20 +318,18 @@ class Transformer:
                 return False, None
 
         elif typ == "integer":
-            if isinstance(data, str):
-                data = data.replace(",", "")
-
             try:
-                return True, int(data)
+                num = data.replace(',', '') if isinstance(data, str) else data
+                int(num)    # check if it can be cast successfully
+                return True, str(data)
             except:
                 return False, None
 
         elif typ == "number":
-            if isinstance(data, str):
-                data = data.replace(",", "")
-
             try:
-                return True, float(data)
+                num = data.replace(',', '') if isinstance(data, str) else data
+                float(num)
+                return True, str(data)
             except:
                 return False, None
 
