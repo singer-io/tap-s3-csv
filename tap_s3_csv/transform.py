@@ -318,14 +318,14 @@ class Transformer:
 
         elif typ == "integer":
             try:
-                int(data)
+                int(data.replace(",", ""))
                 return True, str(data)
             except:
                 return False, None
 
         elif typ == "number":
             try:
-                float(data)
+                float(data.replace(",", ""))
                 return True, str(data)
             except:
                 return False, None
