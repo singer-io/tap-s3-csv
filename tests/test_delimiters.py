@@ -55,11 +55,11 @@ class S3DelimetersBase:
         actual_records = [record.get("data") for record in records.get("delimiters_table").get("messages")]
 
         expected_records = [
-            {'name': 'Nicolea', 'birthday': '1923-12-15T16:57:08Z', 'gender': 'Female', 'age': 93, 'bank_balance': Decimal('855.24'), 'mixed_nums': 277, '_sdc_source_bucket': 'talend-stitch', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 2},
-            {'name': 'Querida', 'birthday': '1958-02-03T19:50:37Z', 'gender': 'Female', 'age': 70, 'bank_balance': Decimal('745.84'), 'mixed_nums': 270, '_sdc_source_bucket': 'talend-stitch', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 3},
-            {'name': 'Worthington', 'birthday': '1938-04-15T11:18:18Z', 'gender': 'Male', 'age': 42, 'bank_balance': Decimal('837.62'), 'mixed_nums': 206, '_sdc_source_bucket': 'talend-stitch', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 4},
-            {'name': 'Lorne', 'birthday': '1987-09-22T17:58:39Z', 'gender': 'Male', 'age': 10, 'bank_balance': Decimal('533.49'), 'mixed_nums': 137, '_sdc_source_bucket': 'talend-stitch', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 5},
-            {'name': 'Saundra', 'birthday': '2005-07-18T20:34:15Z', 'gender': 'Male', 'age': 76, 'bank_balance': Decimal('524.76'), 'mixed_nums': 252, '_sdc_source_bucket': 'talend-stitch', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 6}
+            {'name': 'Nicolea', 'birthday': '1923-12-15T16:57:08Z', 'gender': 'Female', 'age': 93, 'bank_balance': Decimal('855.24'), 'mixed_nums': 277, '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 2},
+            {'name': 'Querida', 'birthday': '1958-02-03T19:50:37Z', 'gender': 'Female', 'age': 70, 'bank_balance': Decimal('745.84'), 'mixed_nums': 270, '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 3},
+            {'name': 'Worthington', 'birthday': '1938-04-15T11:18:18Z', 'gender': 'Male', 'age': 42, 'bank_balance': Decimal('837.62'), 'mixed_nums': 206, '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 4},
+            {'name': 'Lorne', 'birthday': '1987-09-22T17:58:39Z', 'gender': 'Male', 'age': 10, 'bank_balance': Decimal('533.49'), 'mixed_nums': 137, '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 5},
+            {'name': 'Saundra', 'birthday': '2005-07-18T20:34:15Z', 'gender': 'Male', 'age': 76, 'bank_balance': Decimal('524.76'), 'mixed_nums': 252, '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets', '_sdc_source_file': 'tap_tester/Delimiters/{}'.format(self.file_name), '_sdc_source_lineno': 6}
         ]
 
         self.assertEqual(actual_records, expected_records)
