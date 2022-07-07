@@ -6,7 +6,7 @@ from utils_for_test import delete_and_push_file
 class S3StartDateTest(unittest.TestCase):
 
     def resource_name(self):
-        return ["start_date_1.csv"]
+        return ["start_date_2.csv"]
 
     def setUp(self):
         delete_and_push_file(self.get_properties(), self.resource_name(), "tap-s3-csv")
