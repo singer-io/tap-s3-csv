@@ -21,7 +21,7 @@ class S3StartDateTest(unittest.TestCase):
 
     def get_properties(self, original: bool = True):
         props = {
-            'start_date' : '2022-06-06T00:00:00Z',
+            'start_date' : '2022-07-06T00:00:00Z',
             'bucket': 'com-stitchdata-prod-circleci-assets',
             'account_id': '218546966473',
             'tables': "[{\"table_name\": \"employee_table\",\"search_prefix\": \"tap_tester\",\"search_pattern\": \"start_date_.*.csv\"}]"
@@ -29,7 +29,7 @@ class S3StartDateTest(unittest.TestCase):
         if original:
             return props
 
-        props["start_date"] = '2022-06-07T00:00:00Z'
+        props["start_date"] = '2022-07-07T00:00:00Z'
         return props
 
     def parse_date(self, value, format):
