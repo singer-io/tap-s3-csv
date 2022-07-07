@@ -1,13 +1,22 @@
 from decimal import Decimal
+import json
 import unittest
 from tap_tester import menagerie, runner, connections
 from utils_for_test import delete_and_push_file
 
 FOLDER_PATH = "Delimiters"
 
-class S3DelimetersBase:
+class S3DelimetersBase(unittest.TestCase):
 
-    def setUp(self):
+    file_name = None
+
+    def name(self):
+        return "test_csv_file_with_with_delimeter"
+
+    def resource_name(self):
+        return [self.file_name]
+
+    def upload_file(self):
         delete_and_push_file(self.get_properties(), self.resource_name(), FOLDER_PATH)
         self.conn_id = connections.ensure_connection(self)
 
@@ -24,13 +33,18 @@ class S3DelimetersBase:
         return {}
 
     def get_properties(self):
+        table_entry = {"table_name": "delimiters_table", "search_prefix": "tap_tester/Delimiters", "search_pattern": "{}".format(self.file_name)}
+        if self.delimeter:
+            table_entry["delimiter"] = self.delimeter
+
         return {
             "start_date" : "2017-01-01T00:00:00Z",
             "bucket": "com-stitchdata-prod-circleci-assets",
-            "account_id": "218546966473"
+            "account_id": "218546966473",
+            "tables": json.dumps([table_entry])
         }
 
-    def test_run(self):
+    def run_test(self):
 
         runner.run_check_job_and_check_status(self)
 
@@ -64,114 +78,50 @@ class S3DelimetersBase:
 
         self.assertEqual(actual_records, expected_records)
 
-class CSVWithComma(S3DelimetersBase, unittest.TestCase):
+    def test_CSV_file_with_comma_delimeter(self):
+        self.file_name = "comma.csv"
+        self.delimeter = None
+        self.upload_file()
+        self.run_test()
 
-    file_name = "comma.csv"
-    def name(self):
-        return "test_csv_file_with_comma_delimeter"
+    def test_CSV_file_with_pipe_delimeter(self):
+        self.file_name = "pipe.csv"
+        self.delimeter = "|"
+        self.upload_file()
+        self.run_test()
 
-    def resource_name(self):
-        return [self.file_name]
+    def test_CSV_file_with_semi_colon_delimeter(self):
+        self.file_name = "semi_colon.csv"
+        self.delimeter = ";"
+        self.upload_file()
+        self.run_test()
 
-    def get_properties(self):
-        props = super().get_properties()
-        props["tables"] = "[{\"table_name\": \"delimiters_table\",\"search_prefix\": \"tap_tester/Delimiters\",\"search_pattern\": \"comma.csv\"}]"
-        return props
+    def test_CSV_file_with_tab_delimeter(self):
+        self.file_name = "tab.csv"
+        self.delimeter = "\t"
+        self.upload_file()
+        self.run_test()
 
-class CSVWithPipe(S3DelimetersBase, unittest.TestCase):
+    def test_TXT_file_with_comma_delimeter(self):
+        self.file_name = "comma.txt"
+        self.delimeter = None
+        self.upload_file()
+        self.run_test()
 
-    file_name = "pipe.csv"
-    def name(self):
-        return "test_csv_file_with_pipe_delimeter"
+    def test_TXT_file_with_pipe_delimeter(self):
+        self.file_name = "pipe.txt"
+        self.delimeter = "|"
+        self.upload_file()
+        self.run_test()
 
-    def resource_name(self):
-        return [self.file_name]
+    def test_TXT_file_with_semi_colon_delimeter(self):
+        self.file_name = "semi_colon.txt"
+        self.delimeter = ";"
+        self.upload_file()
+        self.run_test()
 
-    def get_properties(self):
-        props = super().get_properties()
-        props["tables"] = "[{\"table_name\": \"delimiters_table\", \"search_prefix\": \"tap_tester/Delimiters\", \"search_pattern\": \"pipe.csv\", \"delimiter\": \"|\"}]"
-        return props
-
-class CSVWithSemiColon(S3DelimetersBase, unittest.TestCase):
-
-    file_name = "semi_colon.csv"
-    def name(self):
-        return "test_csv_file_with_semi_colon_delimeter"
-
-    def resource_name(self):
-        return [self.file_name]
-
-    def get_properties(self):
-        props = super().get_properties()
-        props["tables"] = "[{\"table_name\": \"delimiters_table\", \"search_prefix\": \"tap_tester/Delimiters\", \"search_pattern\": \"semi_colon.csv\", \"delimiter\": \";\"}]"
-        return props
-
-class CSVWithTab(S3DelimetersBase, unittest.TestCase):
-
-    file_name = "tab.csv"
-    def name(self):
-        return "test_csv_file_with_tab_delimeter"
-
-    def resource_name(self):
-        return [self.file_name]
-
-    def get_properties(self):
-        props = super().get_properties()
-        props["tables"] = "[{\"table_name\": \"delimiters_table\", \"search_prefix\": \"tap_tester/Delimiters\", \"search_pattern\": \"tab.csv\", \"delimiter\": \"\\t\"}]"
-        return props
-
-class TXTWithComma(S3DelimetersBase, unittest.TestCase):
-
-    file_name = "comma.txt"
-    def name(self):
-        return "test_txt_file_with_comma_delimeter"
-
-    def resource_name(self):
-        return [self.file_name]
-
-    def get_properties(self):
-        props = super().get_properties()
-        props["tables"] = "[{\"table_name\": \"delimiters_table\",\"search_prefix\": \"tap_tester/Delimiters\",\"search_pattern\": \"comma.txt\"}]"
-        return props
-
-class TXTWithPipe(S3DelimetersBase, unittest.TestCase):
-
-    file_name = "pipe.txt"
-    def name(self):
-        return "test_txt_file_with_pipe_delimeter"
-
-    def resource_name(self):
-        return [self.file_name]
-
-    def get_properties(self):
-        props = super().get_properties()
-        props["tables"] = "[{\"table_name\": \"delimiters_table\", \"search_prefix\": \"tap_tester/Delimiters\", \"search_pattern\": \"pipe.txt\", \"delimiter\": \"|\"}]"
-        return props
-
-class TXTWithSemiColon(S3DelimetersBase, unittest.TestCase):
-
-    file_name = "semi_colon.txt"
-    def name(self):
-        return "test_txt_file_with_semi_colon_delimeter"
-
-    def resource_name(self):
-        return [self.file_name]
-
-    def get_properties(self):
-        props = super().get_properties()
-        props["tables"] = "[{\"table_name\": \"delimiters_table\", \"search_prefix\": \"tap_tester/Delimiters\", \"search_pattern\": \"semi_colon.txt\", \"delimiter\": \";\"}]"
-        return props
-
-class TXTWithTab(S3DelimetersBase, unittest.TestCase):
-
-    file_name = "tab.txt"
-    def name(self):
-        return "test_txt_file_with_tab_delimeter"
-
-    def resource_name(self):
-        return [self.file_name]
-
-    def get_properties(self):
-        props = super().get_properties()
-        props["tables"] = "[{\"table_name\": \"delimiters_table\", \"search_prefix\": \"tap_tester/Delimiters\", \"search_pattern\": \"tab.txt\", \"delimiter\": \"\\t\"}]"
-        return props
+    def test_TXT_file_with_tab_delimeter(self):
+        self.file_name = "tab.txt"
+        self.delimeter = "\t"
+        self.upload_file()
+        self.run_test()
