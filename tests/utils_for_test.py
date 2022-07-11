@@ -1,7 +1,7 @@
 import boto3
 import os
 import json
-
+from tap_tester import menagerie, connections
 
 def get_resources_path(file_path, folder_path = None):
     if folder_path:
@@ -48,3 +48,17 @@ def get_file_handle(config, s3_path):
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
     return s3_object.get()['Body']
+
+def select_all_streams_and_fields(conn_id, catalogs, select_all_fields: bool = True):
+    """Select all streams and all fields within streams"""
+    for catalog in catalogs:
+        schema = menagerie.get_annotated_schema(conn_id, catalog['stream_id'])
+
+        non_selected_properties = []
+        if not select_all_fields:
+            # get a list of all properties so that none are selected
+            non_selected_properties = schema.get('annotated-schema', {}).get(
+                'properties', {}).keys()
+
+        connections.select_catalog_and_fields_via_metadata(
+            conn_id, catalog, schema, [], non_selected_properties)
