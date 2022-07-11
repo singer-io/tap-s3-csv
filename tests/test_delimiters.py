@@ -11,7 +11,7 @@ class S3DelimetersBase(unittest.TestCase):
     file_name = None
 
     def name(self):
-        return "test_csv_file_with_with_delimeter"
+        return "test_csv_file_with_delimeter"
 
     def resource_name(self):
         return [self.file_name]
@@ -45,6 +45,9 @@ class S3DelimetersBase(unittest.TestCase):
         }
 
     def run_test(self):
+
+        # Upload file on s3 bucket
+        self.upload_file()
 
         runner.run_check_job_and_check_status(self)
 
@@ -81,47 +84,39 @@ class S3DelimetersBase(unittest.TestCase):
     def test_CSV_file_with_comma_delimeter(self):
         self.file_name = "comma.csv"
         self.delimeter = None
-        self.upload_file()
         self.run_test()
 
     def test_CSV_file_with_pipe_delimeter(self):
         self.file_name = "pipe.csv"
         self.delimeter = "|"
-        self.upload_file()
         self.run_test()
 
     def test_CSV_file_with_semi_colon_delimeter(self):
         self.file_name = "semi_colon.csv"
         self.delimeter = ";"
-        self.upload_file()
         self.run_test()
 
     def test_CSV_file_with_tab_delimeter(self):
         self.file_name = "tab.csv"
         self.delimeter = "\t"
-        self.upload_file()
         self.run_test()
 
     def test_TXT_file_with_comma_delimeter(self):
         self.file_name = "comma.txt"
         self.delimeter = None
-        self.upload_file()
         self.run_test()
 
     def test_TXT_file_with_pipe_delimeter(self):
         self.file_name = "pipe.txt"
         self.delimeter = "|"
-        self.upload_file()
         self.run_test()
 
     def test_TXT_file_with_semi_colon_delimeter(self):
         self.file_name = "semi_colon.txt"
         self.delimeter = ";"
-        self.upload_file()
         self.run_test()
 
     def test_TXT_file_with_tab_delimeter(self):
         self.file_name = "tab.txt"
         self.delimeter = "\t"
-        self.upload_file()
         self.run_test()

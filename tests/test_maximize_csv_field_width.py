@@ -42,5 +42,4 @@ class S3MaxFieldWidthCSV(unittest.TestCase):
         self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
 
         found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_check_streams().issubset( found_catalog_names )
-        self.assertTrue(subset, msg="Expected check streams are not subset of discovered catalog")
+        self.assertEqual(self.expected_check_streams(), found_catalog_names, msg="Expected check streams are not subset of discovered catalog")

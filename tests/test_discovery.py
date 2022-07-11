@@ -52,11 +52,12 @@ class S3StartDateTest(unittest.TestCase):
         found_catalogs = menagerie.get_catalogs(self.conn_id)
         self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
 
-        # Verify stream names follow naming convention
-        # streams should only have lowercase alphas and underscores
-        found_catalog_names = {c['tap_stream_id'] for c in found_catalogs}
-        self.assertTrue(all([re.fullmatch(r"[a-z_]+",  name) for name in found_catalog_names]),
-                        msg="One or more streams don't follow standard naming")
+        # Skipping this assertion as this Tap is dynamic. So, it not necessary that name will be in the expected format all the time.
+        # # Verify stream names follow naming convention
+        # # streams should only have lowercase alphas and underscores
+        # found_catalog_names = {c['tap_stream_id'] for c in found_catalogs}
+        # self.assertTrue(all([re.fullmatch(r"[a-z_]+",  name) for name in found_catalog_names]),
+        #                 msg="One or more streams don't follow standard naming")
 
         for stream in self.expected_check_streams():
             with self.subTest(stream=stream):
@@ -65,10 +66,10 @@ class S3StartDateTest(unittest.TestCase):
                 catalog = next(iter([catalog for catalog in found_catalogs if catalog["stream_name"] == stream]))
                 self.assertIsNotNone(catalog)
 
-                # collecting expected values
+                # Collecting expected values
                 expected_primary_keys = {'id'}
 
-                # collect actual values
+                # Collecting actual values
                 schema_and_metadata = menagerie.get_annotated_schema(self.conn_id, catalog['stream_id'])
                 metadata = schema_and_metadata["metadata"]
                 stream_properties = [item for item in metadata if item.get("breadcrumb") == []]

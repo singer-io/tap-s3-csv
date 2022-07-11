@@ -36,6 +36,8 @@ class S3StartDateTest(unittest.TestCase):
         return dt.strptime(value, format)
 
     def test_run(self):
+        # NOTE: The two test files "start_date_1.csv" and "start_date_2.csv" are
+        # added in different dates, and expecting it never gets changed or modified
 
         ############ First sync ############
         self.conn_id = connections.ensure_connection(self)
@@ -95,5 +97,5 @@ class S3StartDateTest(unittest.TestCase):
             self.parse_date(state_2.get("bookmarks").get("employee_table").get("modified_since"), "%Y-%m-%dT%H:%M:%S+00:00"),
             self.parse_date(state_1.get("bookmarks").get("employee_table").get("modified_since"), "%Y-%m-%dT%H:%M:%S+00:00"))
 
-        # verify we replicated sync 2 records in 1st sync too
+        # Verify we replicated sync 2 records in 1st sync too
         self.assertTrue(set(records_2).issubset(set(records_1)))
