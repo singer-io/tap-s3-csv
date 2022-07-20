@@ -1,13 +1,15 @@
 import re
 import random
 import csv
-import chardet
+import cchardet as chardet
 import clevercsv
 
 from tap_s3_csv import s3
 
 # We started using tap_s3_csv in 3.4 for both s3 and csv imports. Dialect detection
 # is only run for csv imports
+
+
 def detect_tables_dialect(config):
     # there is only one table in the array
     for table in config['tables']:
@@ -75,7 +77,7 @@ def detect_dialect(config, s3_file, table):
 
             if line_bytes >= MAX_LINE_BYTES:
                 raise Exception('Too many bytes in one line')
-            
+
             lines_read += 1
             if bytes_read + line_bytes <= MAX_LINES_BYTES:
                 lines.append(line)
@@ -91,7 +93,7 @@ def detect_dialect(config, s3_file, table):
 
         except StopIteration:
             break
-    
+
     if detect_encoding:
         # finish preparing interesting lines - pad with non-interesting lines, keep original file order
         random.seed(0)
@@ -116,9 +118,11 @@ def detect_dialect(config, s3_file, table):
             detector.feed(line)
             if detector.done:
                 break
-        
+
         # if detector had no results, default to utf-8
-        detector_results = detector.close()
+        detector.close()
+        detector_results = detector.result
+
         encoding = detector_results.get('encoding', 'utf-8')
         confidence = detector_results.get('confidence', 1.0)
 
@@ -128,7 +132,7 @@ def detect_dialect(config, s3_file, table):
             encoding = 'utf-8'
 
         table['encoding'] = encoding
-    
+
     # detect csv dialect
     if detect_delimiter or detect_quotechar:
         delimiter = ','
@@ -140,11 +144,8 @@ def detect_dialect(config, s3_file, table):
         decoded = []
         chars = 0
         for i, line in enumerate(lines):
-            try:
-                dline = line.decode(encoding)
-            except UnicodeDecodeError as e:
-                raise UnicodeDecodeError(
-                    e.encoding, e.object, e.start, e.end, f'{e.reason} in line {i + 1}')
+            # replace character with � when line cannot be decoded.
+            dline = line.decode(encoding, errors='replace')
 
             # clevercsv seems to explode in memory to multiples of sample size
             # limit sample to a reasonable amount of characters to avoid memory issue
@@ -162,7 +163,8 @@ def detect_dialect(config, s3_file, table):
                 # clevercsv is a drop-in replacement for python's csv module. The default csv module does a weak
                 # job of detecting dialect. Clevercsv succeeded on client files csv failed to sniff.
                 sample = '\n'.join(decoded)
-                dialect = clevercsv.Sniffer().sniff(sample, [',', ';', '|', '^', '\t', ' '])
+                dialect = clevercsv.Sniffer().sniff(
+                    sample, [',', ';', '|', '^', '\t', ' '])
                 delimiter = dialect.delimiter
 
                 # we're currently only using clevercsv for dialect detection, csv can only handle 1 character
