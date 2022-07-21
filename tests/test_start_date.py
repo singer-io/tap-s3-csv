@@ -2,13 +2,11 @@ import unittest
 from tap_tester import menagerie, runner, connections
 from datetime import datetime as dt
 
-class S3StartDateTest(unittest.TestCase):
+from base import S3CSVBaseTest
 
-    def tap_name(self):
-        return "tap-s3-csv"
+class S3StartDateTest(S3CSVBaseTest):
 
-    def get_type(self):
-        return "platform.s3-csv"
+    table_entry = [{'table_name': 'employee_table', 'search_prefix': 'tap_tester', 'search_pattern': 'start_date_.*.csv'}]
 
     def name(self):
         return "test_start_date"
@@ -16,21 +14,8 @@ class S3StartDateTest(unittest.TestCase):
     def expected_check_streams(self):
         return {'employee_table'}
 
-    def get_credentials(self):
-        return {}
-
-    def get_properties(self, original: bool = True):
-        props = {
-            'start_date' : '2022-07-06T00:00:00Z',
-            'bucket': 'com-stitchdata-prod-circleci-assets',
-            'account_id': '218546966473',
-            'tables': "[{\"table_name\": \"employee_table\",\"search_prefix\": \"tap_tester\",\"search_pattern\": \"start_date_.*.csv\"}]"
-        }
-        if original:
-            return props
-
-        props["start_date"] = '2022-07-07T00:00:00Z'
-        return props
+    def expected_sync_streams(self):
+        return {'employee_table'}
 
     def parse_date(self, value, format):
         return dt.strptime(value, format)
@@ -39,25 +24,19 @@ class S3StartDateTest(unittest.TestCase):
         # NOTE: The two test files "start_date_1.csv" and "start_date_2.csv" are
         # added in different dates, and expecting it never gets changed or modified
 
+        self.START_DATE = '2022-07-07T00:00:00Z'
+
         ############ First sync ############
         self.conn_id = connections.ensure_connection(self)
-        runner.run_check_job_and_check_status(self)
-
-        found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Select our catalogs
         our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_check_streams()]
-        for c in our_catalogs:
-            c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
-            connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
+
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs, True)
 
         # Run a sync job using orchestrator
-        sync_job_name = runner.run_sync_mode(self, self.conn_id)
-
-        # Verify tap and target exit codes
-        exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
-        menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+        self.run_and_verify_sync(self.conn_id)
 
         # Verify actual rows were synced
         records_1 = runner.get_records_from_target_output()
@@ -66,23 +45,15 @@ class S3StartDateTest(unittest.TestCase):
 
         ############ Second sync ############
         self.conn_id = connections.ensure_connection(self, original_properties=False)
-        runner.run_check_job_and_check_status(self)
-
-        found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Select our catalogs
         our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_check_streams()]
-        for c in our_catalogs:
-            c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
-            connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
+
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs, True)
 
         # Run a sync job using orchestrator
-        sync_job_name = runner.run_sync_mode(self, self.conn_id)
-
-        # Verify tap and target exit codes
-        exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
-        menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+        self.run_and_verify_sync(self.conn_id)
 
         # Verify actual rows were synced
         records_2 = runner.get_records_from_target_output()

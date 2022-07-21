@@ -2,11 +2,12 @@ from decimal import Decimal
 import json
 import unittest
 from tap_tester import menagerie, runner, connections
+from base import S3CSVBaseTest
 from utils_for_test import delete_and_push_file
 
 FOLDER_PATH = "Delimiters"
 
-class S3DelimetersBase(unittest.TestCase):
+class S3DelimetersBase(S3CSVBaseTest):
 
     file_name = None
 
@@ -29,6 +30,9 @@ class S3DelimetersBase(unittest.TestCase):
     def expected_check_streams(self):
         return {"delimiters_table"}
 
+    def expected_sync_streams(self):
+        return {"delimiters_table"}
+
     def get_credentials(self):
         return {}
 
@@ -49,23 +53,14 @@ class S3DelimetersBase(unittest.TestCase):
         # Upload file on s3 bucket
         self.upload_file()
 
-        runner.run_check_job_and_check_status(self)
-
-        found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Select our catalogs
         our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_check_streams()]
-        for c in our_catalogs:
-            c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
-            connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs, True)
 
         # Run a sync job using orchestrator
-        sync_job_name = runner.run_sync_mode(self, self.conn_id)
-
-        # Verify tap and target exit codes
-        exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
-        menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+        self.run_and_verify_sync(self.conn_id)
 
         # Verify actual rows were synced
         records = runner.get_records_from_target_output()

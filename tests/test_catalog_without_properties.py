@@ -1,6 +1,7 @@
 import json
 import boto3
 import unittest
+from base import S3CSVBaseTest
 import utils_for_test as utils
 import os
 
@@ -14,24 +15,20 @@ def get_resources_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'resources', path)
 
 
-class S3CatalogWithoutProperties(unittest.TestCase):
+class S3CatalogWithoutProperties(S3CSVBaseTest):
 
     def resource_names(self):
         return ["test_empty_catalog_1.csv", "test_empty_catalog_2.csv", "test_empty_catalog_3.csv", "test_empty_catalog_4.csv", "test_empty_catalog_5.csv", "test_empty_catalog_6.csv", "test_empty_catalog_7.csv"]
 
-    def tap_name(self):
-        return "tap-s3-csv"
-
     def name(self):
         return "tap_tester_s3_catalog_without_properties_csv"
 
-    def get_type(self):
-        return "platform.s3-csv"
+    def expected_check_streams(self):
+        return {
+            'catalog_without_properties'
+        }
 
-    def get_credentials(self):
-        return {}
-
-    def expected_streams(self):
+    def expected_sync_streams(self):
         return {
             'catalog_without_properties'
         }
@@ -58,20 +55,10 @@ class S3CatalogWithoutProperties(unittest.TestCase):
 
         self.setUpTestEnvironment()
 
-        runner.run_check_job_and_check_status(self)
-
-        found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(found_catalogs), 1,
-                         msg="unable to locate schemas for connection {}".format(self.conn_id))
-
-        found_catalog_names = set(
-            map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_streams().issubset(found_catalog_names)
-        self.assertTrue(
-            subset, msg="Expected check streams are not subset of discovered catalog")
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         our_catalogs = [c for c in found_catalogs if c.get(
-            'tap_stream_id') in self.expected_streams()]
+            'tap_stream_id') in self.expected_check_streams()]
 
         # Select our catalogs
         for c in our_catalogs:
@@ -97,11 +84,7 @@ class S3CatalogWithoutProperties(unittest.TestCase):
         menagerie.set_state(self.conn_id, {})
 
         # Run a sync job using orchestrator
-        sync_job_name = runner.run_sync_mode(self, self.conn_id)
-
-        # Verify tap and target exit codes
-        exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
-        menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+        self.run_and_verify_sync(self.conn_id)
 
         synced_records = runner.get_records_from_target_output()
         upsert_messages = [m for m in synced_records.get(

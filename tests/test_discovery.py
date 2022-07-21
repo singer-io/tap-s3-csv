@@ -1,9 +1,9 @@
-import re
 import unittest
 from tap_tester import menagerie, runner, connections
+from base import S3CSVBaseTest
 from utils_for_test import delete_and_push_file
 
-class S3StartDateTest(unittest.TestCase):
+class S3StartDateTest(S3CSVBaseTest):
     """
         - Verify number of tables discovered matches expectations.
         - Verify table names follow naming convention (lowercase alphas and underscores).
@@ -15,18 +15,14 @@ class S3StartDateTest(unittest.TestCase):
         - Verify that primary keys and have inclusion of "automatic".
     """
 
+    table_entry = [{'table_name': 'employees', 'key_properties': 'id', 'search_prefix': 'tap-s3-csv', 'search_pattern': 'discovery_test.csv', 'date_overrides': 'date of joining'}]
+
     def setUp(self):
         delete_and_push_file(self.get_properties(), self.resource_name(), "tap-s3-csv")
         self.conn_id = connections.ensure_connection(self)
 
     def resource_name(self):
         return ["discovery_test.csv"]
-
-    def tap_name(self):
-        return "tap-s3-csv"
-
-    def get_type(self):
-        return "platform.s3-csv"
 
     def name(self):
         return "test_start_date"
@@ -37,20 +33,9 @@ class S3StartDateTest(unittest.TestCase):
     def get_credentials(self):
         return {}
 
-    def get_properties(self):
-        return {
-            'start_date' : '2017-01-01T00:00:00Z',
-            'bucket': 'com-stitchdata-prod-circleci-assets',
-            'account_id': '218546966473',
-            'tables': "[{\"table_name\": \"employees\", \"key_properties\": \"id\", \"search_prefix\": \"tap-s3-csv\", \"search_pattern\": \"discovery_test.csv\", \"date_overrides\": \"date of joining\"}]"
-        }
-
     def test_run(self):
 
-        runner.run_check_job_and_check_status(self)
-
-        found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Skipping this assertion as this Tap is dynamic. So, it not necessary that name will be in the expected format all the time.
         # # Verify stream names follow naming convention

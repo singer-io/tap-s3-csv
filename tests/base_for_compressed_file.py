@@ -1,26 +1,18 @@
-import tap_tester.connections as connections
-import tap_tester.menagerie   as menagerie
+from tap_tester import connections, menagerie, runner
 
 import utils_for_test as utils
-import unittest
 
 CSV_FOLDER_PATH = "Compressed-CSV"
 COMPRESSION_FOLDER_PATH = "Compressed"
 JSONL_FOLDER_PATH = "Compressed-JSONL"
 
-class S3CompressedFile(unittest.TestCase):
+class S3CompressedFile:
 
     def setUp(self):
         self.conn_id = connections.ensure_connection(self)
 
     def resource_names(self):
         return []
-
-    def tap_name(self):
-        return "tap-s3-csv"
-
-    def get_type(self):
-        return "platform.s3-csv"
 
     def name(self):
         return ""
@@ -40,14 +32,6 @@ class S3CompressedFile(unittest.TestCase):
 
     def get_credentials(self):
         return {}
-
-    def get_properties(self):
-        return {
-            'start_date' : '2017-01-01T00:00:00Z',
-            'bucket': 'com-stitchdata-prod-circleci-assets',
-            'account_id': '218546966473',
-        }
-
     
     def select_specific_catalog(self, found_catalogs, catalog_to_select):
         for catalog in found_catalogs:
