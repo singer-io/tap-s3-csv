@@ -216,7 +216,7 @@ class S3TypesAndData(S3CSVBaseTest):
         return json.loads(streams_data)
 
     @staticmethod
-    def expected_sync_streams() -> set:
+    def expected_check_streams() -> set:
         return {stream["table_name"] for stream in S3TypesAndData.expected_streams()}
 
     @staticmethod
@@ -500,11 +500,11 @@ class S3TypesAndData(S3CSVBaseTest):
         record_count_by_stream = runner.examine_target_output_file(
             self,
             self.conn_id,
-            self.expected_sync_streams(),
+            self.expected_check_streams(),
             self.expected_pks())
         replicated_row_count = reduce(lambda accum, c : accum + c, record_count_by_stream.values())
 
-        for stream in self.expected_sync_streams():
+        for stream in self.expected_check_streams():
             with self.subTest(stream=stream):
                 self.assertEqual(
                     record_count_by_stream.get(stream, 0),
