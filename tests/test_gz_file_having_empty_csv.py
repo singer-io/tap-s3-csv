@@ -38,7 +38,7 @@ class S3CompressedGZFileHavingEmptyCSV(S3CompressedFile, S3CSVBaseTest):
 
         self.select_specific_catalog(found_catalogs, "gz_file_having_empty_csv")
 
-        self.run_and_verify_sync(self.conn_id)
+        self.run_and_verify_sync(self.conn_id, is_expected_records_zero=True)
 
         expected_records = 0
         # Verify actual rows were synced

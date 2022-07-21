@@ -39,7 +39,7 @@ class S3CompressedFileNonCSV(S3CompressedFile, S3CSVBaseTest):
 
         self.select_specific_catalog(found_catalogs, "zip_with_csv_files")
 
-        self.run_and_verify_sync(self.conn_id)
+        self.run_and_verify_sync(self.conn_id, is_expected_records_zero=True)
 
         expected_records = 1983 + 1983
         # Verify actual rows were synced

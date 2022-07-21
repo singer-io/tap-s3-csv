@@ -166,14 +166,12 @@ class S3TypesAndData(S3CSVBaseTest):
         return {"_sdc_source_lineno", "_sdc_source_bucket", "_sdc_extra", "_sdc_source_file"}
 
     @staticmethod
-    def tap_name():
+    def name():
         """
-        The official name of the tap under test
+        specifies the name of the test to use with the runner
+        """
 
-        Returns:
-            A string representing the tap name
-        """
-        return "tap-s3-csv"
+        return "tap_tester_sdc_csv_types_and_data"
 
     @staticmethod
     def configuration():

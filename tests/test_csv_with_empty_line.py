@@ -35,7 +35,9 @@ class S3EmptyLineInCSVTest(S3CSVBaseTest):
         }
 
     def expected_pks(self):
-        return {}
+        return {
+            'csv_with_empty_lines': {}
+        }
 
     def setUp(self):
         self.conn_id = connections.ensure_connection(self)

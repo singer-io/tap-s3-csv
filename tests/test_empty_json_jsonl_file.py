@@ -33,7 +33,7 @@ class S3EmptyJsonJsonlFile(S3CompressedFile, S3CSVBaseTest):
 
         self.select_specific_catalog(found_catalogs, "empty_json_jsonl_file")
 
-        self.run_and_verify_sync(self.conn_id)
+        self.run_and_verify_sync(self.conn_id, is_expected_records_zero=True)
 
         expected_records = 0
         # Verify actual rows were synced

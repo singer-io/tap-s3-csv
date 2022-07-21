@@ -63,7 +63,7 @@ class S3CSVBaseTest(unittest.TestCase):
 
         return found_catalogs
 
-    def run_and_verify_sync(self, conn_id):
+    def run_and_verify_sync(self, conn_id, is_expected_records_zero=False):
         """
         Run a sync job and make sure it exited properly.
         Return a dictionary with keys of streams synced
@@ -80,10 +80,11 @@ class S3CSVBaseTest(unittest.TestCase):
                                                               self.expected_check_streams(),
                                                               self.expected_pks())
 
-        self.assertGreater(
-            sum(sync_record_count.values()), 0,
-            msg="failed to replicate any data: {}".format(sync_record_count)
-        )
+        if not is_expected_records_zero:
+            self.assertGreater(
+                sum(sync_record_count.values()), 0,
+                msg="failed to replicate any data: {}".format(sync_record_count)
+            )
         print("total replicated row count: {}".format(sum(sync_record_count.values())))
 
     def select_all_streams_and_fields(self, conn_id, catalogs, select_all_fields: bool = True):

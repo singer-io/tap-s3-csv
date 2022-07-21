@@ -38,7 +38,7 @@ class S3CompressedGZFileHavingExtensionCSVorJSONL(S3CompressedFile, S3CSVBaseTes
 
         self.select_specific_catalog(found_catalogs, "gz_file_with_csv_and_jsonl_extension")
 
-        self.run_and_verify_sync(self.conn_id)
+        self.run_and_verify_sync(self.conn_id, is_expected_records_zero=True)
 
         expected_records = 0
         # Verify actual rows were synced
