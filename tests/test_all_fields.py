@@ -22,6 +22,9 @@ class S3CSVAllFieldsTest(S3CSVBaseTest):
     def expected_sync_streams(self):
         return {"all_fields_csv"}
 
+    def expected_pks(self):
+        return {"all_fields_csv": {"head1"}}
+
     def expected_automatic_fields(self):
         return {"all_fields_csv": {"head1"}}
 

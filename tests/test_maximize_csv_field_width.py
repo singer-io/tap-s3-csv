@@ -23,8 +23,8 @@ class S3MaxFieldWidthCSV(S3CSVBaseTest):
     def expected_sync_streams(self):
         return {'csv_with_max_field_width'}
 
-    def get_credentials(self):
-        return {}
+    def expected_pks(self):
+        return {'csv_with_max_field_width': {}}
 
     def test_run(self):
 

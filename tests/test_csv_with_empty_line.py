@@ -52,7 +52,7 @@ class S3EmptyLineInCSVTest(S3CSVBaseTest):
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         our_catalogs = [c for c in found_catalogs if c.get(
-            'tap_stream_id') in self.expected_streams()]
+            'tap_stream_id') in self.expected_sync_streams()]
 
         # Select our catalogs
         self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs, True)

@@ -45,7 +45,13 @@ class S3AllFilesSupport(S3CSVBaseTest):
         }
 
     def expected_pks(self):
-        return {}
+        return {
+            "all_support_csv": {},
+            "all_support_jsonl": {},
+            "all_support_gz_has_csv": {},
+            "all_support_gz_has_jsonl": {},
+            "all_support_zip": {}
+        }
 
     def setUpTestEnvironment(self):
         index = 0

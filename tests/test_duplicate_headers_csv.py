@@ -59,13 +59,9 @@ class S3DuplicateHeadersCSV(S3CSVBaseTest):
 
     def test_duplicate_headers_in_csv(self):
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
-
-        found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_streams().issubset( found_catalog_names )
-        self.assertTrue(subset, msg="Expected check streams are not subset of discovered catalog")
         
         # Select our catalogs
-        our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_streams()]
+        our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
 
         self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs, True)
 
@@ -76,7 +72,7 @@ class S3DuplicateHeadersCSV(S3CSVBaseTest):
         self.run_and_verify_sync(self.conn_id)
 
         # Verify actual rows were synced
-        record_count_by_stream = runner.examine_target_output_file(self, self.conn_id, self.expected_streams(), self.expected_pks())
+        record_count_by_stream = runner.examine_target_output_file(self, self.conn_id, self.expected_sync_streams(), self.expected_pks())
         self.assertGreater(sum(record_count_by_stream.values()), 0, msg="failed to replicate any data: {}".format(record_count_by_stream))
         print("total replicated row count: {}".format(sum(record_count_by_stream.values())))
 

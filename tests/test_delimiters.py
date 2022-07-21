@@ -30,6 +30,9 @@ class S3DelimetersBase(S3CSVBaseTest):
     def expected_check_streams(self):
         return {"delimiters_table"}
 
+    def expected_pks(self):
+        return {"delimiters_table": {}}
+
     def expected_sync_streams(self):
         return {"delimiters_table"}
 

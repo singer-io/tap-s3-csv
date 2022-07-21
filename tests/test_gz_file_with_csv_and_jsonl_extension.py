@@ -22,15 +22,16 @@ class S3CompressedGZFileHavingExtensionCSVorJSONL(S3CompressedFile, S3CSVBaseTes
             'gz_file_with_csv_and_jsonl_extension'
         }
 
+    def expected_pks(self):
+        return {
+            'gz_file_with_csv_and_jsonl_extension': {}
+        }
+
     def test_run(self):
 
         self.setUpTestEnvironment(COMPRESSION_FOLDER_PATH)
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
-
-        found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_check_streams().issubset( found_catalog_names )
-        self.assertTrue(subset, msg="Expected check streams are not subset of discovered catalog")
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})

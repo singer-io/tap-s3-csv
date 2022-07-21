@@ -17,6 +17,9 @@ class S3StartDateTest(S3CSVBaseTest):
     def expected_sync_streams(self):
         return {'employee_table'}
 
+    def expected_pks(self):
+        return {'employee_table': {}}
+
     def parse_date(self, value, format):
         return dt.strptime(value, format)
 

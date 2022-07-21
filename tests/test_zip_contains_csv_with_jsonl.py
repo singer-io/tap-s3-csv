@@ -23,15 +23,16 @@ class S3CompressedZipFileContainsCSVWithJSONL(S3CompressedFile, S3CSVBaseTest):
             'zip_has_csv_with_jsonl'
         }
 
+    def expected_pks(self):
+        return {
+            'zip_has_csv_with_jsonl': {}
+        }
+
     def test_run(self):
 
         self.setUpTestEnvironment(COMPRESSION_FOLDER_PATH)
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
-
-        found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_check_streams().issubset( found_catalog_names )
-        self.assertTrue(subset, msg="Expected check streams are not subset of discovered catalog")
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})

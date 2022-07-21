@@ -34,7 +34,9 @@ class S3CatalogWithoutProperties(S3CSVBaseTest):
         }
 
     def expected_pks(self):
-        return {}
+        return {
+            'catalog_without_properties': {}
+        }
 
     def get_properties(self):
         with open(get_resources_path("tap-s3-csv/catalog_without_properties_case.json"), encoding='utf-8') as file:

@@ -23,15 +23,16 @@ class S3CompressedFileNonCSV(S3CompressedFile, S3CSVBaseTest):
             'zip_with_csv_files'
         }
 
+    def expected_pks(self):
+        return {
+            'zip_with_csv_files': {}
+        }
+
     def test_run(self):
 
         self.setUpTestEnvironment(CSV_FOLDER_PATH)
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
-
-        found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_check_streams().issubset( found_catalog_names )
-        self.assertTrue(subset, msg="Expected check streams are not subset of discovered catalog")
 
         # Clear state before our run
         self.run_and_verify_sync(self.conn_id)
