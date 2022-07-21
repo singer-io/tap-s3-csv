@@ -35,7 +35,7 @@ class S3CompressedFileNonCSV(S3CompressedFile, S3CSVBaseTest):
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Clear state before our run
-        self.run_and_verify_sync(self.conn_id)
+        menagerie.set_state(self.conn_id, {})
 
         self.select_specific_catalog(found_catalogs, "zip_with_csv_files")
 
