@@ -62,12 +62,18 @@ class S3CSVAllFieldsTest(S3CSVBaseTest):
                     self.assertSetEqual(expected_keys, actual_keys)
 
     def test_CSV_with_1_PK(self):
+        """
+            Test CSV file having one Primary Key
+        """
         self.file_name = "CSV_with_one_primary_key.csv"
         self.headers = "id"
         self.table_entry = [{"table_name": "csv_with_pk", "search_prefix": "tap_tester", "search_pattern": "{}".format(self.file_name), "key_properties": "{}".format(self.headers)}]
         self.run_test()
 
     def test_CSV_with_2_PK(self):
+        """
+            Test CSV file having two Primary Keys
+        """
         self.file_name = "CSV_with_two_primary_keys.csv"
         self.headers = "id, name"
         self.table_entry = [{"table_name": "csv_with_pk", "search_prefix": "tap_tester", "search_pattern": "{}".format(self.file_name), "key_properties": "{}".format(self.headers)}]

@@ -71,41 +71,57 @@ class S3DelimetersBase(S3CSVBaseTest):
         self.assertEqual(actual_records, expected_records)
 
     def test_CSV_file_with_comma_delimeter(self):
+        """Test csv file having comma as a delimeter"""
+
         self.file_name = "comma.csv"
         self.delimeter = None
         self.run_test()
 
     def test_CSV_file_with_pipe_delimeter(self):
+        """Test csv file having pipe as a delimeter"""
+
         self.file_name = "pipe.csv"
         self.delimeter = "|"
         self.run_test()
 
     def test_CSV_file_with_semi_colon_delimeter(self):
+        """Test csv file having semicolon as a delimeter"""
+
         self.file_name = "semi_colon.csv"
         self.delimeter = ";"
         self.run_test()
 
     def test_CSV_file_with_tab_delimeter(self):
+        """Test csv file having tab as a delimeter"""
+
         self.file_name = "tab.csv"
         self.delimeter = "\t"
         self.run_test()
 
     def test_TXT_file_with_comma_delimeter(self):
+        """Test txt file having comma as a delimeter"""
+
         self.file_name = "comma.txt"
         self.delimeter = None
         self.run_test()
 
     def test_TXT_file_with_pipe_delimeter(self):
+        """Test txt file having pipe as a delimeter"""
+
         self.file_name = "pipe.txt"
         self.delimeter = "|"
         self.run_test()
 
     def test_TXT_file_with_semi_colon_delimeter(self):
+        """Test txt file having semicolon as a delimeter"""
+
         self.file_name = "semi_colon.txt"
         self.delimeter = ";"
         self.run_test()
 
     def test_TXT_file_with_tab_delimeter(self):
+        """Test txt file having tab as a delimeter"""
+
         self.file_name = "tab.txt"
         self.delimeter = "\t"
         self.run_test()
