@@ -1,8 +1,7 @@
-from base_for_compressed_file import (S3CompressedFile, CSV_FOLDER_PATH)
 from tap_tester import connections, menagerie, runner
-from base import S3CSVBaseTest
+from base import S3CSVBaseTest, CSV_FOLDER_PATH
 
-class S3CompressedGZTarGZFile(S3CompressedFile, S3CSVBaseTest):
+class S3CompressedGZTarGZFile(S3CSVBaseTest):
 
     table_entry = [{'table_name': 'gz_with_targz_file', 'search_prefix': 'compressed_files_gz_with_targz_file', 'search_pattern': 'compressed_files_gz_with_targz_file\\/.*\\.gz'}]
 
@@ -29,14 +28,16 @@ class S3CompressedGZTarGZFile(S3CompressedFile, S3CSVBaseTest):
 
     def test_run(self):
 
-        self.setUpTestEnvironment(CSV_FOLDER_PATH)
+        self.setUpCompressedEnv(CSV_FOLDER_PATH)
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
 
-        self.select_specific_catalog(found_catalogs, "gz_with_targz_file")
+        our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
+
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs)
 
         self.run_and_verify_sync(self.conn_id)
 

@@ -61,7 +61,7 @@ class S3AllFilesSupport(S3CSVBaseTest):
 
     def test_run(self):
 
-        self.setUpTestEnvironment()
+        self.setUpCompressedEnv()
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 

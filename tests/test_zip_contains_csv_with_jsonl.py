@@ -1,9 +1,8 @@
-from base_for_compressed_file import (S3CompressedFile, COMPRESSION_FOLDER_PATH)
 from tap_tester import connections, menagerie, runner
-from base import S3CSVBaseTest
+from base import S3CSVBaseTest, COMPRESSION_FOLDER_PATH
 
 
-class S3CompressedZipFileContainsCSVWithJSONL(S3CompressedFile, S3CSVBaseTest):
+class S3CompressedZipFileContainsCSVWithJSONL(S3CSVBaseTest):
 
     table_entry = [{'table_name': 'zip_has_csv_with_jsonl', 'search_prefix': 'compressed_files_zip_has_csv_with_jsonl', 'search_pattern': 'compressed_files_zip_has_csv_with_jsonl\\/.*\\.zip'}]
 
@@ -30,14 +29,16 @@ class S3CompressedZipFileContainsCSVWithJSONL(S3CompressedFile, S3CSVBaseTest):
 
     def test_run(self):
 
-        self.setUpTestEnvironment(COMPRESSION_FOLDER_PATH)
+        self.setUpCompressedEnv(COMPRESSION_FOLDER_PATH)
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
 
-        self.select_specific_catalog(found_catalogs, "zip_has_csv_with_jsonl")
+        our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
+
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs)
 
         self.run_and_verify_sync(self.conn_id)
 

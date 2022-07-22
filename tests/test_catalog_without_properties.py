@@ -55,7 +55,7 @@ class S3CatalogWithoutProperties(S3CSVBaseTest):
 
     def test_catalog_without_properties(self):
 
-        self.setUpTestEnvironment()
+        self.setUpCompressedEnv()
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 

@@ -30,9 +30,6 @@ class S3StartDateTest(S3CSVBaseTest):
     def expected_check_streams(self):
         return {'employees'}
 
-    def get_credentials(self):
-        return {}
-
     def test_run(self):
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)

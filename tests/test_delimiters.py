@@ -21,12 +21,6 @@ class S3DelimetersBase(S3CSVBaseTest):
         delete_and_push_file(self.get_properties(), self.resource_name(), FOLDER_PATH)
         self.conn_id = connections.ensure_connection(self)
 
-    def tap_name(self):
-        return "tap-s3-csv"
-
-    def get_type(self):
-        return "platform.s3-csv"
-
     def expected_check_streams(self):
         return {"delimiters_table"}
 
@@ -35,9 +29,6 @@ class S3DelimetersBase(S3CSVBaseTest):
 
     def expected_sync_streams(self):
         return {"delimiters_table"}
-
-    def get_credentials(self):
-        return {}
 
     def get_properties(self):
         table_entry = {"table_name": "delimiters_table", "search_prefix": "tap_tester/Delimiters", "search_pattern": "{}".format(self.file_name)}

@@ -1,8 +1,7 @@
-from base_for_compressed_file import (COMPRESSION_FOLDER_PATH, S3CompressedFile)
 from tap_tester import connections, menagerie, runner
 from base import S3CSVBaseTest
 
-class S3EmptyJsonJsonlFile(S3CompressedFile, S3CSVBaseTest):
+class S3EmptyJsonJsonlFile(S3CSVBaseTest):
 
     table_entry = [{'table_name': 'empty_json_jsonl_file', 'search_prefix': 'jsonl_files_empty_json_jsonl_file', 'search_pattern': 'jsonl_files_empty_json_jsonl_file\\/.*\\.jsonl'}]
 
@@ -24,14 +23,16 @@ class S3EmptyJsonJsonlFile(S3CompressedFile, S3CSVBaseTest):
 
     def test_run(self):
 
-        self.setUpTestEnvironment("tap-s3-csv")
+        self.setUpCompressedEnv("tap-s3-csv")
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
 
-        self.select_specific_catalog(found_catalogs, "empty_json_jsonl_file")
+        our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
+
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs)
 
         self.run_and_verify_sync(self.conn_id, is_expected_records_zero=True)
 

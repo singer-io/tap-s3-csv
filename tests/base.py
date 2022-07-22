@@ -1,8 +1,13 @@
 import json
 import time
 import unittest
+from tap_s3_csv import utils
 from tap_tester import connections, menagerie, runner
 from datetime import datetime as dt
+
+CSV_FOLDER_PATH = "Compressed-CSV"
+COMPRESSION_FOLDER_PATH = "Compressed"
+JSONL_FOLDER_PATH = "Compressed-JSONL"
 
 class S3CSVBaseTest(unittest.TestCase):
 
@@ -21,6 +26,10 @@ class S3CSVBaseTest(unittest.TestCase):
     @staticmethod
     def get_credentials():
         return {}
+
+    def setUpCompressedEnv(self, folder_path):
+        self.conn_id = connections.ensure_connection(self)
+        utils.delete_and_push_file(self.get_properties(), self.resource_names(), folder_path)
 
     def get_properties(self, original: bool = True):
         props = {

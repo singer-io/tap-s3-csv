@@ -54,7 +54,7 @@ class S3CSVAllFieldsTest(S3CSVBaseTest):
 
                 expected_keys = self.expected_automatic_fields().get(stream)
 
-                # collect actual values
+                # Collect actual values
                 data = synced_records.get(stream, {})
                 record_messages_keys = [set(row.get('data').keys()) for row in data.get('messages', {})]
 
