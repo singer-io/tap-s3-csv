@@ -1,7 +1,7 @@
 import json
 import time
 import unittest
-from tap_s3_csv import utils
+import utils_for_test as utils
 from tap_tester import connections, menagerie, runner
 from datetime import datetime as dt
 
