@@ -49,7 +49,7 @@ class S3EmptyLineInCSVTest(S3CSVBaseTest):
 
     def test_catalog_without_properties(self):
 
-        self.setUpCompressedEnv()
+        self.setUpCompressedEnv(TAP_S3_CSV_PATH)
 
         found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
