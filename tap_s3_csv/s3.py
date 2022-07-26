@@ -263,8 +263,6 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         return []
     if extension in ["csv", "txt"]:
         # If file object read from s3 bucket file else use extracted file object from zip or gz
-        file_handle = file_handle._raw_stream if hasattr(
-            file_handle, "_raw_stream") else file_handle  # pylint:disable=protected-access
         iterator = csv_iterator.get_row_iterator(file_handle, table_spec)
         csv_records = []
         if iterator:

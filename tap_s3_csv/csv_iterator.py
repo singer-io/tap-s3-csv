@@ -1,16 +1,18 @@
 import codecs
 import csv
 
+
 def get_row_iterator(iterable, options=None):
     options = options or {}
-    file_stream = codecs.iterdecode(iterable, encoding=options.get('encoding', 'utf-8'))
+    file_stream = codecs.iterdecode(
+        iterable.iter_lines(), encoding=options.get('encoding', 'utf-8'))
 
     field_names = None
 
     # Replace any NULL bytes in the line given to the DictReader
     reader = csv.DictReader(
-        (line.replace('\0', '') for line in file_stream), 
-        fieldnames=field_names, 
+        (line.replace('\0', '') for line in file_stream),
+        fieldnames=field_names,
         delimiter=options.get('delimiter', ','),
         escapechar=options.get('escape_char', '\\'),
         quotechar=options.get('quotechar', '"'))
@@ -31,9 +33,11 @@ def get_row_iterator(iterable, options=None):
                 fieldname_pool.add(fieldname)
 
         if len(duplicate_cols) > 0:
-            raise Exception('CSV file contains duplicate columns: {}'.format(duplicate_cols))
+            raise Exception(
+                'CSV file contains duplicate columns: {}'.format(duplicate_cols))
 
-    reader.fieldnames = handle_empty_fieldnames(reader.fieldnames, fieldname_pool, options)
+    reader.fieldnames = handle_empty_fieldnames(
+        reader.fieldnames, fieldname_pool, options)
 
     # csv.DictReader skips empty rows, but we wish to keep empty rows for csv imports, so override __next__ method.
     # Only modifying for imports from csv connector for now as imports from s3 connector might have reasons for skipping empty rows.
@@ -58,6 +62,8 @@ def get_row_iterator(iterable, options=None):
     return reader
 
 # Generates column name for columns without header
+
+
 def handle_empty_fieldnames(fieldnames, fieldname_pool, options):
     quotechar = options.get('quotechar', '"')
     delimiter = options.get('delimiter', ',')
@@ -69,25 +75,27 @@ def handle_empty_fieldnames(fieldnames, fieldname_pool, options):
         # handle edge case uncovered in WP-9886 for csv import
         if is_csv_connector_import and fieldname and delimiter in fieldname:
             fieldname = quotechar + fieldname + quotechar
-                
+
         if fieldname == '' or fieldname is None:
             fieldname = f'col_{auto_generate_header_num}'
             while fieldname in fieldname_pool:
                 auto_generate_header_num += 1
                 fieldname = f'col_{auto_generate_header_num}'
             auto_generate_header_num += 1
-        
+
         final_fieldnames.append(fieldname)
-    
+
     return final_fieldnames
 
 # csv.DictReader class skips empty rows when iterating over file stream.
 # method to use for overriding csv.DictReader.__next__ in case we wish to keep empty rows
+
+
 def next_without_skip(self):
     if self.line_num == 0:
         # Used only for its side effect.
         self.fieldnames
-    
+
     row = next(self.reader)
     self.line_num = self.reader.line_num
 
