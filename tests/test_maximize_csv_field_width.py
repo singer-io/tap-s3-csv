@@ -47,5 +47,5 @@ class S3MaxFieldWidthCSV(S3CSVBaseTest):
 
         records = runner.get_records_from_target_output()
         actual_records = [record.get('data') for record in records.get('csv_with_max_field_width').get('messages')]
-        # Verify the records
+        # Verify the record we created of length greater than 'csv.field_size_limit' of '131072' is replicated
         self.assertEqual(actual_records, [{'id': 1, 'name': '{}'.format('a'*131074), '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets', '_sdc_source_file': 'tap_tester/max_size.csv', '_sdc_source_lineno': 2}])
