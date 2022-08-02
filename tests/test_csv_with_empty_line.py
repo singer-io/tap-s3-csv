@@ -1,5 +1,6 @@
 import json
 import unittest
+from base import S3CSVBaseTest
 import utils_for_test as utils
 import os
 
@@ -13,37 +14,29 @@ def get_resources_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'resources', path)
 
 
-class S3EmptyLineInCSVTest(unittest.TestCase):
+class S3EmptyLineInCSVTest(S3CSVBaseTest):
+
+    table_entry = [{'table_name': 'csv_with_empty_lines', 'search_prefix': 'tap_tester', 'search_pattern': 'test_csv_with_empty_lines.csv'}]
 
     def resource_names(self):
         return ["test_csv_with_empty_lines.csv"]
 
-    def tap_name(self):
-        return "tap-s3-csv"
-
     def name(self):
         return "tap_tester_s3_csv_with_empty_lines"
 
-    def get_type(self):
-        return "platform.s3-csv"
+    def expected_sync_streams(self):
+        return {
+            'csv_with_empty_lines'
+        }
 
-    def get_credentials(self):
-        return {}
-
-    def expected_streams(self):
+    def expected_check_streams(self):
         return {
             'csv_with_empty_lines'
         }
 
     def expected_pks(self):
-        return {}
-
-    def get_properties(self):
         return {
-            "start_date" : "2017-01-01T00:00:00Z",
-            "bucket": "com-stitchdata-prod-circleci-assets",
-            "account_id": "218546966473",
-            "tables" : "[{\"table_name\": \"csv_with_empty_lines\",\"search_prefix\": \"tap_tester\",\"search_pattern\": \"test_csv_with_empty_lines.csv\"}]"
+            'csv_with_empty_lines': {}
         }
 
     def setUp(self):
@@ -56,39 +49,21 @@ class S3EmptyLineInCSVTest(unittest.TestCase):
 
     def test_catalog_without_properties(self):
 
-        self.setUpTestEnvironment()
+        self.setUpCompressedEnv(TAP_S3_CSV_PATH)
 
-        runner.run_check_job_and_check_status(self)
-
-        found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(found_catalogs), 1,
-                         msg="unable to locate schemas for connection {}".format(self.conn_id))
-
-        found_catalog_names = set(
-            map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_streams().issubset(found_catalog_names)
-        self.assertTrue(
-            subset, msg="Expected check streams are not subset of discovered catalog")
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         our_catalogs = [c for c in found_catalogs if c.get(
-            'tap_stream_id') in self.expected_streams()]
+            'tap_stream_id') in self.expected_sync_streams()]
 
         # Select our catalogs
-        for c in our_catalogs:
-            c_annotated = menagerie.get_annotated_schema(
-                self.conn_id, c['stream_id'])
-            connections.select_catalog_and_fields_via_metadata(
-                self.conn_id, c, c_annotated, [], [])
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs, True)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
 
         # Run a sync job using orchestrator
-        sync_job_name = runner.run_sync_mode(self, self.conn_id)
-
-        # Verify tap and target exit codes
-        exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
-        menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+        self.run_and_verify_sync(self.conn_id)
 
         synced_records = runner.get_records_from_target_output()
         upsert_messages = [m for m in synced_records.get(

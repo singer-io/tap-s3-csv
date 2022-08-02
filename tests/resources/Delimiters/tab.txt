@@ -1,0 +1,6 @@
+name	birthday	gender	age	bank_balance	mixed_nums
+Nicolea	1923-12-15T16:57:08Z	Female	93	855.24	277
+Querida	1958-02-03T19:50:37Z	Female	70	745.84	270
+Worthington	1938-04-15T11:18:18Z	Male	42	837.62	206
+Lorne	1987-09-22T17:58:39Z	Male	10	533.49	137
+Saundra	2005-07-18T20:34:15Z	Male	76	524.76	252
