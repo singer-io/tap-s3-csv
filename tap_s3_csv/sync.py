@@ -193,6 +193,22 @@ def sync_compressed_file(config, s3_path, table_spec, stream):
     return records_streamed
 
 
+def get_source_type_for_updatecol_map(config, source_type_map):
+    column_updates = config['columns_to_update'] if 'columns_to_update' in config else None
+
+    source_type_for_updatecol_map = {}
+    if column_updates and len(column_updates) > 0:
+        updates = list(column_updates.values())[0]
+        for update in updates:
+            if update['columnUpdateType'] != 'modify':
+                continue
+
+            column = update['column']
+            if column in source_type_map:
+                source_type_for_updatecol_map[column] = source_type_map[column]
+    return source_type_for_updatecol_map
+
+
 def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
 
@@ -214,7 +230,11 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
 
     if iterator:
         mdata = metadata.to_map(stream['metadata'])
-        auto_fields, filter_fields = transform.resolve_filter_fields(mdata)
+        auto_fields, filter_fields, source_type_map = transform.resolve_filter_fields(
+            mdata)
+
+        source_type_for_updatecol_map = get_source_type_for_updatecol_map(
+            config, source_type_map)
 
         for row in iterator:
 
@@ -222,7 +242,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
             if len(row) == 0:
                 continue
 
-            with transform.Transformer() as transformer:
+            with transform.Transformer(source_type_for_updatecol_map) as transformer:
                 to_write = transformer.transform(
                     row, stream['schema'], auto_fields, filter_fields)
 

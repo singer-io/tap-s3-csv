@@ -94,12 +94,13 @@ class Error:
 
 
 class Transformer:
-    def __init__(self, integer_datetime_fmt=NO_INTEGER_DATETIME_PARSING, pre_hook=None):
+    def __init__(self, source_type_for_updatecol_map, integer_datetime_fmt=NO_INTEGER_DATETIME_PARSING, pre_hook=None):
         self.integer_datetime_fmt = integer_datetime_fmt
         self.pre_hook = pre_hook
         self.removed = set()
         self.filtered = set()
         self.errors = []
+        self.source_type_for_updatecol_map = source_type_for_updatecol_map
 
     def log_warning(self):
         if self.filtered:
@@ -156,7 +157,7 @@ class Transformer:
 
         return transformed_data
 
-    def transform_recur(self, data, schema, path):
+    def transform_recur(self, data, schema, path, source_type=None):
         if "anyOf" in schema:
             return self._transform_anyof(data, schema, path)
 
@@ -174,7 +175,7 @@ class Transformer:
 
         for typ in types:
             success, transformed_data = self._transform(
-                data, typ, schema, path)
+                data, typ, schema, path, source_type)
             if success:
                 return success, transformed_data
         else:  # pylint: disable=useless-else-on-loop
@@ -217,7 +218,7 @@ class Transformer:
             if key in schema or pattern_schemas:
                 sub_schema = schema.get(key, {'anyOf': pattern_schemas})
                 success, subdata = self.transform_recur(
-                    value, sub_schema, path + [key])
+                    value, sub_schema, path + [key],  self.source_type_for_updatecol_map.get(key))
                 successes.append(success)
                 result[key] = subdata
             else:
@@ -263,7 +264,50 @@ class Transformer:
             except:
                 return string_to_datetime(value)
 
-    def _transform(self, data, typ, schema, path):
+    def _get_transformvalue_by_type(self, data, type):
+        if type == "string":
+            if data is not None:
+                try:
+                    return True, str(data)
+                except:
+                    return False, None
+            else:
+                return False, None
+
+        elif type == "integer":
+            if isinstance(data, str):
+                data = data.replace(",", "")
+            try:
+                return True, int(data)
+            except:
+                return False, None
+
+        elif type == "number":
+            if isinstance(data, str):
+                data = data.replace(",", "")
+
+            try:
+                return True, float(data)
+            except:
+                return False, None
+
+        elif type == "boolean":
+            if isinstance(data, str) and data.lower() == "false":
+                return True, False
+
+            try:
+                return True, bool(data)
+            except:
+                return False, None
+
+        else:
+            return False, None
+
+    def _transform(self, data, typ, schema, path, source_type=None):
+
+        if source_type:
+            return self._get_transformvalue_by_type(data, source_type)
+
         if self.pre_hook:
             data = self.pre_hook(data, typ, schema)
 
@@ -308,47 +352,14 @@ class Transformer:
         elif typ == "array":
             return self._transform_array(data, schema["items"], path)
 
-        elif typ == "string":
-            if data is not None:
-                try:
-                    return True, str(data)
-                except:
-                    return False, None
-            else:
-                return False, None
-
-        elif typ == "integer":
-            try:
-                num = data.replace(',', '') if isinstance(data, str) else data
-                int(num)    # check if it can be cast successfully
-                return True, str(data)
-            except:
-                return False, None
-
-        elif typ == "number":
-            try:
-                num = data.replace(',', '') if isinstance(data, str) else data
-                float(num)
-                return True, str(data)
-            except:
-                return False, None
-
-        elif typ == "boolean":
-            if isinstance(data, str) and data.lower() == "false":
-                return True, False
-
-            try:
-                return True, bool(data)
-            except:
-                return False, None
-
         else:
-            return False, None
+            return self._get_transformvalue_by_type(data, typ)
 
 
 def resolve_filter_fields(metadata=None):
     autos = set()
     filters = set()
+    source_type_map = dict()
 
     if metadata:
         for breadcrumb in sorted(metadata, key=len):
@@ -372,4 +383,9 @@ def resolve_filter_fields(metadata=None):
             if (selected is False) or (inclusion == 'unsupported'):
                 filters.add(breadcrumb)
 
-    return frozenset(autos), frozenset(filters)
+            source_type = singer.metadata.get(
+                metadata, breadcrumb, 'source_type')
+            if source_type:
+                source_type_map[breadcrumb_path(breadcrumb)] = source_type
+
+    return frozenset(autos), frozenset(filters), source_type_map

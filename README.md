@@ -104,4 +104,56 @@ A note about `recursive_search` property: By default (with `recursive_search` un
 
 ---
 
+{
+"bucket": "wisepipe-data-woody",
+"tables": [
+{
+"search_prefix": "tap",
+"search_pattern": "leading.csv",
+"table_name": "leading",
+"delimiter": ",",
+"escape_char": "\\"
+}
+],
+"columns_to_update": {
+"leading": [
+{
+"column": "Annual Revenue",
+"columnUpdateType": "modify",
+"type": "number",
+"targetType": "string"
+}
+]
+}
+}
+
+About columnUpdates :
+
+Ideally, `transformer` will transform data based on its type.
+eg :
+if a data is 100, and type is `integer` : 100
+if a data is 100, and type is `number`: 100.0
+if a data is 100, and type is `string`: "100"
+
+In 3.4 we introduced confirmation screen, we need to allow data to be update type during the `import`. Therefore we added `columns_to_update`(also refered as `columnUpdate`) in the config.
+The actual columnUpdate happens in `target_s3_csv`, but during `sync`, we want to preserve the data in its orginal type before streaming to target_s3_csv.
+
+eg : For a column with data `0110`, it is infered as a `number`. Therefore during sync it will be outputed as 110 by `transformer`. It lost leading 0 in this case.
+If we want to preserve the leading zero in `transformer`, we need to specify that we want to use `source_type` of this data. For csv, all columns' `source_type` will be `string`, this is written to metadata during `discovery`. so the `transformer` will transform the data as `string`, get `0110`, which preserve the leading zero that we want.
+
+For any column that is in `columnUpdate` that is `modify`, meaning that its type is changed during `confirmation screen`, the `transformer` will transform the data based on its `source_type`
+rather than its `infered type`. (eg : `0110` will have infered type as `integer` but with `source_type` as `string`)
+
+If there is no `source_type` and column not in `columnUpdate` with `modify`, it will be `sync` by its `infered schema`
+If the `source_type` does not set, and a column is in `columnUpdate` with `modify`, it will be `sync` by its `infered schema`
+If the `source_type` is set but the column is not in `columnUpdate` with `modify`, it will be `sync` by its `infered schema`
+if the `source_type` is set and the column is in `columnUpdate` with `modify`, it will be `sync` by its `source_type`
+
+Note : `transformer` does not do `columnUpdate`, it only transform the data to either infered type or source_type.
+eg :
+for a column with a value `100`, if the columnUpdate is `number` ---> `boolean`, and `source_type` is `string`,
+`transformer` will transform the value to be `string` during transform
+
+---
+
 Copyright &copy; 2018 Stitch

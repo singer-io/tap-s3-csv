@@ -30,5 +30,7 @@ def load_metadata(table_spec, schema):
         else:
             mdata = metadata.write(
                 mdata, ('properties', field_name), 'inclusion', 'available')
+        mdata = metadata.write(
+            mdata, ('properties', field_name), 'source_type', 'string')             # For csv we always write this for import confirmation screen
 
     return metadata.to_list(mdata)
