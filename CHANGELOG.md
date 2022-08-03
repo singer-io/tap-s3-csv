@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.6
+  *  Implement request timeout [#46](https://github.com/singer-io/singer-encodings/pull/46)
+  *  Updgrade SDK version [#51](https://github.com/singer-io/singer-encodings/pull/51)
+  *  Add integration tests [#52](https://github.com/singer-io/singer-encodings/pull/52)
+
 ## 1.3.5
   * Increase the limit on the width of a field in the CSV files read by the tap [#47](https://github.com/singer-io/singer-encodings/pull/47)
 
