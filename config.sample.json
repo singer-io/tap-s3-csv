@@ -5,4 +5,5 @@
     "bucket": "my-bucket",
     "external_id": "my_optional_secret_external_id",
     "tables": "[{\"search_prefix\":\"exports\",\"search_pattern\":\"my_table\\\\/.*\\\\.csv\",\"table_name\":\"my_table\",\"key_properties\":\"id\",\"date_overrides\":\"created_at\",\"delimiter\":\",\"}]",
+    "request_timeout": 300
 }
