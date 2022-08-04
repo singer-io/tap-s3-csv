@@ -5,7 +5,7 @@ import csv
 def get_row_iterator(iterable, options=None):
     options = options or {}
     file_stream = codecs.iterdecode(
-        iterable.iter_lines(), encoding=options.get('encoding', 'utf-8'))
+        iterable.iter_lines(), encoding=options.get('encoding', 'utf-8'), errors='replace')
 
     field_names = None
 
