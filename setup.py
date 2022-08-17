@@ -16,7 +16,8 @@ setup(name='tap-s3-csv',
           'singer-python==5.12.1',
           'voluptuous==0.10.5',
           'clevercsv~=0.6.3',
-          'cchardet==2.1.7'
+          'cchardet==2.1.7',
+          'ciso8601'
       ],
       extras_require={
           'dev': [

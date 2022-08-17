@@ -14,11 +14,14 @@ from tap_s3_csv import (
     utils,
     s3,
     csv_iterator,
-    transform
+    transform,
+    messages
 )
 
 
 LOGGER = singer.get_logger()
+
+BUFFER_SIZE = 100
 
 
 def sync_stream(config, state, table_spec, stream, timers):
@@ -220,7 +223,6 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers={}):
     start = time.time()
     LOGGER.info('Syncing file "%s".', s3_path)
 
-    bucket = config['bucket']
     table_name = table_spec['table_name']
 
     # We observed data who's field size exceeded the default maximum of
@@ -236,19 +238,18 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers={}):
     timers['get_iter'] += time.time() - start
 
     records_synced = 0
+    records_buffer = []
 
     if iterator:
         start = time.time()
         mdata = metadata.to_map(stream['metadata'])
         auto_fields, filter_fields, source_type_map = transform.resolve_filter_fields(
             mdata)
-        timers['resolve_fields'] += time.time() - start
-
         source_type_for_updatecol_map = get_source_type_for_updatecol_map(
             config, source_type_map)
+        timers['resolve_fields'] += time.time() - start
 
         for row in iterator:
-
             # Skipping the empty line of CSV
             if len(row) == 0:
                 continue
@@ -260,12 +261,22 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers={}):
             timers['tfm'] += time.time() - start
 
             start = time.time()
-            singer.write_record(table_name, to_write)
-            records_synced += 1
+            records_buffer.append(to_write)
+
+            if len(records_buffer) >= BUFFER_SIZE:
+                messages.write_records(table_name, records_buffer)
+                records_synced += len(records_buffer)
+                records_buffer.clear()
             timers['write_record'] += time.time() - start
     else:
         LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
+
+    start = time.time()
+    if len(records_buffer) > 0:
+        messages.write_records(table_name, records_buffer)
+        records_synced += len(records_buffer)
+    timers['write_record'] += time.time() - start
 
     return records_synced
 
@@ -276,9 +287,13 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
     table_name = table_spec['table_name']
 
     records_synced = 0
+    records_buffer = []
 
     mdata = metadata.to_map(stream['metadata'])
-    auto_fields, filter_fields = transform.resolve_filter_fields(mdata)
+    auto_fields, filter_fields, source_type_map = transform.resolve_filter_fields(
+        mdata)
+    source_type_for_updatecol_map = get_source_type_for_updatecol_map(
+        config, source_type_map)
 
     for row in iterator:
 
@@ -291,11 +306,19 @@ def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
         else:
             continue
 
-        with transform.Transformer() as transformer:
+        with transform.Transformer(source_type_for_updatecol_map) as transformer:
             to_write = transformer.transform(
                 row, stream['schema'], auto_fields, filter_fields)
 
-        singer.write_record(table_name, to_write)
-        records_synced += 1
+        records_buffer.append(to_write)
+
+        if len(records_buffer) >= BUFFER_SIZE:
+            messages.write_records(table_name, records_buffer)
+            records_synced += len(records_buffer)
+            records_buffer.clear()
+
+    if len(records_buffer) > 0:
+        messages.write_records(table_name, records_buffer)
+        records_synced += len(records_buffer)
 
     return records_synced
