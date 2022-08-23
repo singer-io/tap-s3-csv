@@ -499,3 +499,62 @@ def get_file_handle(config, s3_path):
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
     return s3_object.get()['Body']
+
+
+class SelectFileStream:
+    def __init__(self, bucket: str, key: str, start: int, end: int, range_size: int, expression: str, input_ser, output_ser):
+        self.__bucket = bucket
+        self.__key = key
+        self.__start = start
+        self.__end = end
+        self.__range_size = range_size
+        self.__expression = expression
+        self.__input_ser = input_ser
+        self.__output_ser = output_ser
+
+    def iter_lines(self):
+        pending = b''
+        for chunk in self.__iter_chunks():
+            for event in chunk:
+                if 'Records' in event:
+                    records = event['Records']['Payload']
+
+                    lines = (pending + records).splitlines(True)
+                    for line in lines[:-1]:
+                        yield line.splitlines(False)[0]
+                    pending = lines[-1]
+
+        if pending:
+            yield pending.splitlines(False)[0]
+
+    @retry_pattern()
+    def __iter_chunks(self):
+        LOGGER.warn(f'iter_chunks({self.__key})')
+        s3_client = boto3.client('s3')
+        range_start = self.__start
+        range_end = min(self.__start + self.__range_size, self.__end)
+
+        while range_start <= self.__end:
+            resp = s3_client.select_object_content(
+                Bucket=self.__bucket,
+                Key=self.__key,
+                ExpressionType='SQL',
+                Expression=self.__expression,
+                InputSerialization=self.__input_ser,
+                OutputSerialization=self.__output_ser,
+                ScanRange={'Start': range_start, 'End': range_end}
+            )
+
+            yield resp['Payload']
+
+            range_start = range_end + 1
+            range_end = min(range_start + self.__range_size, self.__end)
+
+
+def select_csv_file(bucket: str, key: str, start: int, end: int, range_size: int):
+    expression = 'SELECT * FROM S3Object'
+    input_ser = {'CSV': {'QuoteEscapeCharacter': '\\',
+                         'FieldDelimiter': ',', 'QuoteCharacter': '"'}}
+    output_ser = {'CSV': {}}
+
+    return SelectFileStream(bucket, key, start, end, range_size, expression, input_ser, output_ser)

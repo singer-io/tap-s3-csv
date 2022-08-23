@@ -24,7 +24,7 @@ LOGGER = singer.get_logger()
 BUFFER_SIZE = 100
 
 
-def sync_stream(config, state, table_spec, stream, timers):
+def sync_stream(config, state, table_spec, stream, start_byte, end_byte, range_size, timers):
     start = time.time()
     table_name = table_spec['table_name']
     bookmark = singer.get_bookmark(state, table_name, 'modified_since')
@@ -50,7 +50,7 @@ def sync_stream(config, state, table_spec, stream, timers):
     # based on anything else then we could just sync files as we see them.
     for s3_file in sorted(s3_files, key=lambda item: item['key']):
         records_streamed += sync_table_file(
-            config, s3_file['key'], table_spec, stream, timers)
+            config, s3_file['key'], table_spec, stream, start_byte, end_byte, range_size, timers)
 
         start = time.time()
         state = singer.write_bookmark(
@@ -68,8 +68,7 @@ def sync_stream(config, state, table_spec, stream, timers):
     return records_streamed
 
 
-def sync_table_file(config, s3_path, table_spec, stream, timers={}):
-
+def sync_table_file(config, s3_path, table_spec, stream, byte_start, byte_end, range_size, timers={}):
     extension = s3_path.split(".")[-1].lower()
 
     # Check whether file is without extension or not
@@ -79,9 +78,9 @@ def sync_table_file(config, s3_path, table_spec, stream, timers={}):
         return 0
     try:
         if extension == "zip":
-            return sync_compressed_file(config, s3_path, table_spec, stream)
+            return sync_compressed_file(config, s3_path, table_spec, stream, byte_start, byte_end, range_size)
         if extension in ["csv", "gz", "jsonl", "txt"]:
-            return handle_file(config, s3_path, table_spec, stream, extension, None, timers)
+            return handle_file(config, s3_path, table_spec, stream, extension, None, byte_start, byte_end, range_size, timers)
         LOGGER.warning(
             '"%s" having the ".%s" extension will not be synced.', s3_path, extension)
     except (UnicodeDecodeError, json.decoder.JSONDecodeError):
@@ -95,7 +94,7 @@ def sync_table_file(config, s3_path, table_spec, stream, timers={}):
 
 
 # pylint: disable=too-many-arguments
-def handle_file(config, s3_path, table_spec, stream, extension, file_handler=None, timers={}):
+def handle_file(config, s3_path, table_spec, stream, extension, file_handler=None, start_byte=None, end_byte=None, range_size=1024*1024, timers={}):
     """
     Used to sync normal supported files
     """
@@ -105,14 +104,20 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler=Non
         LOGGER.warning('"%s" without extension will not be synced.', s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
         return 0
+
     if extension == "gz":
         return sync_gz_file(config, s3_path, table_spec, stream, file_handler)
 
     if extension in ["csv", "txt"]:
+        if file_handler:
+            # If file is extracted from zip or gz use file object else get file object from s3 bucket
+            file_handle = file_handler
+        elif extension == 'csv' and start_byte is not None and end_byte is not None:
+            file_handle = s3.select_csv_file(
+                config['bucket'], s3_path, start_byte, end_byte, range_size)
+        else:
+            file_handle = s3.get_file_handle(config, s3_path)
 
-        # If file is extracted from zip or gz use file object else get file object from s3 bucket
-        file_handle = file_handler if file_handler else s3.get_file_handle(
-            config, s3_path)  # pylint:disable=protected-access
         return sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers)
 
     if extension == "jsonl":
@@ -198,7 +203,7 @@ def sync_compressed_file(config, s3_path, table_spec, stream):
             s3_file_path = s3_path + "/" + decompressed_file.name
 
             records_streamed += handle_file(config, s3_file_path, table_spec,
-                                            stream, extension, file_handler=decompressed_file)
+                                            stream, extension, decompressed_file)
 
     return records_streamed
 
