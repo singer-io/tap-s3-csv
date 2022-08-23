@@ -529,7 +529,6 @@ class SelectFileStream:
 
     @retry_pattern()
     def __iter_chunks(self):
-        LOGGER.warn(f'iter_chunks({self.__key})')
         s3_client = boto3.client('s3')
         range_start = self.__start
         range_end = min(self.__start + self.__range_size, self.__end)
