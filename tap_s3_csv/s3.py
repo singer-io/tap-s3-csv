@@ -502,9 +502,10 @@ def get_file_handle(config, s3_path):
 
 
 class SelectFileStream:
-    def __init__(self, bucket: str, key: str, start: int, end: int, range_size: int, expression: str, input_ser, output_ser):
+    def __init__(self, bucket: str, key: str, header, start: int, end: int, range_size: int, expression: str, input_ser, output_ser):
         self.__bucket = bucket
         self.__key = key
+        self.__header = header
         self.__start = start
         self.__end = end
         self.__range_size = range_size
@@ -513,6 +514,9 @@ class SelectFileStream:
         self.__output_ser = output_ser
 
     def iter_lines(self):
+        if len(self.__header) > 0:
+            yield self.__header
+
         pending = b''
         for chunk in self.__iter_chunks():
             for event in chunk:
@@ -551,9 +555,34 @@ class SelectFileStream:
 
 
 def select_csv_file(bucket: str, key: str, start: int, end: int, range_size: int):
+    header = select_csv_file_header(bucket, key) if start > 0 else b''
+
     expression = 'SELECT * FROM S3Object'
     input_ser = {'CSV': {'QuoteEscapeCharacter': '\\',
                          'FieldDelimiter': ',', 'QuoteCharacter': '"'}}
     output_ser = {'CSV': {}}
 
-    return SelectFileStream(bucket, key, start, end, range_size, expression, input_ser, output_ser)
+    return SelectFileStream(bucket, key, header, start, end, range_size, expression, input_ser, output_ser)
+
+
+def select_csv_file_header(bucket: str, key: str):
+    s3_client = boto3.client('s3')
+    expression = 'SELECT * FROM S3Object LIMIT 1'
+    input_ser = {'CSV': {'QuoteEscapeCharacter': '\\',
+                         'FieldDelimiter': ',', 'QuoteCharacter': '"'}}
+    output_ser = {'CSV': {}}
+
+    resp = s3_client.select_object_content(
+        Bucket=bucket,
+        Key=key,
+        ExpressionType='SQL',
+        Expression=expression,
+        InputSerialization=input_ser,
+        OutputSerialization=output_ser
+    )
+
+    for event in resp['Payload']:
+        if 'Records' in event:
+            return event['Records']['Payload']
+
+    return b''
