@@ -17,7 +17,8 @@ setup(name='tap-s3-csv',
           'voluptuous==0.10.5',
           'clevercsv~=0.6.3',
           'cchardet==2.1.7',
-          'ciso8601'
+          'ciso8601',
+          'orjson~=3.7.12'
       ],
       extras_require={
           'dev': [

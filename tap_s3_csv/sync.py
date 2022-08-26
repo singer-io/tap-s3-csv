@@ -24,7 +24,7 @@ LOGGER = singer.get_logger()
 BUFFER_SIZE = 100
 
 
-def sync_stream(config, state, table_spec, stream, start_byte, end_byte, range_size, timers):
+def sync_stream(config, state, table_spec, stream, start_byte, end_byte, range_size, timers, json_lib):
     start = time.time()
     table_name = table_spec['table_name']
     bookmark = singer.get_bookmark(state, table_name, 'modified_since')
@@ -50,7 +50,7 @@ def sync_stream(config, state, table_spec, stream, start_byte, end_byte, range_s
     # based on anything else then we could just sync files as we see them.
     for s3_file in sorted(s3_files, key=lambda item: item['key']):
         records_streamed += sync_table_file(
-            config, s3_file['key'], table_spec, stream, start_byte, end_byte, range_size, timers)
+            config, s3_file['key'], table_spec, stream, start_byte, end_byte, range_size, timers, json_lib)
 
         start = time.time()
         state = singer.write_bookmark(
@@ -68,7 +68,7 @@ def sync_stream(config, state, table_spec, stream, start_byte, end_byte, range_s
     return records_streamed
 
 
-def sync_table_file(config, s3_path, table_spec, stream, byte_start, byte_end, range_size, timers={}):
+def sync_table_file(config, s3_path, table_spec, stream, byte_start, byte_end, range_size, timers={}, json_lib='simple'):
     extension = s3_path.split(".")[-1].lower()
 
     # Check whether file is without extension or not
@@ -80,7 +80,7 @@ def sync_table_file(config, s3_path, table_spec, stream, byte_start, byte_end, r
         if extension == "zip":
             return sync_compressed_file(config, s3_path, table_spec, stream, byte_start, byte_end, range_size)
         if extension in ["csv", "gz", "jsonl", "txt"]:
-            return handle_file(config, s3_path, table_spec, stream, extension, None, byte_start, byte_end, range_size, timers)
+            return handle_file(config, s3_path, table_spec, stream, extension, None, byte_start, byte_end, range_size, timers, json_lib)
         LOGGER.warning(
             '"%s" having the ".%s" extension will not be synced.', s3_path, extension)
     except (UnicodeDecodeError, json.decoder.JSONDecodeError):
@@ -94,7 +94,7 @@ def sync_table_file(config, s3_path, table_spec, stream, byte_start, byte_end, r
 
 
 # pylint: disable=too-many-arguments
-def handle_file(config, s3_path, table_spec, stream, extension, file_handler=None, start_byte=None, end_byte=None, range_size=1024*1024, timers={}):
+def handle_file(config, s3_path, table_spec, stream, extension, file_handler=None, start_byte=None, end_byte=None, range_size=1024*1024, timers={}, json_lib='simple'):
     """
     Used to sync normal supported files
     """
@@ -118,7 +118,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler=Non
         else:
             file_handle = s3.get_file_handle(config, s3_path)
 
-        return sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers)
+        return sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers, json_lib)
 
     if extension == "jsonl":
 
@@ -224,7 +224,7 @@ def get_source_type_for_updatecol_map(config, source_type_map):
     return source_type_for_updatecol_map
 
 
-def sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers={}):
+def sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers={}, json_lib='simple'):
     start = time.time()
     LOGGER.info('Syncing file "%s".', s3_path)
 
@@ -269,7 +269,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers={}):
             records_buffer.append(to_write)
 
             if len(records_buffer) >= BUFFER_SIZE:
-                messages.write_records(table_name, records_buffer)
+                messages.write_records(table_name, records_buffer, json_lib)
                 records_synced += len(records_buffer)
                 records_buffer.clear()
             timers['write_record'] += time.time() - start
@@ -279,7 +279,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers={}):
 
     start = time.time()
     if len(records_buffer) > 0:
-        messages.write_records(table_name, records_buffer)
+        messages.write_records(table_name, records_buffer, json_lib)
         records_synced += len(records_buffer)
     timers['write_record'] += time.time() - start
 

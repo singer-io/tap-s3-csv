@@ -41,6 +41,7 @@ def do_sync(config, catalog, state):
     start_byte = config.get('start_byte')
     end_byte = config.get('end_byte')
     range_size = config.get('range_size', 1024*1024)
+    json_lib = config.get('json_lib', 'simple')
 
     LOGGER.info(f'Starting sync ({start_byte}-{end_byte}).')
 
@@ -61,7 +62,7 @@ def do_sync(config, catalog, state):
 
         timers['pre'] += time.time() - start
         LOGGER.info("%s: Starting sync", stream_name)
-        counter_value = sync_stream(config, state, table_spec, stream, start_byte, end_byte, range_size, timers)
+        counter_value = sync_stream(config, state, table_spec, stream, start_byte, end_byte, range_size, timers, json_lib)
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
 
     timers_str = ', '.join(f'"{k}": {v:.0f}' for k, v in timers.items())
