@@ -8,6 +8,8 @@ def get(*args, **kwargs):
     """Function to raise an appropriate error as per the arguments"""
     if kwargs.get("access_denied_error"):
         raise ClientError({"Error": {"Message": "Access Denied", "Code": "AccessDenied"}}, "ListObjectsV2")
+    elif kwargs.get("AccessDenied_error"):
+        raise ClientError({"Error": {"Message": "You arr not authorized to perform this action", "Code": "AccessDenied"}}, "ListObjectsV2")
     else:
         raise ClientError({"Error": {"Message": "Test Error", "Code": "TestError"}}, "ListObjectsV2")
 
@@ -16,6 +18,7 @@ class TestGiveUpForAccessDeniedError(unittest.TestCase):
 
     @parameterized.expand([
         ["giveup_for_access_denied_error", {"access_denied_error": True}, 1],
+        ["giveup_for_AccessDenied_error", {"AccessDenied_error": True}, 1],
         ["not_giveup", {}, 5],
     ])
     @mock.patch("time.sleep")

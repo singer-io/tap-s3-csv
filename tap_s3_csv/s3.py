@@ -46,7 +46,7 @@ def is_access_denied_error(error):
         and return boolean values accordingly, to decide whether to backoff or not.
     """
     # retry if the error string contains 'Access Denied'
-    if 'Access Denied' in str(error):
+    if 'Access Denied' in str(error) or 'AccessDenied' in str(error):
         return True
     return False
 
