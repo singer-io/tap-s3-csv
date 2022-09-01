@@ -113,7 +113,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler=Non
             # If file is extracted from zip or gz use file object else get file object from s3 bucket
             file_handle = file_handler
         elif extension == 'csv' and start_byte is not None and end_byte is not None:
-            file_handle = s3.select_csv_file(
+            file_handle = s3.get_csv_file(
                 config['bucket'], s3_path, start_byte, end_byte, range_size)
         else:
             file_handle = s3.get_file_handle(config, s3_path)
