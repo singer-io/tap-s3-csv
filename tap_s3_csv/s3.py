@@ -430,7 +430,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         raise ValueError(
             ("search_pattern for table `{}` is not a valid regular "
              "expression. See "
-             "https://docs.python.org/3.9/library/re.html").format(table_spec['table_name']),
+             "https://docs.python.org/3.9/library/re.html#regular-expression-syntax").format(table_spec['table_name']),
             pattern) from e
 
     LOGGER.info(
