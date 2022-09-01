@@ -254,15 +254,20 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, timers={}, j
             config, source_type_map)
         timers['resolve_fields'] += time.time() - start
 
+        tfm = transform.Transformer(source_type_for_updatecol_map)
+        # modify schema in-place to put null as the last type to check for
+        # e.g. ['null', 'integer'] -> ['integer', 'null']
+        tfm.transform_schema_recur(stream['schema'])
+
         for row in iterator:
             # Skipping the empty line of CSV
             if len(row) == 0:
                 continue
 
             start = time.time()
-            with transform.Transformer(source_type_for_updatecol_map) as transformer:
-                to_write = transformer.transform(
-                    row, stream['schema'], auto_fields, filter_fields)
+            to_write = tfm.transform(
+                row, stream['schema'], auto_fields, filter_fields)
+            tfm.cleanup()
             timers['tfm'] += time.time() - start
 
             start = time.time()
