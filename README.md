@@ -8,19 +8,28 @@ This is a [Singer](https://singer.io) tap that reads data from files located ins
 
 ### Install and Run
 
-First, make sure Python 3 is installed on your system or follow these
-installation instructions for [Mac](http://docs.python-guide.org/en/latest/starting/install3/osx/) or
-[Ubuntu](https://www.digitalocean.com/community/tutorials/how-to-install-python-3-and-set-up-a-local-programming-environment-on-ubuntu-16-04).
+Ensure poetry is installed on your machine. 
 
-It's recommended to use a virtualenv:
-
-```bash
- python3 -m venv ~/.virtualenvs/tap-s3-csv
- source ~/.virtualenvs/tap-s3-csv/bin/activate
- pip install -U pip setuptools
- pip install -e '.[dev]'
+- This command will return the installed version of poetry if it is installed.
+```
+poetry --version
 ```
 
+- If not, install poetry using the following commands (from https://python-poetry.org/docs/#installation):
+```
+curl -sSL https://install.python-poetry.org | python3 -
+PATH=~/.local/bin:$PATH
+```
+
+Within the `tap-s3-csv` directory, install dependencies:
+```
+poetry install
+```
+
+Then run the tap:
+```
+poetry run tap-s3-csv <options>
+```
 ### Configuration
 
 Here is an example of basic config, and a bit of a run down on each of the properties:
