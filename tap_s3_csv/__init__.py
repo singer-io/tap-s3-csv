@@ -1,4 +1,3 @@
-from asyncio.log import logger
 import json
 import sys
 import singer
@@ -36,13 +35,14 @@ def stream_is_selected(mdata):
 
 
 def do_sync(config, catalog, state):
-    timers = {'pre': 0, 'bookmark': 0, 'input_files': 0, 'get_iter': 0,
-              'resolve_fields': 0, 'tfm': 0, 'write_record': 0, 'write_state': 0}
+    start_byte = config.get('start_byte')
+    end_byte = config.get('end_byte')
+    range_size = config.get('range_size', 1024*1024*5)
+    json_lib = config.get('json_lib', 'orjson')
 
-    LOGGER.info('Starting sync.')
+    LOGGER.info(f'Starting sync ({start_byte}-{end_byte}).')
 
     for stream in catalog['streams']:
-        start = time.time()
         stream_name = stream['tap_stream_id']
         mdata = metadata.to_map(stream['metadata'])
         table_spec = next(
@@ -56,15 +56,15 @@ def do_sync(config, catalog, state):
         key_properties = mdata.get((), {}).get('table-key-properties', [])
         singer.write_schema(stream_name, stream['schema'], key_properties)
 
-        timers['pre'] += time.time() - start
         LOGGER.info("%s: Starting sync", stream_name)
-        counter_value = sync_stream(config, state, table_spec, stream, timers)
+        counter_value = sync_stream(
+            config, state, table_spec, stream, start_byte, end_byte, range_size, json_lib)
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
 
-    timers_str = ', '.join(f'"{k}": {v:.0f}' for k, v in timers.items())
-
-    logMsg = f"{IMPORT_PERF_METRICS_LOG_PREFIX} {{{timers_str}}}"
-    LOGGER.info(logMsg)
+    # import performance logging - left here for convenience
+    # timers_str = ', '.join(f'"{k}": {v:.0f}' for k, v in timers.items())
+    # logMsg = f"{IMPORT_PERF_METRICS_LOG_PREFIX} {{{timers_str}}}"
+    # LOGGER.info(logMsg)
 
     LOGGER.info('Done syncing.')
 

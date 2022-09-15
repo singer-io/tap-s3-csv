@@ -7,6 +7,7 @@ import sys
 import backoff
 import boto3
 import singer
+from enum import Enum
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -499,3 +500,185 @@ def get_file_handle(config, s3_path):
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
     return s3_object.get()['Body']
+
+
+class EOLType(Enum):
+    LF = 1
+    CR = 2
+    CRLF = 3
+
+
+class GetFileRangeStream:
+    def __init__(self, bucket: str, key: str, start_byte: int, end_byte: int, chunk_size: int):
+        if (start_byte >= end_byte):
+            raise ValueError(
+                f'start and end byte range is invalid')
+
+        self.bucket = bucket
+        self.key = key
+        self.start_byte = start_byte
+        self.end_byte = end_byte
+        self.chunk_size = chunk_size
+
+    def iter_lines(self):
+        # get file size
+        file_size = self.__get_content_length__()
+        LOGGER.info(f'total file_size: {file_size}')
+
+        if (self.start_byte > file_size):
+            raise ValueError(
+                f'start byte is greater than file size {file_size}')
+
+        # always return header first, after this each chunk iteration will discard first row but include partial row at the end
+        headers = self.__get_headers__()
+        LOGGER.info(headers)
+        yield headers
+
+        eol = self.__get_eol__()
+
+        end = min(self.end_byte, file_size)
+
+        # Assumption chunk_size can accomodate at least one row
+        count_skipped_rows_at_start = 0
+        pending = b''
+        iter_chunks = self.__get_object_iter_chunks__(
+            iter_start_byte=self.start_byte, iter_end_byte=end)
+        for chunk in iter_chunks:
+            lines = (pending + chunk).splitlines(True)
+            for line in lines[:-1]:
+                # handle partial line at chunk start
+                # always assume first row is incomplete, discard first line because we do not know if its full row or not
+                # this discarded first row of this range, would be included with range before this
+                # for start of file, its assumed row header is discarded
+                if count_skipped_rows_at_start == 0:
+                    count_skipped_rows_at_start += 1
+                    continue
+                yield line.splitlines(False)[0]
+            pending = lines[-1]
+
+        # handle partial line at chunk end
+        if pending:
+            #LOGGER.info('pending: ', pending)
+            # if its EOF, return existing pending
+            if (end == file_size):
+                yield pending.splitlines(False)[0]
+                return
+
+            start = self.end_byte + 1
+            end = min(start+self.chunk_size, file_size)
+            iter_chunks = self.__get_object_iter_chunks__(
+                iter_start_byte=start, iter_end_byte=end)
+
+            overflow_rows_allowed = 1
+            # if the end was exactly at EOL, need to return 2 end rows
+            # else just need to return 1 end row
+            # if EOL=\r\n, when endbyte is on \r, need to get only 1 item as next range start will skip /n instead of actual line
+            if eol == EOLType.CRLF:
+                if b'\r\n' in pending:
+                    overflow_rows_allowed = 2
+                elif b'\r' in pending:
+                    overflow_row_count = 1
+            elif (b'\n' in pending or b'\r' in pending):
+                overflow_rows_allowed = 2
+
+            overflow_row_count = 0
+            for chunk in iter_chunks:
+                #LOGGER.info('chunk for pending', chunk)
+                lines = (pending + chunk).splitlines(True)
+                for line in lines[:-1]:
+                    if overflow_row_count >= overflow_rows_allowed:
+                        return
+                    overflow_row_count += 1
+                    if count_skipped_rows_at_start == 0:
+                        count_skipped_rows_at_start += 1
+                        continue
+                    return_line = line.splitlines(False)[0]
+                    if len(return_line) > 0:
+                        yield return_line
+                pending = lines[-1]
+
+            if pending:
+                #LOGGER.info('still pending: ', pending)
+                yield pending.splitlines(False)[0]
+                return
+
+    @retry_pattern()
+    def __get_object_iter_chunks__(self, iter_start_byte: int, iter_end_byte: int):
+        s3 = boto3.resource('s3')
+        s3_object = s3.Object(self.bucket, self.key)
+        start_range = iter_start_byte
+        end_range = min(iter_start_byte+self.chunk_size, iter_end_byte)
+
+        count_s3_calls = 0
+        while start_range < iter_end_byte:
+            count_s3_calls += 1
+            request_range = f'bytes={start_range}-{end_range}'
+            #LOGGER.info(f'request range: {request_range}')
+            response = s3_object.get(
+                Range=request_range
+            )
+            for chunk in response['Body']:
+                # LOGGER.info('chunk:', chunk)
+                yield chunk
+            start_range = end_range + 1
+            end_range = min(start_range+self.chunk_size, iter_end_byte)
+
+        #LOGGER.info(f'total no of S3 calls: {count_s3_calls}')
+
+    @retry_pattern()
+    def __get_headers__(self):
+        iter_chunks = self.__get_object_iter_chunks__(
+            iter_start_byte=0, iter_end_byte=self.chunk_size)
+
+        header_row = b''
+        pending = b''
+        for chunk in iter_chunks:
+            if header_row == b'':
+                lines = (pending + chunk).splitlines(True)
+                for line in lines[:-1]:
+                    return line.splitlines(False)[0]
+                pending = lines[-1]
+
+    @retry_pattern()
+    def __get_eol__(self):
+        iter_chunks = self.__get_object_iter_chunks__(
+            iter_start_byte=0, iter_end_byte=self.chunk_size)
+
+        eol_counts = {EOLType.LF: 0, EOLType.CR: 0, EOLType.CRLF: 0}
+        lf = ord('\n')
+        cr = ord('\r')
+        prev_char = b''
+
+        for chunk in iter_chunks:
+            for char in chunk:
+                if (char == cr):
+                    eol_counts[EOLType.CR] += 1
+                elif char == lf:
+                    if prev_char == cr:
+                        eol_counts[EOLType.CRLF] += 1
+                        eol_counts[EOLType.CR] -= 1
+                    else:
+                        eol_counts[EOLType.LF] += 1
+                prev_char = char
+
+        # find maximum occuring EOL
+        max_eol_type = EOLType.LF
+        max_value = 0
+        for key, value in eol_counts.items():
+            if (value > max_value):
+                max_eol_type = key
+                max_value = value
+
+        LOGGER.info(f'{max_eol_type}: {max_value}')
+        return max_eol_type
+
+    @retry_pattern()
+    def __get_content_length__(self):
+        s3 = boto3.resource('s3')
+        s3_object = s3.Object(self.bucket, self.key)
+        return s3_object.content_length
+
+
+def get_csv_file(bucket: str, key: str, start: int, end: int, range_size: int):
+    return GetFileRangeStream(bucket=bucket, key=key,
+                              start_byte=start, end_byte=end, chunk_size=range_size)

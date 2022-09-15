@@ -2,6 +2,7 @@ import sys
 
 import pytz
 import simplejson as json
+import orjson
 import ciso8601
 
 import singer.utils as u
@@ -207,12 +208,15 @@ def parse_message(msg):
         return None
 
 
-def format_message(message):
-    return json.dumps(message.asdict(), use_decimal=True)
+def format_message(message, json_lib='simple'):
+    if json_lib == 'orjson':
+        return orjson.dumps(message.asdict()).decode('utf-8')
+    else:
+        return json.dumps(message.asdict(), use_decimal=True)
 
 
-def write_message(message):
-    sys.stdout.write(f'{format_message(message)}\n')
+def write_message(message, json_lib='simple'):
+    sys.stdout.write(f'{format_message(message, json_lib)}\n')
     sys.stdout.flush()
 
 
@@ -220,15 +224,15 @@ def record_message(stream_name, record, stream_alias=None, time_extracted=None):
     return RecordMessage(stream=(stream_alias or stream_name), record=record, time_extracted=time_extracted)
 
 
-def write_record(stream_name, record, stream_alias=None, time_extracted=None):
+def write_record(stream_name, record, stream_alias=None, time_extracted=None, json_lib='simple'):
     """Write a single record for the given stream.
     write_record("users", {"id": 2, "email": "mike@stitchdata.com"})
     """
     message = record_message(stream_name, record, stream_alias, time_extracted)
-    write_message(message)
+    write_message(message, json_lib)
 
 
-def write_records(stream_name, records):
+def write_records(stream_name, records, json_lib='simple'):
     """Write a list of records for the given stream.
     chris = {"id": 1, "email": "chris@stitchdata.com"}
     mike = {"id": 2, "email": "mike@stitchdata.com"}
@@ -236,7 +240,7 @@ def write_records(stream_name, records):
     """
     for r in records:
         message = record_message(stream_name, r)
-        sys.stdout.write(f'{format_message(message)}\n')
+        sys.stdout.write(f'{format_message(message, json_lib)}\n')
     sys.stdout.flush()
 
 

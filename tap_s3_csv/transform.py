@@ -125,6 +125,12 @@ class Transformer:
     def __exit__(self, *args):
         self.log_warning()
 
+    def cleanup(self):
+        self.log_warning()
+        self.removed.clear()
+        self.filtered.clear()
+        self.errors.clear()
+
     def filter_data_by_metadata(self, data, auto_fields, filter_fields, parent=()):
         if isinstance(data, dict) and filter_fields:
             for field_name in list(data.keys()):
@@ -166,13 +172,6 @@ class Transformer:
             return True, data
 
         types = schema["type"]
-        if not isinstance(types, list):
-            types = [types]
-
-        if "null" in types:
-            types.remove("null")
-            types.append("null")
-
         for typ in types:
             success, transformed_data = self._transform(
                 data, typ, schema, path, source_type)
@@ -183,6 +182,33 @@ class Transformer:
             self.errors.append(
                 Error(path, data, schema, logging_level=LOGGER.level))
             return False, None
+
+    def transform_schema_recur(self, schema):
+        if "type" not in schema:
+            return
+        types = schema["type"]
+        if not isinstance(types, list):
+            types = [types]
+            schema["type"] = types
+
+        # modify schema to put null as the last type to check for
+        # e.g. ['null', 'integer'] -> ['integer', 'null']
+        if "null" in types and types[-1] != "null":
+            types.remove("null")
+            types.append("null")
+
+        for typ in types:
+            if typ == "object" and "properties" in schema:
+                self._transform_schema_nested(schema.get("properties", {}))
+
+            elif typ == "array":
+                self.transform_schema_recur(schema["items"])
+
+    def _transform_schema_nested(self, schema):
+        if schema == {}:
+            return
+        for sub_schema in schema:
+            self.transform_schema_recur(schema[sub_schema])
 
     def _transform_anyof(self, data, schema, path):
         subschemas = schema['anyOf']
