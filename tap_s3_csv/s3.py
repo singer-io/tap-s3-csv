@@ -23,8 +23,6 @@ SDC_EXTRA_COLUMN = "_sdc_extra"
 
 LOGGER = singer.get_logger()
 
-skipped_files_count = 0
-
 
 def retry_pattern(fnc):
     @backoff.on_exception(backoff.expo,
@@ -160,7 +158,6 @@ class S3Client:
 
     def get_files(self, table_spec, modified_since=None):
         """Function to return matching files as per the provided search pattern"""
-        global skipped_files_count
 
         search_prefix = table_spec['search_prefix']
         search_pattern = table_spec['search_pattern']
