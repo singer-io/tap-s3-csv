@@ -3,8 +3,9 @@ import sys
 import singer
 
 from singer import metadata
+from singer_encodings.csv import SKIP_FILES_COUNT
 from tap_s3_csv.discover import discover_streams
-from tap_s3_csv import s3
+from tap_s3_csv.s3 import S3Client
 from tap_s3_csv.sync import sync_stream
 from tap_s3_csv.config import CONFIG_CONTRACT
 
@@ -13,9 +14,9 @@ LOGGER = singer.get_logger()
 REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
 
 
-def do_discover(config):
+def do_discover(s3_client):
     LOGGER.info("Starting discover")
-    streams = discover_streams(config)
+    streams = discover_streams(s3_client)
     if not streams:
         raise Exception("No streams found")
     catalog = {"streams": streams}
@@ -27,13 +28,13 @@ def stream_is_selected(mdata):
     return mdata.get((), {}).get('selected', False)
 
 
-def do_sync(config, catalog, state):
+def do_sync(s3_client, catalog, state):
     LOGGER.info('Starting sync.')
 
     for stream in catalog['streams']:
         stream_name = stream['tap_stream_id']
         mdata = metadata.to_map(stream['metadata'])
-        table_spec = next(s for s in config['tables'] if s['table_name'] == stream_name)
+        table_spec = next(s for s in s3_client.config['tables'] if s['table_name'] == stream_name)
         if not stream_is_selected(mdata):
             LOGGER.info("%s: Skipping - not selected", stream_name)
             continue
@@ -43,8 +44,11 @@ def do_sync(config, catalog, state):
         singer.write_schema(stream_name, stream['schema'], key_properties)
 
         LOGGER.info("%s: Starting sync", stream_name)
-        counter_value = sync_stream(config, state, table_spec, stream)
+        counter_value = sync_stream(s3_client, state, table_spec, stream)
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
+
+    if SKIP_FILES_COUNT:
+        LOGGER.warning("%s files got skipped during the last sampling.", SKIP_FILES_COUNT)
 
     LOGGER.info('Done syncing.')
 
@@ -74,17 +78,18 @@ def main():
 
     config['tables'] = validate_table_config(config)
 
+    s3_client = S3Client(config)
     try:
-        for page in s3.list_files_in_bucket(config):
+        for page in s3_client.list_files_in_bucket():
             break
         LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
     except:
-        s3.setup_aws_client(config)
+        s3_client.setup_aws_client()
 
     if args.discover:
-        do_discover(args.config)
+        do_discover(s3_client)
     elif args.properties:
-        do_sync(config, args.properties, args.state)
+        do_sync(s3_client, args.properties, args.state)
 
 
 if __name__ == '__main__':
