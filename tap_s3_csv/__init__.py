@@ -6,7 +6,7 @@ from singer import metadata
 from singer_encodings.csv import SKIP_FILES_COUNT
 from tap_s3_csv.discover import discover_streams
 from tap_s3_csv.s3 import S3Client
-from tap_s3_csv.sync import sync_stream
+from tap_s3_csv.sync import sync_stream, skipped_files_count
 from tap_s3_csv.config import CONFIG_CONTRACT
 
 LOGGER = singer.get_logger()
