@@ -510,7 +510,7 @@ class EOLType(Enum):
 
 class GetFileRangeStream:
     def __init__(self, bucket: str, key: str, start_byte: int, end_byte: int, chunk_size: int):
-        if (start_byte >= end_byte):
+        if (start_byte > end_byte):
             raise ValueError(
                 f'start and end byte range is invalid')
 
@@ -525,18 +525,18 @@ class GetFileRangeStream:
         file_size = self.__get_content_length__()
         LOGGER.info(f'total file_size: {file_size}')
 
-        if (self.start_byte > file_size):
+        if (self.start_byte > file_size - 1):
             raise ValueError(
-                f'start byte is greater than file size {file_size}')
+                f'start byte should be smaller than file size {file_size}')
 
         # always return header first, after this each chunk iteration will discard first row but include partial row at the end
         headers = self.__get_headers__()
-        LOGGER.info(headers)
+        LOGGER.info(f'headers: {headers}')
         yield headers
 
         eol = self.__get_eol__()
 
-        end = min(self.end_byte, file_size)
+        end = min(self.end_byte, file_size - 1)
 
         # Assumption chunk_size can accomodate at least one row
         count_skipped_rows_at_start = 0
@@ -558,14 +558,14 @@ class GetFileRangeStream:
 
         # handle partial line at chunk end
         if pending:
-            #LOGGER.info('pending: ', pending)
+            #LOGGER.info(f'pending: {pending}')
             # if its EOF, return existing pending
-            if (end == file_size):
+            if (end == file_size - 1):
                 yield pending.splitlines(False)[0]
                 return
 
             start = self.end_byte + 1
-            end = min(start+self.chunk_size, file_size)
+            end = min(start+self.chunk_size, file_size - 1)
             iter_chunks = self.__get_object_iter_chunks__(
                 iter_start_byte=start, iter_end_byte=end)
 
@@ -581,6 +581,7 @@ class GetFileRangeStream:
             elif (b'\n' in pending or b'\r' in pending):
                 overflow_rows_allowed = 2
 
+            #LOGGER.info(f'overflow_rows_allowed: {overflow_rows_allowed}')
             overflow_row_count = 0
             for chunk in iter_chunks:
                 #LOGGER.info('chunk for pending', chunk)
@@ -597,8 +598,10 @@ class GetFileRangeStream:
                         yield return_line
                 pending = lines[-1]
 
+            if overflow_row_count >= overflow_rows_allowed:
+                return
             if pending:
-                #LOGGER.info('still pending: ', pending)
+                #LOGGER.info(f'still pending: {pending}')
                 yield pending.splitlines(False)[0]
                 return
 
@@ -618,7 +621,7 @@ class GetFileRangeStream:
                 Range=request_range
             )
             for chunk in response['Body']:
-                # LOGGER.info('chunk:', chunk)
+                #LOGGER.info(f'chunk: {chunk}')
                 yield chunk
             start_range = end_range + 1
             end_range = min(start_range+self.chunk_size, iter_end_byte)
