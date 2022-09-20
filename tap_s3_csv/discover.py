@@ -1,21 +1,27 @@
 from singer import metadata
-from tap_s3_csv import s3
+from singer_encodings import json_schema
+from tap_s3_csv.s3 import SDC_EXTRA_COLUMN, SDC_SOURCE_BUCKET_COLUMN, SDC_SOURCE_FILE_COLUMN, SDC_SOURCE_LINENO_COLUMN
 
+def get_s3_sdc_columns():
+    """Override 'get_sdc_columns' from 'json_schema' as per the S3 code"""
+    return {
+        SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
+        SDC_SOURCE_FILE_COLUMN: {'type': 'string'},
+        SDC_SOURCE_LINENO_COLUMN: {'type': 'integer'},
+        SDC_EXTRA_COLUMN: {'type': 'array', 'items': {
+            'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}}
+    }
 
-def discover_streams(config):
+json_schema.get_sdc_columns = get_s3_sdc_columns
+
+def discover_streams(s3_client):
     streams = []
 
-    for table_spec in config['tables']:
-        schema = discover_schema(config, table_spec)
+    for table_spec in s3_client.config['tables']:
+        schema = json_schema.get_schema_for_table(s3_client, table_spec, sample_rate=5)
         streams.append({'stream': table_spec['table_name'], 'tap_stream_id': table_spec['table_name'],
                        'schema': schema, 'metadata': load_metadata(table_spec, schema)})
     return streams
-
-
-def discover_schema(config, table_spec):
-    sampled_schema = s3.get_sampled_schema_for_table(config, table_spec)
-    return sampled_schema
-
 
 def load_metadata(table_spec, schema):
     mdata = metadata.new()
