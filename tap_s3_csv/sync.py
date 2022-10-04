@@ -201,6 +201,7 @@ def sync_compressed_file(config, s3_path, table_spec, stream):
 
     return records_streamed
 
+
 def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='simple'):
     LOGGER.info('Syncing file "%s".', s3_path)
 
@@ -234,7 +235,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='si
             # Skipping the empty line of CSV
             if len(row) == 0:
                 continue
-
+            #LOGGER.info(f'row: {row}')
             to_write = tfm.transform(
                 row, stream['schema'], auto_fields, filter_fields)
             tfm.cleanup()
