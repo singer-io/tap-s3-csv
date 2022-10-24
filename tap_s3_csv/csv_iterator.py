@@ -1,6 +1,7 @@
 import codecs
 import csv
 
+MAX_COL_LENGTH = 150
 
 def get_row_iterator(iterable, options=None):
     options = options or {}
@@ -16,7 +17,8 @@ def get_row_iterator(iterable, options=None):
         delimiter=options.get('delimiter', ','),
         escapechar=options.get('escape_char', '\\'),
         quotechar=options.get('quotechar', '"'))
-
+    
+    reader.fieldnames = truncate_headers(reader.fieldnames)
     headers = set(reader.fieldnames)
 
     # Check for duplicate columns
@@ -62,6 +64,33 @@ def get_row_iterator(iterable, options=None):
     return reader
 
 # Generates column name for columns without header
+# truncate headers that are longer than MAX_COL_LENGTH, handle duplicates only for columns that are truncated
+def truncate_headers(column_names):
+    # map to store next id value to use for truncated names when there are duplicates
+    truncated_cols_map = {}
+    # inital column name set
+    column_name_pool = set(column_names)
+    new_column_names = []
+
+    for cname in column_names:
+        if len(cname) > MAX_COL_LENGTH:
+            cname = cname[:MAX_COL_LENGTH]
+            if cname not in truncated_cols_map:
+                truncated_cols_map[cname] = 0
+            
+            id = truncated_cols_map[cname]
+            key = cname
+            while cname in column_name_pool:
+                id_len = len(str(id)) + 1 # length of '_{id}'
+                cname = cname[:-id_len] + f'_{id}'
+                id += 1
+            
+            column_name_pool.add(cname)
+            truncated_cols_map[key] = id
+
+        new_column_names.append(cname)
+
+    return new_column_names
 
 
 def handle_empty_fieldnames(fieldnames, fieldname_pool, options):
