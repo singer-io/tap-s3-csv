@@ -73,7 +73,7 @@ def truncate_headers(column_names):
     new_column_names = []
 
     for cname in column_names:
-        if len(cname) > MAX_COL_LENGTH:
+        if cname is not None and len(cname) > MAX_COL_LENGTH:
             cname = cname[:MAX_COL_LENGTH]
             if cname not in truncated_cols_map:
                 truncated_cols_map[cname] = 0
