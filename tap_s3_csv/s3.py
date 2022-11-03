@@ -213,10 +213,14 @@ def get_records_for_parquet(s3_bucket, s3_path, sample_rate, config):
 
 def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path):
 
+    rows = 0
     all_keys = set()
     for record in jsonl_sample_records:
+        rows += 1
         keys = record.keys()
         all_keys.update(keys)
+        if rows > 5000:
+            break
 
     if table_spec.get('key_properties'):
         key_properties = set(table_spec['key_properties'])
@@ -262,6 +266,13 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate, config):
 
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
+def peek(iterable):
+    try:
+        first = next(iterable)
+    except StopIteration:
+        return None
+    return first, itertools.chain([first], iterable)
+
 #pylint: disable=global-statement
 def sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extension, config):
     global skipped_files_count
@@ -286,23 +297,31 @@ def sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extens
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate, config)
     if extension == "jsonl":
         # If file object read from s3 bucket file else use extracted file object from zip or gz
+
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle
         records = get_records_for_jsonl(s3_path, sample_rate, file_handle)
         check_jsonl_sample_records, records = itertools.tee(records)
-        jsonl_sample_records = list(check_jsonl_sample_records)
-        if len(jsonl_sample_records) == 0:
+        
+        result = peek(check_jsonl_sample_records)
+        if result is None:
             LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
             skipped_files_count = skipped_files_count + 1
-        check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path)
-
+            return []
+        else:
+            check_jsonl_sample_records = result[1]
+        check_key_properties_and_date_overrides_for_jsonl_file(table_spec, check_jsonl_sample_records, s3_path)
         return records
     if extension == "parquet":
         records = get_records_for_parquet(s3_bucket, s3_path, sample_rate, config)
         check_jsonl_sample_records, records = itertools.tee(records)
-        jsonl_sample_records = list(check_jsonl_sample_records)
-        if len(jsonl_sample_records) == 0:
+        
+        result = peek(check_jsonl_sample_records)
+        if result is None:
             LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
             skipped_files_count = skipped_files_count + 1
+            return []
+        else:
+            check_jsonl_sample_records = result[1]
         check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path)
         
         return records
