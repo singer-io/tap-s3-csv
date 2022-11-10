@@ -322,7 +322,7 @@ def sample_file(table_spec, s3_bucket, s3_path, file_handle, sample_rate, extens
             return []
         else:
             check_jsonl_sample_records = result[1]
-        check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path)
+        check_key_properties_and_date_overrides_for_jsonl_file(table_spec, check_jsonl_sample_records, s3_path)
         
         return records
     if extension == "zip":
