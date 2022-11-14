@@ -51,9 +51,10 @@ def get_row_iterator(iterable, options=None):
 # truncate headers that are longer than MAX_COL_LENGTH, then handle duplicates
 def truncate_headers(column_names):
     fieldname_pool = set()
+    fieldname_first_occur = set()
     final_fieldnames = []
 
-    for fieldname in column_names:
+    for index, fieldname in enumerate(column_names):
         if fieldname == '':
             continue
 
@@ -61,20 +62,24 @@ def truncate_headers(column_names):
             fieldname = fieldname[:MAX_COL_LENGTH]
 
         fieldname_lowercase = fieldname.casefold()
-        if fieldname_lowercase in fieldname_pool:
-            duplicate_id = 1
-            fieldname_without_id = fieldname
-            fieldname_lowercase_without_id = fieldname_lowercase
+        if fieldname_lowercase not in fieldname_pool:
+            fieldname_pool.add(fieldname_lowercase)
+            fieldname_first_occur.add(index)
 
-            # check if the fieldname already includes the duplicate id
-            duplicate_id_index = fieldname_lowercase.rfind('_', -4)
-            if duplicate_id_index != -1:
-                duplicate_id_str = fieldname_lowercase[duplicate_id_index + 1:]
-                if duplicate_id_str.isnumeric():
-                    duplicate_id = int(duplicate_id_str)
-                    fieldname_without_id = fieldname[:duplicate_id_index]
-                    fieldname_lowercase_without_id = fieldname_lowercase[:duplicate_id_index]
+    for index, fieldname in enumerate(column_names):
+        if fieldname == '':
+            continue
 
+        if len(fieldname) > MAX_COL_LENGTH:
+            fieldname = fieldname[:MAX_COL_LENGTH]
+
+        if index in fieldname_first_occur:
+            final_fieldnames.append(fieldname)
+        else:
+            fieldname_without_id, fieldname_lowercase_without_id, duplicate_id = split_fieldname_and_id(
+                fieldname)
+
+            duplicate_id += 1
             while f'{fieldname_lowercase_without_id}_{duplicate_id}' in fieldname_pool:
                 duplicate_id += 1
 
@@ -82,11 +87,24 @@ def truncate_headers(column_names):
                 f'{fieldname_lowercase_without_id}_{duplicate_id}')
             final_fieldnames.append(
                 f'{fieldname_without_id}_{duplicate_id}')
-        else:
-            fieldname_pool.add(fieldname_lowercase)
-            final_fieldnames.append(fieldname)
 
     return final_fieldnames, fieldname_pool
+
+
+def split_fieldname_and_id(fieldname):
+    fieldname_lowercase = fieldname.casefold()
+
+    duplicate_id_index = fieldname_lowercase.rfind('_', -4)
+    if duplicate_id_index != -1:
+        duplicate_id_str = fieldname_lowercase[duplicate_id_index + 1:]
+        if duplicate_id_str.isnumeric():
+            duplicate_id = int(duplicate_id_str)
+            fieldname_without_id = fieldname[:duplicate_id_index]
+            fieldname_lowercase_without_id = fieldname_lowercase[:duplicate_id_index]
+
+            return fieldname_without_id, fieldname_lowercase_without_id, duplicate_id
+
+    return fieldname, fieldname_lowercase, 0
 
 
 # Generates column name for columns without header
