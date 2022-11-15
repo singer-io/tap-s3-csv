@@ -1,8 +1,7 @@
 import codecs
 import csv
 
-# 4 chars are reserved for "_xxx" used to resolve duplicate names
-MAX_COL_LENGTH = 146
+MAX_COL_LENGTH = 150
 
 
 def get_row_iterator(iterable, options=None):
@@ -51,15 +50,40 @@ def get_row_iterator(iterable, options=None):
 # truncate headers that are longer than MAX_COL_LENGTH, then handle duplicates
 def truncate_headers(column_names):
     fieldname_pool = set()
-    fieldname_first_occur = set()
     final_fieldnames = []
+    duplicatesExist = False
 
-    for index, fieldname in enumerate(column_names):
+    for fieldname in column_names:
         if fieldname == '':
             continue
 
         if len(fieldname) > MAX_COL_LENGTH:
             fieldname = fieldname[:MAX_COL_LENGTH]
+
+        fieldname_lowercase = fieldname.casefold()
+        if fieldname_lowercase not in fieldname_pool:
+            fieldname_pool.add(fieldname_lowercase)
+            final_fieldnames.append(fieldname)
+        else:
+            duplicatesExist = True
+            break
+
+    if not duplicatesExist:
+        return final_fieldnames, fieldname_pool
+
+    fieldname_pool = set()
+    fieldname_first_occur = set()
+    final_fieldnames = []
+
+    # 4 chars are reserved for "_xxx" used to resolve duplicate names
+    max_col_length = MAX_COL_LENGTH - 4
+
+    for index, fieldname in enumerate(column_names):
+        if fieldname == '':
+            continue
+
+        if len(fieldname) > max_col_length:
+            fieldname = fieldname[:max_col_length]
 
         fieldname_lowercase = fieldname.casefold()
         if fieldname_lowercase not in fieldname_pool:
@@ -70,8 +94,8 @@ def truncate_headers(column_names):
         if fieldname == '':
             continue
 
-        if len(fieldname) > MAX_COL_LENGTH:
-            fieldname = fieldname[:MAX_COL_LENGTH]
+        if len(fieldname) > max_col_length:
+            fieldname = fieldname[:max_col_length]
 
         if index in fieldname_first_occur:
             final_fieldnames.append(fieldname)
