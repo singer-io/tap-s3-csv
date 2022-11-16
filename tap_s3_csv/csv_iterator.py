@@ -55,6 +55,7 @@ def truncate_headers(column_names):
 
     for fieldname in column_names:
         if fieldname == '':
+            final_fieldnames.append(fieldname)
             continue
 
         if len(fieldname) > MAX_COL_LENGTH:
@@ -92,6 +93,7 @@ def truncate_headers(column_names):
 
     for index, fieldname in enumerate(column_names):
         if fieldname == '':
+            final_fieldnames.append(fieldname)
             continue
 
         if len(fieldname) > max_col_length:
