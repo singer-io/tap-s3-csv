@@ -20,6 +20,7 @@ VALID_DATETIME_FORMATS = [
     UNIX_MILLISECONDS_INTEGER_DATETIME_PARSING,
 ]
 
+
 def string_to_datetime(value):
     try:
         return strftime(strptime_to_utc(value))
@@ -326,12 +327,23 @@ class Transformer:
             except:
                 return False, None
 
+        elif type == 'null':
+            if data is None or data == '' or data == '<null>':
+                return True, None
+            else:
+                return False, None
+
         else:
             return False, None
 
     def _transform(self, data, typ, schema, path, source_type=None):
         if source_type:
-            return self._get_transformvalue_by_type(data, source_type)
+            success, result = self._get_transformvalue_by_type(
+                data, source_type)
+            # if source_type is available, it will only have one value i.e. 'string', but it should also be nullable
+            if not success:
+                return self._get_transformvalue_by_type(data, 'null')
+            return success, result
 
         if self.pre_hook:
             data = self.pre_hook(data, typ, schema)

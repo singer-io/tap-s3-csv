@@ -19,7 +19,11 @@ def get_row_iterator(iterable, options=None):
         escapechar=options.get('escape_char', '\\'),
         quotechar=options.get('quotechar', '"'))
 
+    if (reader.fieldnames is None):
+        raise Exception('File is empty.')
+
     reader.fieldnames, fieldname_pool = truncate_headers(reader.fieldnames)
+    headers = set(reader.fieldnames)
 
     reader.fieldnames = handle_empty_fieldnames(
         reader.fieldnames, fieldname_pool, options)
