@@ -3,6 +3,7 @@ import csv
 
 MAX_COL_LENGTH = 150
 
+
 def get_row_iterator(iterable, options=None):
     options = options or {}
     file_stream = codecs.iterdecode(
@@ -18,28 +19,11 @@ def get_row_iterator(iterable, options=None):
         escapechar=options.get('escape_char', '\\'),
         quotechar=options.get('quotechar', '"'))
 
-    if(reader.fieldnames is None):
+    if (reader.fieldnames is None):
         raise Exception('File is empty.')
-    
-    reader.fieldnames = truncate_headers(reader.fieldnames)
+
+    reader.fieldnames, fieldname_pool = truncate_headers(reader.fieldnames)
     headers = set(reader.fieldnames)
-
-    # Check for duplicate columns
-    fieldname_pool = set()
-    duplicate_cols = set()
-    if len(reader.fieldnames) != len(headers):
-        for fieldname in reader.fieldnames:
-            if fieldname == '':
-                continue
-            fieldname = fieldname.casefold()
-            if fieldname in fieldname_pool:
-                duplicate_cols.add(fieldname)
-            else:
-                fieldname_pool.add(fieldname)
-
-        if len(duplicate_cols) > 0:
-            raise Exception(
-                'CSV file contains duplicate columns: {}'.format(duplicate_cols))
 
     reader.fieldnames = handle_empty_fieldnames(
         reader.fieldnames, fieldname_pool, options)
@@ -66,36 +50,94 @@ def get_row_iterator(iterable, options=None):
 
     return reader
 
-# Generates column name for columns without header
-# truncate headers that are longer than MAX_COL_LENGTH, handle duplicates only for columns that are truncated
+
+# truncate headers that are longer than MAX_COL_LENGTH, then handle duplicates
 def truncate_headers(column_names):
-    # map to store next id value to use for truncated names when there are duplicates
-    truncated_cols_map = {}
-    # inital column name set
-    column_name_pool = set(column_names)
-    new_column_names = []
+    fieldname_pool = set()
+    final_fieldnames = []
+    duplicatesExist = False
 
-    for cname in column_names:
-        if cname is not None and len(cname) > MAX_COL_LENGTH:
-            cname = cname[:MAX_COL_LENGTH]
-            if cname not in truncated_cols_map:
-                truncated_cols_map[cname] = 0
-            
-            id = truncated_cols_map[cname]
-            key = cname
-            while cname in column_name_pool:
-                id_len = len(str(id)) + 1 # length of '_{id}'
-                cname = cname[:-id_len] + f'_{id}'
-                id += 1
-            
-            column_name_pool.add(cname)
-            truncated_cols_map[key] = id
+    for fieldname in column_names:
+        if fieldname == '':
+            final_fieldnames.append(fieldname)
+            continue
 
-        new_column_names.append(cname)
+        if len(fieldname) > MAX_COL_LENGTH:
+            fieldname = fieldname[:MAX_COL_LENGTH]
 
-    return new_column_names
+        fieldname_lowercase = fieldname.casefold()
+        if fieldname_lowercase not in fieldname_pool:
+            fieldname_pool.add(fieldname_lowercase)
+            final_fieldnames.append(fieldname)
+        else:
+            duplicatesExist = True
+            break
+
+    if not duplicatesExist:
+        return final_fieldnames, fieldname_pool
+
+    fieldname_pool = set()
+    fieldname_first_occur = set()
+    final_fieldnames = []
+
+    # 4 chars are reserved for "_xxx" used to resolve duplicate names
+    max_col_length = MAX_COL_LENGTH - 4
+
+    for index, fieldname in enumerate(column_names):
+        if fieldname == '':
+            continue
+
+        if len(fieldname) > max_col_length:
+            fieldname = fieldname[:max_col_length]
+
+        fieldname_lowercase = fieldname.casefold()
+        if fieldname_lowercase not in fieldname_pool:
+            fieldname_pool.add(fieldname_lowercase)
+            fieldname_first_occur.add(index)
+
+    for index, fieldname in enumerate(column_names):
+        if fieldname == '':
+            final_fieldnames.append(fieldname)
+            continue
+
+        if len(fieldname) > max_col_length:
+            fieldname = fieldname[:max_col_length]
+
+        if index in fieldname_first_occur:
+            final_fieldnames.append(fieldname)
+        else:
+            fieldname_without_id, fieldname_lowercase_without_id, duplicate_id = split_fieldname_and_id(
+                fieldname)
+
+            duplicate_id += 1
+            while f'{fieldname_lowercase_without_id}_{duplicate_id}' in fieldname_pool:
+                duplicate_id += 1
+
+            fieldname_pool.add(
+                f'{fieldname_lowercase_without_id}_{duplicate_id}')
+            final_fieldnames.append(
+                f'{fieldname_without_id}_{duplicate_id}')
+
+    return final_fieldnames, fieldname_pool
 
 
+def split_fieldname_and_id(fieldname):
+    fieldname_lowercase = fieldname.casefold()
+
+    duplicate_id_index = fieldname_lowercase.rfind('_', -4)
+    if duplicate_id_index != -1:
+        duplicate_id_str = fieldname_lowercase[duplicate_id_index + 1:]
+        if duplicate_id_str.isnumeric():
+            duplicate_id = int(duplicate_id_str)
+            fieldname_without_id = fieldname[:duplicate_id_index]
+            fieldname_lowercase_without_id = fieldname_lowercase[:duplicate_id_index]
+
+            return fieldname_without_id, fieldname_lowercase_without_id, duplicate_id
+
+    return fieldname, fieldname_lowercase, 0
+
+
+# Generates column name for columns without header
 def handle_empty_fieldnames(fieldnames, fieldname_pool, options):
     quotechar = options.get('quotechar', '"')
     delimiter = options.get('delimiter', ',')
