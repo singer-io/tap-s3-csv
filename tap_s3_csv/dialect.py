@@ -177,7 +177,8 @@ def detect_dialect(config, s3_file, table):
                 # accept. For now, stick with the default in that case.
                 if len(dialect.quotechar) == 1:
                     quotechar = dialect.quotechar
-            except csv.Error:
+            except (csv.Error, clevercsv.exceptions.Error):
+                # null characters can break clevercsv, so we just assume the default dialect
                 pass
 
         # if file is empty delimiter can be empty string.
