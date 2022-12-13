@@ -419,7 +419,6 @@ def resolve_filter_fields(metadata=None):
             selected = singer.metadata.get(metadata, breadcrumb, 'selected')
             if (selected is False) or (inclusion == 'unsupported'):
                 filters.add(breadcrumb)
-
             source_type = singer.metadata.get(
                 metadata, breadcrumb, 'source_type')
             if source_type:
