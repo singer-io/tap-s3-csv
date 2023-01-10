@@ -2,7 +2,6 @@
 
 ## 1.3.7
   * Remove Backoff for Access Denied errors
-  * Only assume role from config and test bucket accessiblity
   * Add unitttest for access denied giveup
   * [#55](https://github.com/singer-io/tap-s3-csv/pull/55)
 
