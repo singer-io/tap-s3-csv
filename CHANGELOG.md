@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.7
+  * Remove Backoff for Access Denied errors
+  * Only assume role from config and test bucket accessiblity
+  * Add unitttest for access denied giveup
+  * [#55](https://github.com/singer-io/tap-s3-csv/pull/55)
+
 ## 1.3.6
   *  Implement request timeout [#46](https://github.com/singer-io/singer-encodings/pull/46)
   *  Updgrade SDK version [#51](https://github.com/singer-io/singer-encodings/pull/51)
