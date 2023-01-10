@@ -7,15 +7,15 @@
   * [#55](https://github.com/singer-io/tap-s3-csv/pull/55)
 
 ## 1.3.6
-  *  Implement request timeout [#46](https://github.com/singer-io/singer-encodings/pull/46)
-  *  Updgrade SDK version [#51](https://github.com/singer-io/singer-encodings/pull/51)
-  *  Add integration tests [#52](https://github.com/singer-io/singer-encodings/pull/52)
+  *  Implement request timeout [#46](https://github.com/singer-io/tap-s3-csv/pull/46)
+  *  Updgrade SDK version [#51](https://github.com/singer-io/tap-s3-csv/pull/51)
+  *  Add integration tests [#52](https://github.com/singer-io/tap-s3-csv/pull/52)
 
 ## 1.3.5
-  * Increase the limit on the width of a field in the CSV files read by the tap [#47](https://github.com/singer-io/singer-encodings/pull/47)
+  * Increase the limit on the width of a field in the CSV files read by the tap [#47](https://github.com/singer-io/tap-s3-csv/pull/47)
 
 ## 1.3.4
-  * Bump singer-encodings to 0.1.2 [#21](https://github.com/singer-io/singer-encodings/pull/21)
+  * Bump singer-encodings to 0.1.2 [#45](https://github.com/singer-io/tap-s3-csv/pull/45)
 
 ## 1.3.3
   * Bump singer-encodings to 0.1.1 [#41](https://github.com/singer-io/tap-s3-csv/pull/41)
