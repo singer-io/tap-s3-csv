@@ -40,6 +40,16 @@ skipped_files_count = 0
 # timeout request after 300 seconds
 REQUEST_TIMEOUT = 300
 
+def is_access_denied_error(error):
+    """
+        This function checks whether the URLError contains 'Access Denied' substring
+        and return boolean values accordingly, to decide whether to backoff or not.
+    """
+    # retry if the error string contains 'Access Denied'
+    if 'Access Denied' in str(error) or 'AccessDenied' in str(error):
+        return True
+    return False
+
 def retry_pattern(fnc):
     @backoff.on_exception(backoff.expo,
                           (ConnectTimeoutError, ReadTimeoutError),
@@ -50,6 +60,7 @@ def retry_pattern(fnc):
                           ClientError,
                           max_tries=5,
                           on_backoff=log_backoff_attempt,
+                          giveup=is_access_denied_error, # Giveup if we do not have the access
                           factor=10)
     @functools.wraps(fnc)
     def wrapper(*args, **kwargs):
@@ -419,7 +430,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         raise ValueError(
             ("search_pattern for table `{}` is not a valid regular "
              "expression. See "
-             "https://docs.python.org/3.5/library/re.html#regular-expression-syntax").format(table_spec['table_name']),
+             "https://docs.python.org/3.9/library/re.html#regular-expression-syntax").format(table_spec['table_name']),
             pattern) from e
 
     LOGGER.info(

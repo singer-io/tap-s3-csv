@@ -19,7 +19,7 @@ jobs:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
-            pip install nose coverage
+            pip install nose coverage parameterized
             nosetests --with-coverage --cover-erase --cover-package=tap_s3_csv --cover-html-dir=htmlcov tests/unittests
             coverage html
       - store_test_results:

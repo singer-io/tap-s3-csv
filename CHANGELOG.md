@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.7
+  * Remove Backoff for Access Denied errors
+  * Add unitttest for access denied giveup
+  * [#55](https://github.com/singer-io/tap-s3-csv/pull/55)
+
 ## 1.3.6
   *  Implement request timeout [#46](https://github.com/singer-io/tap-s3-csv/pull/46)
   *  Updgrade SDK version [#51](https://github.com/singer-io/tap-s3-csv/pull/51)
