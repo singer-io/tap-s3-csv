@@ -9,7 +9,7 @@ def infer(key, datum, date_overrides, check_second_call=False):
     """
     Returns the inferred data type
     """
-    if datum is None:
+    if datum is None or datum == '':
         return None
 
     try:
@@ -21,8 +21,11 @@ def infer(key, datum, date_overrides, check_second_call=False):
             elif not datum:
                 data_type = 'list'
             else:
-                data_type = 'list.' + \
-                    infer(key, datum[0], date_overrides, True)
+                inferred = infer(key, datum[0], date_overrides, True)
+                # default it to string if element inside datum list is None
+                if inferred is None: 
+                    inferred = 'string'
+                data_type = 'list.' + inferred
             return data_type
 
         if key in date_overrides:
