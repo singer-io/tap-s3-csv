@@ -94,7 +94,7 @@ def truncate_headers(fieldnames):
             fieldname = fieldname[:MAX_COL_LENGTH]
 
         fieldname_lowercase = fieldname.casefold()
-        
+
         if fieldname_to_index.get(fieldname_lowercase, -1) == index:
             fieldnames[index] = fieldname
         else:
@@ -104,7 +104,7 @@ def truncate_headers(fieldnames):
 
             while f'{fieldname_lowercase}_{duplicate_id}' in fieldname_to_index:
                 duplicate_id += 1
-            
+
             fieldname_to_index[f'{fieldname_lowercase}_{duplicate_id}'] = index
             fieldnames[index] = f'{fieldname}_{duplicate_id}'
             duplicates_next_id[fieldname_lowercase] = duplicate_id + 1

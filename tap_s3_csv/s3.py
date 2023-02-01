@@ -365,7 +365,7 @@ def get_files_to_sample(config, s3_files, max_files):
 
 # pylint: disable=too-many-arguments,global-statement
 def sample_files(config, table_spec, s3_files,
-                 sample_rate=5, max_records=1000, max_files=5):
+                 sample_rate=1, max_records=1000, max_files=5):
     global skipped_files_count
     LOGGER.info("Sampling files (max files: %s)", max_files)
 
