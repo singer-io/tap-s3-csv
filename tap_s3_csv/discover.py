@@ -6,15 +6,14 @@ def discover_streams(config):
     streams = []
 
     for table_spec in config['tables']:
-        schema = discover_schema(config, table_spec)
+        schema, date_format_map = discover_schema(config, table_spec)
         streams.append({'stream': table_spec['table_name'], 'tap_stream_id': table_spec['table_name'],
-                       'schema': schema, 'metadata': load_metadata(table_spec, schema)})
+                       'schema': schema, 'metadata': load_metadata(table_spec, schema), 'column_date_format': date_format_map})
     return streams
 
 
 def discover_schema(config, table_spec):
-    sampled_schema = s3.get_sampled_schema_for_table(config, table_spec)
-    return sampled_schema
+    return s3.get_sampled_schema_for_table(config, table_spec)
 
 
 def load_metadata(table_spec, schema):

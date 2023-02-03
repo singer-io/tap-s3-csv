@@ -87,9 +87,9 @@ def detect_dialect(config, s3_file, table):
                 if len(interesting) < MAX_CHARDET_LINES and (len(interesting) < FIRST_CHARDET_LINES or DETECT_CHARDET_LINE.search(line)):
                     interesting.append(i)
 
-                    #  keep line that is not appended to lines array
-                    if bytes_read + line_bytes > MAX_LINES_BYTES:
-                        interesting_map[i] = line
+                #  keep line that is not appended to lines array
+                if bytes_read + line_bytes > MAX_LINES_BYTES:
+                    interesting_map[i] = line
 
         except StopIteration:
             break
