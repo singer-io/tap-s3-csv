@@ -4,17 +4,15 @@ import csv
 MAX_COL_LENGTH = 150
 
 
-def get_row_iterator(iterable, options=None):
+def get_row_iterator(iterable, options=None, fieldnames=None):
     options = options or {}
     file_stream = codecs.iterdecode(
         iterable.iter_lines(), encoding=options.get('encoding', 'utf-8'), errors='replace')
 
-    field_names = None
-
     # Replace any NULL bytes in the line given to the DictReader
     reader = csv.DictReader(
         (line.replace('\0', '') for line in file_stream),
-        fieldnames=field_names,
+        fieldnames=fieldnames,
         delimiter=options.get('delimiter', ','),
         escapechar=options.get('escape_char', '\\'),
         quotechar=options.get('quotechar', '"'))
@@ -27,12 +25,6 @@ def get_row_iterator(iterable, options=None):
 
     reader.fieldnames = handle_empty_fieldnames(
         reader.fieldnames, options)
-
-    # csv.DictReader skips empty rows, but we wish to keep empty rows for csv imports, so override __next__ method.
-    # Only modifying for imports from csv connector for now as imports from s3 connector might have reasons for skipping empty rows.
-    # Could look into using csv.reader instead for cleaner code if s3 connector could also keep empty rows.
-    if options.get('is_csv_connector_import', False):
-        csv.DictReader.__next__ = next_without_skip
 
     # We do not use key_properties and date_overrides in our config. If we use these later, will need to add code for checking over
     # whether fieldnames included in key_properties/date_overrides have been modified in handle_empty_fieldnames and handle appropriately.
@@ -137,25 +129,3 @@ def handle_empty_fieldnames(fieldnames, options):
         final_fieldnames.append(fieldname)
 
     return final_fieldnames
-
-# csv.DictReader class skips empty rows when iterating over file stream.
-# method to use for overriding csv.DictReader.__next__ in case we wish to keep empty rows
-
-
-def next_without_skip(self):
-    if self.line_num == 0:
-        # Used only for its side effect.
-        self.fieldnames
-
-    row = next(self.reader)
-    self.line_num = self.reader.line_num
-
-    d = dict(zip(self.fieldnames, row))
-    lf = len(self.fieldnames)
-    lr = len(row)
-    if lf < lr:
-        d[self.restkey] = row[lf:]
-    elif lf > lr:
-        for key in self.fieldnames[lr:]:
-            d[key] = self.restval
-    return d

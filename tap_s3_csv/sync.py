@@ -14,7 +14,8 @@ from tap_s3_csv import (
     s3,
     csv_iterator,
     transform,
-    messages
+    messages,
+    preprocess
 )
 
 
@@ -102,6 +103,7 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler=Non
         return sync_gz_file(config, s3_path, table_spec, stream, file_handler)
 
     if extension in ["csv", "txt"]:
+        fieldnames = None
         if file_handler:
             # If file is extracted from zip or gz use file object else get file object from s3 bucket
             file_handle = file_handler
@@ -109,10 +111,18 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler=Non
             file_handle = s3.get_csv_file(
                 config['bucket'], s3_path, start_byte, end_byte, range_size)
             LOGGER.info('using S3 Get Range method for csv import')
+            # csv.DictReader will parse the first non-empty row as header if fieldnames == None, else as the first record.
+            # For parallel threads, non-first threads will not be able to grab headers from the first part of the data,
+            # so we need to pass in fieldnames. First thread needs to handle first row in order to avoid having first row parsed
+            # as record when it's actually header. Set handle_first_row param for PreprocessStream to True for first thread.
+            file_handle = preprocess.PreprocessStream(file_handle, table_spec, start_byte == 0)
+            fieldnames = list(stream['schema']['properties'].keys())
         else:
             file_handle = s3.get_file_handle(config, s3_path)
+            file_handle = preprocess.PreprocessStream(file_handle, table_spec, True)
+            fieldnames = file_handle.header
 
-        return sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib)
+        return sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib, fieldnames)
 
     if extension == "jsonl":
 
@@ -202,7 +212,7 @@ def sync_compressed_file(config, s3_path, table_spec, stream):
     return records_streamed
 
 
-def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='simple'):
+def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='simple', fieldnames=None):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     table_name = table_spec['table_name']
@@ -215,8 +225,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='si
     # need to be fixed. The other consequence of this could be larger
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
-
-    iterator = csv_iterator.get_row_iterator(file_handle, table_spec)
+    iterator = csv_iterator.get_row_iterator(file_handle, table_spec, fieldnames)
 
     records_synced = 0
     records_buffer = []

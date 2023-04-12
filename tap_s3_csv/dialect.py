@@ -4,7 +4,7 @@ import csv
 import cchardet as chardet
 import clevercsv
 
-from tap_s3_csv import s3
+from tap_s3_csv import s3, preprocess
 
 # We started using tap_s3_csv in 3.4 for both s3 and csv imports. Dialect detection
 # is only run for csv imports
@@ -68,7 +68,9 @@ def detect_dialect(config, s3_file, table):
 
     file_key = s3_file.get('key')
     file_handle = s3.get_file_handle(config, file_key)
-    file_iter = file_handle.iter_lines()
+    # iterator that handles skip/ignore rows, need it for detecting delimiter, quotechars correctly
+    preprocess_file_handle = preprocess.PreprocessStream(file_handle, table, False)
+    file_iter = preprocess_file_handle.iter_lines()
     bytes_read = 0
     for i in range(MAX_LINES):
         try:
