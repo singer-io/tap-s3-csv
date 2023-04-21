@@ -7,8 +7,8 @@ def discover_streams(config):
 
     for table_spec in config['tables']:
         schema, date_format_map = discover_schema(config, table_spec)
-        streams.append({'stream': table_spec['table_name'], 'tap_stream_id': table_spec['table_name'],
-                       'schema': schema, 'metadata': load_metadata(table_spec, schema), 'column_date_format': date_format_map})
+        streams.append({'stream': table_spec['table_name'], 'tap_stream_id': table_spec['table_name'], 'schema': schema, 'metadata': load_metadata(
+            table_spec, schema), 'column_date_format': date_format_map, 'column_order': [str(column) for column in schema['properties']]})
     return streams
 
 

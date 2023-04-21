@@ -115,8 +115,8 @@ def handle_empty_fieldnames(fieldnames, options):
     auto_generate_header_num = 0
     final_fieldnames = []
     for fieldname in fieldnames:
-        # handle edge case uncovered in WP-9886 for csv import
-        if is_csv_connector_import and fieldname and delimiter in fieldname:
+        # handle edge case uncovered in WP-9866 for csv import
+        if is_csv_connector_import and fieldname and delimiter in fieldname and fieldname[0] != quotechar and fieldname[-1] != quotechar:
             fieldname = quotechar + fieldname + quotechar
 
         if fieldname == '' or fieldname is None:
