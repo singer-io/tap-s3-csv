@@ -113,17 +113,26 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler=Non
             LOGGER.info('using S3 Get Range method for csv import')
             # csv.DictReader will parse the first non-empty row as header if fieldnames == None, else as the first record.
             # For parallel threads, non-first threads will not be able to grab headers from the first part of the data,
-            # so we need to pass in fieldnames. First thread needs to handle first row if table_spec.has_header == True in order to avoid 
+            # so we need to pass in fieldnames. First thread needs to handle first row if table_spec.has_header == True in order to avoid
             # having first row parsed as record when it's actually header. Set handle_first_row param for PreprocessStream to True
             # for this case so that the file/stream pointer is moved to skip first row.
-            file_handle = preprocess.PreprocessStream(file_handle, table_spec, start_byte == 0 and table_spec.get('has_header', True))
+            file_handle = preprocess.PreprocessStream(
+                file_handle, table_spec, start_byte == 0 and table_spec.get('has_header', True))
             fieldnames = stream['column_order']
         else:
             file_handle = s3.get_file_handle(config, s3_path)
-            # same as above but for single thread. Set handle_first_row param to True if table_spec.has_header == True to avoid
-            # having header row parsed as first record
-            file_handle = preprocess.PreprocessStream(file_handle, table_spec, table_spec.get('has_header', True))
-            fieldnames = stream['column_order']
+            if 'column_order' in stream:
+                # same as above but for single thread. Set handle_first_row param to True if table_spec.has_header == True to avoid
+                # having header row parsed as first record
+                file_handle = preprocess.PreprocessStream(
+                    file_handle, table_spec, table_spec.get('has_header', True))
+                fieldnames = stream['column_order']
+            else:
+                # If column_order isn't present, that means we didn't do discovery with this tap - this occurs during TQP imports
+                # Pass parameters to PreprocessStream to guarantee header property is set, so we can use it in place of 'column_order'
+                file_handle = preprocess.PreprocessStream(
+                    file_handle, table_spec, True, s3_path, config)
+                fieldnames = file_handle.header
 
         return sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib, fieldnames)
 
@@ -228,7 +237,8 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='si
     # need to be fixed. The other consequence of this could be larger
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
-    iterator = csv_iterator.get_row_iterator(file_handle, table_spec, fieldnames)
+    iterator = csv_iterator.get_row_iterator(
+        file_handle, table_spec, fieldnames)
 
     records_synced = 0
     records_buffer = []
