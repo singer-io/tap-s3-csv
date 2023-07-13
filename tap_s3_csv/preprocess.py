@@ -2,6 +2,7 @@ from queue import Queue
 import csv
 import codecs
 from tap_s3_csv import s3
+from tap_s3_csv.symon_exception import SymonException
 
 # Wrapper class for file streams. Handles preprocessing (skipping header rows, footer rows, detecting headers)
 class PreprocessStream():
@@ -16,7 +17,7 @@ class PreprocessStream():
 
         self._skip_header_rows()
         if skip_footer_row > 0:
-            self.queue = Queue(maxsize = skip_footer_row)
+            self.queue = Queue(maxsize=skip_footer_row)
         if handle_first_row:
             self._handle_first_row(table_spec, s3_path, config)
 
@@ -25,8 +26,9 @@ class PreprocessStream():
             for _ in range(self.skip_header_row):
                 next(self.file_iterator)
         except StopIteration:
-            raise Exception(f'preprocess_err: We can’t find any data after the skipped rows in the header.')
-    
+            raise SymonException(
+                f"We can't find any data after the skipped rows in the header. Please check skip/ignore configuration.", 'PreprocessError')
+
     # skips empty rows and process first non-empty row as header row or first record row depending on has_header
     def _handle_first_row(self, table_spec, s3_path=None, config=None):
         has_header = table_spec.get('has_header', True)
@@ -36,8 +38,8 @@ class PreprocessStream():
         if has_header:
             self.header = first_row_parsed
             return
-        
-        # first row is a record, generate headers 
+
+        # first row is a record, generate headers
         self.header = [f'col_{i}' for i in range(len(first_row_parsed))]
         # first row has been iterated already, reset file handle so that we don't lose first row and yield it
         if s3_path is not None and config is not None:
@@ -68,9 +70,10 @@ class PreprocessStream():
             delimiter=delimiter,
             escapechar=escapechar,
             quotechar=quotechar)
-        
+
         if reader.fieldnames is None:
-            raise Exception('File is empty.')
+            raise SymonException(
+                "We can't find any data. Please check skip/ignore configuration.", 'PreprocessError')
 
         return reader.fieldnames
 

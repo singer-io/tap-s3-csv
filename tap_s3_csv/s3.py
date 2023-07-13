@@ -25,6 +25,7 @@ from tap_s3_csv import (
     csv_iterator,
     preprocess
 )
+from tap_s3_csv.symon_exception import SymonException
 
 LOGGER = singer.get_logger()
 
@@ -97,7 +98,7 @@ def get_sampled_schema_for_table(config, table_spec):
             "%s files got skipped during the last sampling.", skipped_files_count)
 
     if not samples:
-        raise Exception('File is empty.')
+        raise SymonException('File is empty', 'EmptyFile')
 
     data_schema, date_format_map = conversion.generate_schema(
         samples, table_spec, config.get('string_max_length', False))
@@ -144,23 +145,26 @@ def get_records_for_csv(s3_path, sample_rate, iterator):
 
     maximize_csv_field_width()
 
-    for row in iterator:
+    try:
+        for row in iterator:
 
-        # Skipping the empty line of CSV.
-        if len(row) == 0:
+            # Skipping the empty line of CSV.
+            if len(row) == 0:
+                current_row += 1
+                continue
+
+            if (current_row % sample_rate) == 0:
+                sampled_row_count += 1
+                if (sampled_row_count % 200) == 0:
+                    LOGGER.info("Sampled %s rows from %s",
+                                sampled_row_count, s3_path)
+                yield row
+
             current_row += 1
-            continue
 
-        if (current_row % sample_rate) == 0:
-            sampled_row_count += 1
-            if (sampled_row_count % 200) == 0:
-                LOGGER.info("Sampled %s rows from %s",
-                            sampled_row_count, s3_path)
-            yield row
-
-        current_row += 1
-
-    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
+        LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
+    except UnicodeError:
+        raise SymonException("Sorry, we can't decode your file. Please try using UTF-8 or UTF-16 encoding for your file.", 'UnsupportedEncoding')
 
 
 def get_records_for_jsonl(s3_path, sample_rate, iterator):
@@ -431,7 +435,6 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         if s3_object['Size'] == 0:
             LOGGER.warning('Skipping matched file "%s" as it is empty', key)
             skipped_files_count = skipped_files_count + 1
-            unmatched_files_count += 1
             continue
 
         if matcher.search(key):
@@ -456,6 +459,10 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
                             matched_files_count, unmatched_files_count)
 
     if matched_files_count == 0:
+        if skipped_files_count > 0 and unmatched_files_count == 0:
+            # Symon imports only one file at a time where only one file is uploaded in s3 bucket/prefix location. 
+            # If skipped_files_count > 0, it must mean that the file has been skipped due to being empty file.
+            raise SymonException('File is empty.', 'EmptyFile')
         raise Exception("No files found matching pattern {}".format(pattern))
 
 

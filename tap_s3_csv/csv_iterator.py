@@ -1,5 +1,6 @@
 import codecs
 import csv
+from tap_s3_csv.symon_exception import SymonException
 
 MAX_COL_LENGTH = 150
 
@@ -18,7 +19,7 @@ def get_row_iterator(iterable, options=None, fieldnames=None):
         quotechar=options.get('quotechar', '"'))
 
     if (reader.fieldnames is None):
-        raise Exception('File is empty.')
+        raise SymonException('File is empty.', 'EmptyFile')
 
     reader.fieldnames = truncate_headers(reader.fieldnames)
     headers = set(reader.fieldnames)

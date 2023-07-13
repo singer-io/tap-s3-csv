@@ -2,6 +2,7 @@ import json
 import sys
 import singer
 import time
+import traceback
 
 from singer import metadata
 from tap_s3_csv.discover import discover_streams
@@ -9,6 +10,7 @@ from tap_s3_csv import s3
 from tap_s3_csv.sync import sync_stream
 from tap_s3_csv.config import CONFIG_CONTRACT
 from tap_s3_csv import dialect
+from tap_s3_csv.symon_exception import SymonException
 
 LOGGER = singer.get_logger()
 
@@ -93,35 +95,68 @@ def validate_table_config(config):
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
-    args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
-    config = args.config
-
-    external_source = False
-
-    if 'external_id' in config:
-        args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS_EXTERNAL_SOURCE)
+    try:
+        # used for storing error info to write if error occurs
+        error_info = None
+        args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
         config = args.config
-        external_source = True
 
-    config['tables'] = validate_table_config(config)
+        external_source = False
 
-    # If external_id is provided, we are trying to access files in another AWS account, and need to assume the role
-    if external_source:
-        s3.setup_aws_client(config)
-    # Otherwise, confirm that we can access the bucket in our own AWS account
-    else:
-        try:
-            for page in s3.list_files_in_bucket(config['bucket']):
-                break
-        except BaseException as err:
-            LOGGER.error(err)
+        if 'external_id' in config:
+            args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS_EXTERNAL_SOURCE)
+            config = args.config
+            external_source = True
 
-        # If not external source, it is from importing csv (replacement for tap-csv)
-        dialect.detect_tables_dialect(config)
-    if args.discover:
-        do_discover(args.config)
-    elif args.properties:
-        do_sync(config, args.properties, args.state)
+        config['tables'] = validate_table_config(config)
+
+        # If external_id is provided, we are trying to access files in another AWS account, and need to assume the role
+        if external_source:
+            s3.setup_aws_client(config)
+        # Otherwise, confirm that we can access the bucket in our own AWS account
+        else:
+            try:
+                for page in s3.list_files_in_bucket(config['bucket']):
+                    break
+            except BaseException as err:
+                LOGGER.error(err)
+
+            # If not external source, it is from importing csv (replacement for tap-csv)
+            dialect.detect_tables_dialect(config)
+        if args.discover:
+            do_discover(args.config)
+        elif args.properties:
+            do_sync(config, args.properties, args.state)
+    except SymonException as e:
+        error_info = {
+            'message': str(e),
+            'code': e.code,
+            'traceback': traceback.format_exc()
+        }
+
+        if e.details is not None:
+            error_info['details'] = e.details
+        raise
+    except BaseException as e:
+        error_info = {
+            'message': str(e),
+            'traceback': traceback.format_exc()
+        }
+        raise
+    finally:
+        if error_info is not None:
+            error_file_path = args.config.get('error_file_path', None)
+            if error_file_path is not None:
+                try:
+                    with open(error_file_path, 'w', encoding='utf-8') as fp:
+                        json.dump(error_info, fp)
+                except:
+                    pass
+            # log error info as well in case file is corrupted
+            error_info_json = json.dumps(error_info)
+            error_start_marker = args.config.get('error_start_marker', '[tap_error_start]')
+            error_end_marker = args.config.get('error_end_marker', '[tap_error_end]')
+            LOGGER.info(f'{error_start_marker}{error_info_json}{error_end_marker}')
 
 
 if __name__ == '__main__':

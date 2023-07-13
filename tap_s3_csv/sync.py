@@ -17,7 +17,7 @@ from tap_s3_csv import (
     messages,
     preprocess
 )
-
+from tap_s3_csv.symon_exception import SymonException
 
 LOGGER = singer.get_logger()
 
@@ -253,21 +253,24 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='si
         # e.g. ['null', 'integer'] -> ['integer', 'null']
         tfm.transform_schema_recur(stream['schema'])
 
-        for row in iterator:
-            # Skipping the empty line of CSV
-            if len(row) == 0:
-                continue
-            # LOGGER.info(f'row: {row}')
-            to_write = tfm.transform(
-                row, stream['schema'], auto_fields, filter_fields)
-            tfm.cleanup()
+        try:
+            for row in iterator:
+                # Skipping the empty line of CSV
+                if len(row) == 0:
+                    continue
+                # LOGGER.info(f'row: {row}')
+                to_write = tfm.transform(
+                    row, stream['schema'], auto_fields, filter_fields)
+                tfm.cleanup()
 
-            records_buffer.append(to_write)
+                records_buffer.append(to_write)
 
-            if len(records_buffer) >= BUFFER_SIZE:
-                messages.write_records(table_name, records_buffer, json_lib)
-                records_synced += len(records_buffer)
-                records_buffer.clear()
+                if len(records_buffer) >= BUFFER_SIZE:
+                    messages.write_records(table_name, records_buffer, json_lib)
+                    records_synced += len(records_buffer)
+                    records_buffer.clear()
+        except UnicodeError:
+            raise SymonException("Sorry, we can't decode your file. Please try using UTF-8 or UTF-16 encoding for your file.", 'UnsupportedEncoding')
     else:
         LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
