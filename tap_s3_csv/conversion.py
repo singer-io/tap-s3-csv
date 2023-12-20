@@ -113,7 +113,7 @@ def infer_boolean(column):
 
 
 def is_boolean_value(value):
-    if value == 'True' or value == 'False':
+    if isinstance(value, str) and (value.lower() == 'true' or value.lower() == 'false'):
         return True
 
     if value is True or value is np.True_:
