@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.0
+  * Updates for python 3.11 [#61](https://github.com/singer-io/tap-s3-csv/pull/61)
+
 ## 1.3.0
   * Adds support for Compressed files [#32](https://github.com/singer-io/tap-s3-csv/pull/32)
   * Adds support for JSONL files [#31](https://github.com/singer-io/tap-s3-csv/pull/31)
