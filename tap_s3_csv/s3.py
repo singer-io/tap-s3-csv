@@ -1,8 +1,10 @@
 import itertools
+import functools
 import re
 import io
 import json
 import gzip
+import sys
 import backoff
 import boto3
 import singer
@@ -13,12 +15,15 @@ from botocore.credentials import (
     DeferredRefreshableCredentials,
     JSONFileCache
 )
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ConnectTimeoutError, ReadTimeoutError
 from botocore.session import Session
+from botocore.config import Config
+from botocore.paginate import PageIterator
 from singer_encodings import (
     compression,
     csv
 )
+
 from tap_s3_csv import (
     utils,
     conversion
@@ -30,18 +35,46 @@ SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
 SDC_SOURCE_FILE_COLUMN = "_sdc_source_file"
 SDC_SOURCE_LINENO_COLUMN = "_sdc_source_lineno"
 SDC_EXTRA_COLUMN = "_sdc_extra"
+skipped_files_count = 0
 
-def retry_pattern():
-    return backoff.on_exception(backoff.expo,
-                                ClientError,
-                                max_tries=5,
-                                on_backoff=log_backoff_attempt,
-                                factor=10)
+# timeout request after 300 seconds
+REQUEST_TIMEOUT = 300
+
+def is_access_denied_error(error):
+    """
+        This function checks whether the URLError contains 'Access Denied' substring
+        and return boolean values accordingly, to decide whether to backoff or not.
+    """
+    # retry if the error string contains 'Access Denied'
+    if 'Access Denied' in str(error) or 'AccessDenied' in str(error):
+        return True
+    return False
+
+def retry_pattern(fnc):
+    @backoff.on_exception(backoff.expo,
+                          (ConnectTimeoutError, ReadTimeoutError),
+                          max_tries=5,
+                          on_backoff=log_backoff_attempt,
+                          factor=2)
+    @backoff.on_exception(backoff.expo,
+                          ClientError,
+                          max_tries=5,
+                          on_backoff=log_backoff_attempt,
+                          giveup=is_access_denied_error, # Giveup if we do not have the access
+                          factor=10)
+    @functools.wraps(fnc)
+    def wrapper(*args, **kwargs):
+        return fnc(*args, **kwargs)
+    return wrapper
 
 
 def log_backoff_attempt(details):
     LOGGER.info("Error detected communicating with Amazon, triggering backoff: %d try", details.get("tries"))
 
+
+# Added decorator over functions of botocore SDK as functions from SDK returns generator and
+# tap is yielding data from that function so backoff is not working over tap function(list_files_in_bucket()).
+PageIterator._make_request = retry_pattern(PageIterator._make_request)
 
 class AssumeRoleProvider():
     METHOD = 'assume-role'
@@ -56,7 +89,7 @@ class AssumeRoleProvider():
         )
 
 
-@retry_pattern()
+@retry_pattern
 def setup_aws_client(config):
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
                                                 config['role_name'])
@@ -90,8 +123,15 @@ def get_sampled_schema_for_table(config, table_spec):
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
+    if skipped_files_count:
+        LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
+
     if not samples:
-        return {}
+        #Return empty properties for accept everything from data if no samples found
+        return {
+            'type': 'object',
+            'properties': {}
+        }
 
     metadata_schema = {
         SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
@@ -124,12 +164,30 @@ def merge_dicts(first, second):
     return to_return
 
 
+def maximize_csv_field_width():
+
+    current_field_size_limit = csv.csv.field_size_limit()
+    field_size_limit = sys.maxsize
+
+    if current_field_size_limit != field_size_limit:
+        csv.csv.field_size_limit(field_size_limit)
+        LOGGER.info("Changed the CSV field size limit from %s to %s",
+                    current_field_size_limit,
+                    field_size_limit)
+
 def get_records_for_csv(s3_path, sample_rate, iterator):
 
     current_row = 0
     sampled_row_count = 0
 
+    maximize_csv_field_width()
+
     for row in iterator:
+
+        # Skipping the empty line of CSV.
+        if len(row) == 0:
+            current_row += 1
+            continue
 
         if (current_row % sample_rate) == 0:
             if row.get(csv.SDC_EXTRA_COLUMN):
@@ -156,6 +214,10 @@ def get_records_for_jsonl(s3_path, sample_rate, iterator):
             decoded_row = row.decode('utf-8')
             if decoded_row.strip():
                 row = json.loads(decoded_row)
+                # Skipping the empty json.
+                if len(row) == 0:
+                    current_row += 1
+                    continue
             else:
                 current_row += 1
                 continue
@@ -189,20 +251,31 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
             raise Exception('JSONL file "{}" is missing date_overrides key: {}'
                             .format(s3_path, date_overrides - all_keys))
 
-
+#pylint: disable=global-statement
 def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
+    global skipped_files_count
     if s3_path.endswith(".tar.gz"):
         LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
 
     file_bytes = file_handle.read()
     gz_file_obj = gzip.GzipFile(fileobj=io.BytesIO(file_bytes))
 
-    gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
+    try:
+        gz_file_name = utils.get_file_name_from_gzfile(fileobj=io.BytesIO(file_bytes))
+    except AttributeError as err:
+        # If a file is compressed using gzip command with --no-name attribute,
+        # It will not return the file name and timestamp. Hence we will skip such files.
+        # We also seen this issue occur when tar is used to compress the file
+        LOGGER.warning('Skipping "%s" file as we did not get the original file name',s3_path)
+        skipped_files_count = skipped_files_count + 1
+        return []
 
     if gz_file_name:
         if gz_file_name.endswith(".gz"):
             LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+            skipped_files_count = skipped_files_count + 1
             return []
 
         gz_file_extension = gz_file_name.split(".")[-1].lower()
@@ -210,18 +283,26 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
 
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
-
+#pylint: disable=global-statement
 def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+    global skipped_files_count
 
     # Check whether file is without extension or not
     if not extension or s3_path.lower() == extension:
         LOGGER.warning('"%s" without extension will not be sampled.',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
     if extension in ["csv", "txt"]:
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle #pylint:disable=protected-access
         iterator = csv.get_row_iterator(file_handle, table_spec, None, True)
-        return get_records_for_csv(s3_path, sample_rate, iterator)
+        csv_records = []
+        if iterator:
+            csv_records = get_records_for_csv(s3_path, sample_rate, iterator)
+        else:
+            LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+            skipped_files_count = skipped_files_count + 1
+        return csv_records
     if extension == "gz":
         return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
     if extension == "jsonl":
@@ -233,21 +314,21 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
             records)
         jsonl_sample_records = list(check_jsonl_sample_records)
         if len(jsonl_sample_records) == 0:
-            LOGGER.exception(
-                'No row sampled, Please check your JSONL file %s', s3_path)
-            raise Exception(
-                'No row sampled, Please check your JSONL file {}'.format(s3_path))
+            LOGGER.warning('Skipping "%s" file as it is empty', s3_path)
+            skipped_files_count = skipped_files_count + 1
         check_key_properties_and_date_overrides_for_jsonl_file(
             table_spec, jsonl_sample_records, s3_path)
 
         return records
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
+        skipped_files_count = skipped_files_count + 1
         return []
     LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',s3_path,extension)
+    skipped_files_count = skipped_files_count + 1
     return []
 
-
+#pylint: disable=global-statement
 def get_files_to_sample(config, s3_files, max_files):
     """
     Returns the list of files for sampling, it checks the s3_files whether any zip or gz file exists or not
@@ -263,6 +344,7 @@ def get_files_to_sample(config, s3_files, max_files):
              |_ type str(): Type of file which is used for extracted file
              |_ extension str(): extension of file (for normal files only)
     """
+    global skipped_files_count
     sampled_files = []
 
     OTHER_FILES = ["csv","gz","jsonl","txt"]
@@ -281,8 +363,10 @@ def get_files_to_sample(config, s3_files, max_files):
             # Check whether file is without extension or not
             if not extension or file_name.lower() == extension:
                 LOGGER.warning('"%s" without extension will not be sampled.',file_key)
+                skipped_files_count = skipped_files_count + 1
             elif file_key.endswith(".tar.gz"):
                 LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported', file_key)
+                skipped_files_count = skipped_files_count + 1
             elif extension == "zip":
                 files = compression.infer(io.BytesIO(file_handle.read()), file_name)
 
@@ -294,16 +378,19 @@ def get_files_to_sample(config, s3_files, max_files):
                 sampled_files.append({ "s3_path" : file_key , "file_handle" : file_handle, "extension" : extension })
             else:
                 LOGGER.warning('"%s" having the ".%s" extension will not be sampled.',file_key,extension)
+                skipped_files_count = skipped_files_count + 1
 
     return sampled_files
 
 
-# pylint: disable=too-many-arguments
+# pylint: disable=too-many-arguments,global-statement
 def sample_files(config, table_spec, s3_files,
                  sample_rate=5, max_records=1000, max_files=5):
+    global skipped_files_count
     LOGGER.info("Sampling files (max files: %s)", max_files)
 
     for s3_file in itertools.islice(get_files_to_sample(config, s3_files, max_files), max_files):
+
 
         s3_path = s3_file.get("s3_path","")
         file_handle = s3_file.get("file_handle")
@@ -320,10 +407,18 @@ def sample_files(config, table_spec, s3_files,
                     s3_path,
                     max_records,
                     sample_rate)
-        yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
+        try:
+            yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
+        except (UnicodeDecodeError,json.decoder.JSONDecodeError):
+            # UnicodeDecodeError will be raised if non csv file parsed to csv parser
+            # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
+            # Handled both error and skipping file with wrong extension.
+            LOGGER.warn("Skipping %s file as parsing failed. Verify an extension of the file.",s3_path)
+            skipped_files_count = skipped_files_count + 1
 
-
+#pylint: disable=global-statement
 def get_input_files_for_table(config, table_spec, modified_since=None):
+    global skipped_files_count
     bucket = config['bucket']
 
     to_return = []
@@ -335,7 +430,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         raise ValueError(
             ("search_pattern for table `{}` is not a valid regular "
              "expression. See "
-             "https://docs.python.org/3.5/library/re.html#regular-expression-syntax").format(table_spec['table_name']),
+             "https://docs.python.org/3.9/library/re.html#regular-expression-syntax").format(table_spec['table_name']),
             pattern) from e
 
     LOGGER.info(
@@ -344,12 +439,13 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     matched_files_count = 0
     unmatched_files_count = 0
     max_files_before_log = 30000
-    for s3_object in list_files_in_bucket(bucket, table_spec.get('search_prefix')):
+    for s3_object in list_files_in_bucket(config, table_spec.get('search_prefix')):
         key = s3_object['Key']
         last_modified = s3_object['LastModified']
 
         if s3_object['Size'] == 0:
-            LOGGER.info('Skipping matched file "%s" as it is empty', key)
+            LOGGER.warning('Skipping matched file "%s" as it is empty', key)
+            skipped_files_count = skipped_files_count + 1
             unmatched_files_count += 1
             continue
 
@@ -377,14 +473,29 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     if matched_files_count == 0:
         raise Exception("No files found matching pattern {}".format(pattern))
 
+def get_request_timeout(config):
+    # Get `request_timeout` value from config.
+    config_request_timeout = config.get('request_timeout')
 
-@retry_pattern()
-def list_files_in_bucket(bucket, search_prefix=None):
-    s3_client = boto3.client('s3')
+    # if config request_timeout is other than 0,"0" or "" then use request_timeout
+    if config_request_timeout and float(config_request_timeout):
+        request_timeout = float(config_request_timeout)
+    else:
+        # If value is 0,"0","" or not passed then it set default to 300 seconds.
+        request_timeout = REQUEST_TIMEOUT
+    return request_timeout
+
+@retry_pattern
+def list_files_in_bucket(config, search_prefix=None):
+    # Set connect and read timeout for resource
+    timeout = get_request_timeout(config)
+    client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
+    s3_client = boto3.client('s3', config=client_config)
 
     s3_object_count = 0
 
     max_results = 1000
+    bucket = config['bucket']
     args = {
         'Bucket': bucket,
         'MaxKeys': max_results,
@@ -407,10 +518,13 @@ def list_files_in_bucket(bucket, search_prefix=None):
         LOGGER.warning('Found no files for bucket "%s" that match prefix "%s"', bucket, search_prefix)
 
 
-@retry_pattern()
+@retry_pattern
 def get_file_handle(config, s3_path):
     bucket = config['bucket']
-    s3_client = boto3.resource('s3')
+    # Set connect and read timeout for resource
+    timeout = get_request_timeout(config)
+    client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
+    s3_client = boto3.resource('s3', config=client_config)
 
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)

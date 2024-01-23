@@ -1,4 +1,6 @@
-version: 2
+version: 2.1
+orbs:
+  slack: circleci/slack@3.4.2
 jobs:
   build:
     docker:
@@ -17,9 +19,11 @@ jobs:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
-            pip install nose2
-            nose2 -v -s tests/unittests
-
+            pip install nose2 parameterized nose2[coverage_plugin]>=0.6.5
+            nose2 --with-coverage -v -s tests/unittests
+          path: test_output/report.xml
+      - store_artifacts:
+          path: htmlcov
       - add_ssh_keys
       - run:
           name: 'Integration Tests'
@@ -29,21 +33,18 @@ jobs:
             aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
             source dev_env.sh
             source /usr/local/share/virtualenvs/tap-tester/bin/activate
-            run-test --tap=tap-s3-csv \
-                       --target=target-stitch \
-                       --orchestrator=stitch-orchestrator \
-                       --email=harrison+sandboxtest@stitchdata.com \
-                       --password=$SANDBOX_PASSWORD \
-                       --client-id=50 \
-                       --token=$STITCH_API_TOKEN \
-                       tests
+            run-test --tap=tap-s3-csv tests
+      - slack/notify-on-failure:
+          only_for_branches: master
 
 workflows:
   version: 2
   commit:
     jobs:
       - build:
-          context: circleci-user
+          context:
+            - circleci-user
+            - tap-tester-user
   build_daily:
     triggers:
       - schedule:
@@ -54,4 +55,6 @@ workflows:
                 - master
     jobs:
       - build:
-          context: circleci-user
+          context:
+            - circleci-user
+            - tap-tester-user

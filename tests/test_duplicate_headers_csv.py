@@ -6,25 +6,22 @@ import os
 import tap_tester.connections as connections
 import tap_tester.menagerie   as menagerie
 import tap_tester.runner as runner
+from base import S3CSVBaseTest
 
 def get_resources_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'resources', path)
 
-class S3DuplicateHeadersCSV(unittest.TestCase):
-
-    def tap_name(self):
-        return "tap-s3-csv"
+class S3DuplicateHeadersCSV(S3CSVBaseTest):
 
     def name(self):
         return "tap_tester_s3_duplicate_headers_csv"
 
-    def get_type(self):
-        return "platform.s3-csv"
+    def expected_check_streams(self):
+        return {
+            'duplicate_headers'
+        }
 
-    def get_credentials(self):
-        return {}
-
-    def expected_streams(self):
+    def expected_sync_streams(self):
         return {
             'duplicate_headers'
         }
@@ -61,33 +58,21 @@ class S3DuplicateHeadersCSV(unittest.TestCase):
 
 
     def test_duplicate_headers_in_csv(self):
-        runner.run_check_job_and_check_status(self)
-
-        found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
-
-        found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_streams().issubset( found_catalog_names )
-        self.assertTrue(subset, msg="Expected check streams are not subset of discovered catalog")
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
         
         # Select our catalogs
-        our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_streams()]
-        for c in our_catalogs:
-            c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
-            connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
+        our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
+
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs, True)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
 
         # Run a sync job using orchestrator
-        sync_job_name = runner.run_sync_mode(self, self.conn_id)
-
-        # Verify tap and target exit codes
-        exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
-        menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+        self.run_and_verify_sync(self.conn_id)
 
         # Verify actual rows were synced
-        record_count_by_stream = runner.examine_target_output_file(self, self.conn_id, self.expected_streams(), self.expected_pks())
+        record_count_by_stream = runner.examine_target_output_file(self, self.conn_id, self.expected_sync_streams(), self.expected_pks())
         self.assertGreater(sum(record_count_by_stream.values()), 0, msg="failed to replicate any data: {}".format(record_count_by_stream))
         print("total replicated row count: {}".format(sum(record_count_by_stream.values())))
 

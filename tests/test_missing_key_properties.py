@@ -5,21 +5,12 @@ import os
 
 import tap_tester.connections as connections
 import tap_tester.runner as runner
+from base import S3CSVBaseTest
 
 def get_resources_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'resources', path)
 
-class S3MissingKeyProperties(unittest.TestCase):
-
-    @staticmethod
-    def tap_name():
-        """
-        The official name of the tap under test
-
-        Returns:
-            A string representing the tap name
-        """
-        return "tap-s3-csv"
+class S3MissingKeyProperties(S3CSVBaseTest):
 
     @staticmethod
     def name():
@@ -28,22 +19,6 @@ class S3MissingKeyProperties(unittest.TestCase):
         """
 
         return "tap_tester_s3_csv_missing_key_properties"
-
-    @staticmethod
-    def get_type():
-        """
-        Returns:
-            the type of the tap (used in the url of the app)
-        """
-        return "platform.s3-csv"
-
-    @staticmethod
-    def get_credentials():
-        """
-        Returns:
-            an empty set of credentials.
-        """
-        return {}
 
     def get_properties() -> dict:
         """

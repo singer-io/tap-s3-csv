@@ -1,13 +1,11 @@
-import tap_tester.connections as connections
-import tap_tester.menagerie   as menagerie
-import tap_tester.runner      as runner
-
+from tap_tester import connections, menagerie, runner
 from functools import reduce
 from singer import metadata
-import unittest
 import boto3
 import json
 import os
+
+from base import S3CSVBaseTest
 
 def get_resources_path(path):
     return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'resources', path)
@@ -33,7 +31,9 @@ def delete_and_push_csv(properties, resource_name):
     s3_object.upload_file(get_resources_path(resource_name))
 
 
-class S3Bookmarks(unittest.TestCase):
+class S3Bookmarks(S3CSVBaseTest):
+
+    table_entry = [{'table_name': 'chickens', 'search_prefix': 'tap_tester', 'search_pattern': 'tap_tester/bookmarks.*', 'key_properties': 'name'}]
 
     def setUp(self):
         delete_and_push_csv(self.get_properties(), self.resource_name())
@@ -41,12 +41,6 @@ class S3Bookmarks(unittest.TestCase):
 
     def resource_name(self):
         return "bookmarks.csv"
-
-    def tap_name(self):
-        return "tap-s3-csv"
-
-    def get_type(self):
-        return "platform.s3-csv"
 
     def name(self):
         return "tap_tester_s3_csv_bookmarks"
@@ -66,43 +60,19 @@ class S3Bookmarks(unittest.TestCase):
             'chickens': {"name"}
         }
 
-    def get_credentials(self):
-        return {}
-
-    def get_properties(self):
-        return {
-            'start_date' : '2017-01-01T00:00:00Z',
-            'bucket': 'com-stitchdata-prod-circleci-assets',
-            'account_id': '218546966473',
-            'tables': "[{\"table_name\": \"chickens\",\"search_prefix\": \"tap_tester\",\"search_pattern\": \"tap_tester/bookmarks.*\",\"key_properties\": \"name\"}]"
-        }
-
     def test_run(self):
-        runner.run_check_job_and_check_status(self)
-
-        found_catalogs = menagerie.get_catalogs(self.conn_id)
-        self.assertEqual(len(found_catalogs), 1, msg="unable to locate schemas for connection {}".format(self.conn_id))
-
-        found_catalog_names = set(map(lambda c: c['tap_stream_id'], found_catalogs))
-        subset = self.expected_check_streams().issubset( found_catalog_names )
-        self.assertTrue(subset, msg="Expected check streams are not subset of discovered catalog")
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # Select our catalogs
         our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
-        for c in our_catalogs:
-            c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
-            c_metadata = metadata.to_map(c_annotated['metadata'])
-            connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated, [], [])
+
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
 
         # Run a sync job using orchestrator
-        sync_job_name = runner.run_sync_mode(self, self.conn_id)
-
-        # Verify tap and target exit codes
-        exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
-        menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+        self.run_and_verify_sync(self.conn_id)
 
         # Verify actual rows were synced
         record_count_by_stream = runner.examine_target_output_file(self, self.conn_id, self.expected_sync_streams(), self.expected_pks())
