@@ -11,14 +11,14 @@ setup(name='tap-s3-csv',
       py_modules=['tap_s3_csv'],
       install_requires=[
           'backoff==2.2.1',
-          'boto3==1.9.57',
-          'singer-encodings==0.1.0',
+          'boto3==1.24.18',
+          'singer-encodings==0.1.2',
           'singer-python==6.0.0',
           'voluptuous==0.10.5'
       ],
       extras_require={
           'dev': [
-              'ipdb==0.11'
+              'ipdb'
           ]
       },
       entry_points='''

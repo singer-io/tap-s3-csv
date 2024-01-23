@@ -14,6 +14,7 @@ from singer import metadata
 import tap_tester.connections as connections
 import tap_tester.menagerie as menagerie
 import tap_tester.runner as runner
+from base import S3CSVBaseTest
 
 TARGET_OUTPUT_FILE = '/tmp/stitch-target-out.json'
 
@@ -68,7 +69,7 @@ class DataTypes(Enum):
     ARRAY = ("type", "array")
 
 
-class S3TypesAndData(unittest.TestCase):
+class S3TypesAndData(S3CSVBaseTest):
     """
     A set of test cases to verify tap-s3-csv
 
@@ -165,38 +166,12 @@ class S3TypesAndData(unittest.TestCase):
         return {"_sdc_source_lineno", "_sdc_source_bucket", "_sdc_extra", "_sdc_source_file"}
 
     @staticmethod
-    def tap_name():
-        """
-        The official name of the tap under test
-
-        Returns:
-            A string representing the tap name
-        """
-        return "tap-s3-csv"
-
-    @staticmethod
     def name():
         """
         specifies the name of the test to use with the runner
         """
 
         return "tap_tester_sdc_csv_types_and_data"
-
-    @staticmethod
-    def get_type():
-        """
-        Returns:
-            the type of the tap (used in the url of the app)
-        """
-        return "platform.s3-csv"
-
-    @staticmethod
-    def get_credentials():
-        """
-        Returns:
-            an empty set of credentials.
-        """
-        return {}
 
     @staticmethod
     def configuration():
@@ -241,7 +216,7 @@ class S3TypesAndData(unittest.TestCase):
         return json.loads(streams_data)
 
     @staticmethod
-    def expected_sync_streams() -> set:
+    def expected_check_streams() -> set:
         return {stream["table_name"] for stream in S3TypesAndData.expected_streams()}
 
     @staticmethod
@@ -380,7 +355,7 @@ class S3TypesAndData(unittest.TestCase):
         """
         Verify that discover creates the appropriate catalog, schema, metadata, etc.
         """
-        found_catalogs = menagerie.get_catalogs(S3TypesAndData.conn_id)
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # verify that the number of streams is correct based on the configuration
         self.assertEqual(len(found_catalogs), len(self.expected_streams()),
@@ -454,7 +429,7 @@ class S3TypesAndData(unittest.TestCase):
         reported on individually
         """
 
-        found_catalogs = menagerie.get_catalogs(S3TypesAndData.conn_id)
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
 
         # only testing the data types stream for now, may want to test all of them
         # or add more tests for different things for other catalogs.
@@ -484,7 +459,7 @@ class S3TypesAndData(unittest.TestCase):
             * the primary key is a single field
             * the primary key is a composite of multiple fields
         """
-        found_catalogs = menagerie.get_catalogs(S3TypesAndData.conn_id)
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
         all_catalogs = [x for x in found_catalogs]
         for catalog in all_catalogs:
             with self.subTest(c=catalog):
@@ -512,31 +487,24 @@ class S3TypesAndData(unittest.TestCase):
 
     def test_zzzu_run_sync_mode(self):
         # Select our catalogs
-        our_catalogs = menagerie.get_catalogs(S3TypesAndData.conn_id)
-        for c in our_catalogs:
-            c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
-            metadata.to_map(c_annotated['metadata'])
-            connections.select_catalog_and_fields_via_metadata(self.conn_id, c, c_annotated)
+        our_catalogs = self.run_and_verify_check_mode(self.conn_id)
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs, True)
 
         # Clear state before our run
         menagerie.set_state(self.conn_id, {})
 
         # Run a sync job using orchestrator
-        sync_job_name = runner.run_sync_mode(self, self.conn_id)
-
-        # Verify tap and target exit codes
-        exit_status = menagerie.get_exit_status(self.conn_id, sync_job_name)
-        menagerie.verify_sync_exit_status(self, exit_status, sync_job_name)
+        self.run_and_verify_sync(self.conn_id)
 
         # Verify actual rows were synced
         record_count_by_stream = runner.examine_target_output_file(
             self,
             self.conn_id,
-            self.expected_sync_streams(),
+            self.expected_check_streams(),
             self.expected_pks())
         replicated_row_count = reduce(lambda accum, c : accum + c, record_count_by_stream.values())
 
-        for stream in self.expected_sync_streams():
+        for stream in self.expected_check_streams():
             with self.subTest(stream=stream):
                 self.assertEqual(
                     record_count_by_stream.get(stream, 0),
