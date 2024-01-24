@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.0
+  * Updates for python 3.11 [#61](https://github.com/singer-io/tap-s3-csv/pull/61)
+
 ## 1.3.7
   * Remove Backoff for Access Denied errors
   * Add unitttest for access denied giveup

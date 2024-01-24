@@ -4,7 +4,7 @@ orbs:
 jobs:
   build:
     docker:
-      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester
+      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester-3-11-dev
     steps:
       - checkout
       - run:
@@ -14,14 +14,13 @@ jobs:
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
             pip install .
             pip install pylint
-            pylint tap_s3_csv -d duplicate-code,consider-using-f-string,logging-format-interpolation,missing-docstring,invalid-name,line-too-long,too-many-locals,too-few-public-methods,fixme,stop-iteration-return,broad-except,bare-except,unused-variable,unnecessary-comprehension,no-member,deprecated-method,protected-access
+            pylint tap_s3_csv -d missing-docstring,invalid-name,line-too-long,too-many-locals,too-few-public-methods,fixme,stop-iteration-return,broad-except,bare-except,unused-variable,unnecessary-comprehension,no-member,deprecated-method,protected-access,broad-exception-raised,consider-using-f-string
       - run:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
-            pip install nose coverage parameterized
-            nosetests --with-coverage --cover-erase --cover-package=tap_s3_csv --cover-html-dir=htmlcov tests/unittests
-            coverage html
+            pip install nose2 parameterized nose2[coverage_plugin]>=0.6.5
+            nose2 --with-coverage -v -s tests/unittests
       - store_test_results:
           path: test_output/report.xml
       - store_artifacts:
