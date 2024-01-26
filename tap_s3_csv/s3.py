@@ -2,6 +2,7 @@ import itertools
 import re
 import io
 import json
+import os
 import gzip
 import sys
 import backoff
@@ -412,7 +413,8 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
 
     to_return = []
 
-    pattern = table_spec['search_pattern']
+    # For Symon imports to restrict to import only one file
+    pattern = f"^{table_spec['search_pattern']}$"
     try:
         matcher = re.compile(pattern)
     except re.error as e:
@@ -437,7 +439,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
             skipped_files_count = skipped_files_count + 1
             continue
 
-        if matcher.search(key):
+        if matcher.search(os.path.basename(key)):
             matched_files_count += 1
             if modified_since is None or modified_since < last_modified:
                 LOGGER.info('Will download key "%s" as it was last modified %s',
