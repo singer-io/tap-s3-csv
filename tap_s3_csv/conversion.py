@@ -110,7 +110,7 @@ def generate_schema(samples, table_spec):
         elif datatype == 'list':
             counts[key] = {
                 'anyOf': [
-                    {'type': 'array', 'items': ['null', 'string']},
+                    {'type': 'array', 'items': {'type': ['null', 'string']}},
                     {'type': ['null', 'string']}
                 ]
             }
