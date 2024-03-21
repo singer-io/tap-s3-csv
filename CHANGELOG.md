@@ -1,8 +1,12 @@
 # Changelog
 
+## 1.4.0
+  * Pass `region_name` configurable property while listing s3 objects
+  * [#63](https://github.com/singer-io/tap-s3-csv/pull/63)
+
 ## 1.3.8
   * Add Missing Type Information in JSON Schema
-  * [#55](https://github.com/singer-io/tap-s3-csv/pull/62)
+  * [#62](https://github.com/singer-io/tap-s3-csv/pull/62)
 
 ## 1.3.7
   * Remove Backoff for Access Denied errors
