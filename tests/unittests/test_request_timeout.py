@@ -13,7 +13,7 @@ class TestRequestTimeoutValue(unittest.TestCase):
         """
             Verify that if request_timeout is not provided in config then default value is used
         """
-        config = {"bucket": "test"} # No timeout in config
+        config = {"bucket": "test", "region_name": "region-name"} # No timeout in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
@@ -28,7 +28,7 @@ class TestRequestTimeoutValue(unittest.TestCase):
         """
             Verify that if request_timeout is provided in config(integer value) then it should be use
         """
-        config = {"bucket": "test", "request_timeout": 100} # integer timeout in config
+        config = {"bucket": "test", "request_timeout": 100, "region_name": "region-name"} # integer timeout in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
@@ -44,7 +44,7 @@ class TestRequestTimeoutValue(unittest.TestCase):
         """
             Verify that if request_timeout is provided in config(float value) then it should be use
         """
-        config = {"bucket": "test", "request_timeout": 100.5} # float timeout in config
+        config = {"bucket": "test", "request_timeout": 100.5, "region_name": "region-name"} # float timeout in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
@@ -60,7 +60,7 @@ class TestRequestTimeoutValue(unittest.TestCase):
         """
             Verify that if request_timeout is provided in config(string value) then it should be use
         """
-        config = {"bucket": "test", "request_timeout": '100'} # string format timeout in config
+        config = {"bucket": "test", "request_timeout": "100", "region_name": "region-name"} # string format timeout in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
@@ -75,7 +75,7 @@ class TestRequestTimeoutValue(unittest.TestCase):
         """
             Verify that if request_timeout is provided in config with empty string then default value is used
         """
-        config = {"bucket": "test", "request_timeout": ''} # empty string in config
+        config = {"bucket": "test", "request_timeout": "", "region_name": "region-name"} # empty string in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
@@ -90,7 +90,7 @@ class TestRequestTimeoutValue(unittest.TestCase):
         """
             Verify that if request_timeout is provided in config with zero value then default value is used
         """
-        config = {"bucket": "test", "request_timeout": 0.0} # zero value in config
+        config = {"bucket": "test", "request_timeout": 0.0, "region_name": "region-name"} # zero value in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
@@ -105,7 +105,7 @@ class TestRequestTimeoutValue(unittest.TestCase):
         """
             Verify that if request_timeout is provided in config with zero in string format then default value is used
         """
-        config = {"bucket": "test", "request_timeout": '0.0'} # zero value in config
+        config = {"bucket": "test", "request_timeout": "0.0", "region_name": "region-name"} # zero value in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
