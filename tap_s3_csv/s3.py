@@ -489,7 +489,7 @@ def get_request_timeout(config):
 def list_files_in_bucket(config, search_prefix=None):
     # Set connect and read timeout for resource
     timeout = get_request_timeout(config)
-    client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
+    client_config = Config(connect_timeout=timeout,  read_timeout=timeout, region_name='me-south-1')
     s3_client = boto3.client('s3', config=client_config)
 
     s3_object_count = 0
