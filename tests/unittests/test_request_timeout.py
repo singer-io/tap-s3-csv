@@ -13,108 +13,108 @@ class TestRequestTimeoutValue(unittest.TestCase):
         """
             Verify that if request_timeout is not provided in config then default value is used
         """
-        config = {"bucket": "test"} # No timeout in config
+        config = {"bucket": "test", "region_name": "region-name"} # No timeout in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300)
+        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300, region_name="region-name")
 
         # Call list_files_in_bucket() which set timeout with Config object
         file_handles = list(s3.list_files_in_bucket(config, "test"))
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300)
+        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300, region_name="region-name")
 
     def test_integer_request_timeout_in_config(self, mocked_boto_config, mocked_client, mocked_resource):
         """
             Verify that if request_timeout is provided in config(integer value) then it should be use
         """
-        config = {"bucket": "test", "request_timeout": 100} # integer timeout in config
+        config = {"bucket": "test", "request_timeout": 100, "region_name": "region-name"} # integer timeout in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=100, read_timeout=100)
+        mocked_boto_config.assert_called_with(connect_timeout=100, read_timeout=100, region_name="region-name")
 
         config = {"bucket": "test", "request_timeout": 200} # integer timeout in config
         # Call list_files_in_bucket() which set timeout with Config object
         file_handles = list(s3.list_files_in_bucket(config, "test"))
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=200, read_timeout=200)
+        mocked_boto_config.assert_called_with(connect_timeout=200, read_timeout=200, region_name="region-name")
 
     def test_float_request_timeout_in_config(self, mocked_boto_config, mocked_client, mocked_resource):
         """
             Verify that if request_timeout is provided in config(float value) then it should be use
         """
-        config = {"bucket": "test", "request_timeout": 100.5} # float timeout in config
+        config = {"bucket": "test", "request_timeout": 100.5, "region_name": "region-name"} # float timeout in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=100.5, read_timeout=100.5)
+        mocked_boto_config.assert_called_with(connect_timeout=100.5, read_timeout=100.5, region_name="region-name")
 
         config = {"bucket": "test", "request_timeout": 200.5} # float timeout in config
         # Call list_files_in_bucket() which set timeout with Config object
         file_handles = list(s3.list_files_in_bucket(config, "test"))
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=200.5, read_timeout=200.5)
+        mocked_boto_config.assert_called_with(connect_timeout=200.5, read_timeout=200.5, region_name="region-name")
 
     def test_string_request_timeout_in_config(self, mocked_boto_config, mocked_client, mocked_resource):
         """
             Verify that if request_timeout is provided in config(string value) then it should be use
         """
-        config = {"bucket": "test", "request_timeout": '100'} # string format timeout in config
+        config = {"bucket": "test", "request_timeout": "100", "region_name": "region-name"} # string format timeout in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=100, read_timeout=100)
+        mocked_boto_config.assert_called_with(connect_timeout=100, read_timeout=100, region_name="region-name")
 
         # Call list_files_in_bucket() which set timeout with Config object
         file_handles = list(s3.list_files_in_bucket(config, "test"))
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=100, read_timeout=100)
+        mocked_boto_config.assert_called_with(connect_timeout=100, read_timeout=100, region_name="region-name")
 
     def test_empty_string_request_timeout_in_config(self, mocked_boto_config, mocked_client, mocked_resource):
         """
             Verify that if request_timeout is provided in config with empty string then default value is used
         """
-        config = {"bucket": "test", "request_timeout": ''} # empty string in config
+        config = {"bucket": "test", "request_timeout": "", "region_name": "region-name"} # empty string in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300)
+        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300, region_name="region-name")
 
         # Call list_files_in_bucket() which set timeout with Config object
         file_handles = list(s3.list_files_in_bucket(config, "test"))
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300)
+        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300, region_name="region-name")
 
     def test_zero_request_timeout_in_config(self, mocked_boto_config, mocked_client, mocked_resource):
         """
             Verify that if request_timeout is provided in config with zero value then default value is used
         """
-        config = {"bucket": "test", "request_timeout": 0.0} # zero value in config
+        config = {"bucket": "test", "request_timeout": 0.0, "region_name": "region-name"} # zero value in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300)
+        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300, region_name="region-name")
 
         # Call list_files_in_bucket() which set timeout with Config object
         file_handles = list(s3.list_files_in_bucket(config, "test"))
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300)
+        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300, region_name="region-name")
 
     def test_zero_string_request_timeout_in_config(self, mocked_boto_config, mocked_client, mocked_resource):
         """
             Verify that if request_timeout is provided in config with zero in string format then default value is used
         """
-        config = {"bucket": "test", "request_timeout": '0.0'} # zero value in config
+        config = {"bucket": "test", "request_timeout": "0.0", "region_name": "region-name"} # zero value in config
         # Call get_file_handle() which set timeout with Config object
         s3.get_file_handle(config, "test")
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300)
+        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300, region_name="region-name")
 
         # Call list_files_in_bucket() which set timeout with Config object
         file_handles = list(s3.list_files_in_bucket(config, "test"))
         # Verify Config is called with expected timeout
-        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300)
+        mocked_boto_config.assert_called_with(connect_timeout=300, read_timeout=300, region_name="region-name")
 
 # Mock objects for boto resource
 class MockObjectConnect:
@@ -124,7 +124,7 @@ class MockObjectConnect:
 class MockBucketConnect:
     def Object(self):
         return MockObjectConnect
-    
+
 class MockResourceConnect:
     def Bucket(self):
         return MockBucketConnect
@@ -145,7 +145,7 @@ class TestConnectTimeoutErrorBackoff(unittest.TestCase):
             s3.get_file_handle(config, "test")
         except ConnectTimeoutError as e:
             pass
-    
+
         # Verify that resource ans Config object called 5 times
         self.assertEquals(mocked_resource.call_count, 5)
         self.assertEquals(mocked_boto_config.call_count, 5)
@@ -157,14 +157,14 @@ class TestConnectTimeoutErrorBackoff(unittest.TestCase):
         # Mock PageIterator.method to raise ConnectTimeoutError error
         mocked_method = mock.Mock()
         mocked_method.side_effect = ConnectTimeoutError(endpoint_url="test")
-        
+
         try:
             # Initialize PageIterator object and call _make_request function
             paginator = PageIterator(mocked_method, "", "", "", "", "", "", "", "", "", "")
             response = paginator._make_request({})
         except ConnectTimeoutError as e:
             pass
-    
+
         # Verify that PageIterator.method called 5 times
         self.assertEquals(mocked_method.call_count, 5)
 
@@ -177,14 +177,14 @@ class MockObjectRead:
 class MockBucketRead:
     def Object(self):
         return MockObjectRead
-    
+
 class MockResourceRead:
     def Bucket(self):
         return MockBucketRead
 
 @mock.patch("time.sleep")
 class TestReadTimeoutErrorBackoff(unittest.TestCase):
-    
+
     @mock.patch("boto3.resource")
     @mock.patch("tap_s3_csv.s3.Config")
     def test_read_timeout_on_get_file_handle(self, mocked_boto_config, mocked_resource, mocked_sleep):
@@ -210,13 +210,13 @@ class TestReadTimeoutErrorBackoff(unittest.TestCase):
         # Mock PageIterator.method to raise ReadTimeoutError error
         mocked_method = mock.Mock()
         mocked_method.side_effect = ReadTimeoutError(endpoint_url="test")
-        
+
         try:
             # Initialize PageIterator object and call _make_request function
             paginator = PageIterator(mocked_method, "", "", "", "", "", "", "", "", "", "")
             response = paginator._make_request({})
         except ReadTimeoutError as e:
             pass
-    
+
         # Verify that PageIterator.method called 5 times
         self.assertEquals(mocked_method.call_count, 5)
