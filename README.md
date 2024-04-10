@@ -8,28 +8,33 @@ This is a [Singer](https://singer.io) tap that reads data from files located ins
 
 ### Install and Run
 
-Ensure poetry is installed on your machine. 
+Ensure poetry is installed on your machine.
 
 - This command will return the installed version of poetry if it is installed.
+
 ```
 poetry --version
 ```
 
 - If not, install poetry using the following commands (from https://python-poetry.org/docs/#installation):
+
 ```
 curl -sSL https://install.python-poetry.org | python3 -
 PATH=~/.local/bin:$PATH
 ```
 
 Within the `tap-s3-csv` directory, install dependencies:
+
 ```
 poetry install
 ```
 
 Then run the tap:
+
 ```
 poetry run tap-s3-csv <options>
 ```
+
 ### Configuration
 
 Here is an example of basic config, and a bit of a run down on each of the properties:
@@ -65,7 +70,8 @@ The `table` field consists of one or more objects that describe how to find file
         "key_properties": "id",
         "date_overrides": "created_at",
         "delimiter": ",",
-        "escape_char": "\"
+        "escape_char": "\",
+        "row_limit: 100
     },
     ...
 ]
@@ -78,6 +84,7 @@ The `table` field consists of one or more objects that describe how to find file
 - **date_overrides**: Specifies field names in the files that are supposed to be parsed as a datetime. The tap doesn't attempt to automatically determine if a field is a datetime, so this will make it explicit in the discovered schema.
 - **delimiter**: This allows you to specify a custom delimiter, such as `\t` or `|`, if that applies to your files.
 - **escape_char**: This allows you to specify a single escape character (default is `\`) if that applies to your files.
+- **row_limit**: This allows you limit the number of rows that gets processed.
 
 A sample configuration is available inside [config.sample.json](config.sample.json)
 

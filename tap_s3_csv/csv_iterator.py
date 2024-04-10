@@ -1,14 +1,17 @@
 import codecs
 import csv
 from tap_s3_csv.symon_exception import SymonException
+import itertools
 
 MAX_COL_LENGTH = 150
 
 
-def get_row_iterator(iterable, options=None, fieldnames=None):
+def get_row_iterator(iterable, options=None, fieldnames=None, row_limit=None):
     options = options or {}
+    iterable_lines = itertools.islice(iterable.iter_lines(), row_limit) if row_limit is not None else iterable.iter_lines()
+
     file_stream = codecs.iterdecode(
-        iterable.iter_lines(), encoding=options.get('encoding', 'utf-8'), errors='replace')
+        iterable_lines, encoding=options.get('encoding', 'utf-8'), errors='replace')
 
     # Replace any NULL bytes in the line given to the DictReader
     reader = csv.DictReader(

@@ -228,6 +228,7 @@ def sync_compressed_file(config, s3_path, table_spec, stream):
 def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='simple', fieldnames=None):
     LOGGER.info('Syncing file "%s".', s3_path)
 
+    row_limit = table_spec.get('row_limit', None)
     table_name = table_spec['table_name']
 
     # We observed data who's field size exceeded the default maximum of
@@ -239,7 +240,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream, json_lib='si
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
     iterator = csv_iterator.get_row_iterator(
-        file_handle, table_spec, fieldnames)
+        file_handle, table_spec, fieldnames, row_limit)
 
     records_synced = 0
     records_buffer = []

@@ -45,6 +45,7 @@ def do_sync(config, catalog, state):
     end_byte = config.get('end_byte')
     range_size = config.get('range_size', 1024*1024*5)
     json_lib = config.get('json_lib', 'orjson')
+    row_limit = config.get('row_limit', None)
 
     LOGGER.info(f'Starting sync ({start_byte}-{end_byte}).')
 
@@ -92,6 +93,11 @@ def validate_table_config(config):
         elif table_config.get('date_overrides') and isinstance(table_config['date_overrides'], str):
             table_config['date_overrides'] = [s.strip()
                                               for s in table_config['date_overrides'].split(',')]
+        # if row_limit is provided, validate that it is a non negative integer
+        if table_config.get('row_limit') is not None:
+            if not isinstance(table_config['row_limit'], int) or table_config['row_limit'] < 0:
+                raise Exception(
+                    'row_limit must be a non-negative integer')
 
     # Reassign the config tables to the validated object
     return CONFIG_CONTRACT(tables_config)
