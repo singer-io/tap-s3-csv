@@ -652,6 +652,12 @@ class GetFileRangeStream:
         for chunk in iter_chunks:
             if header_row == b'':
                 lines = (pending + chunk).splitlines(True)
+                
+                # for chunk with only headers(empty rows), the lines size is 1 and lines[:-1] will always be skipped
+                # need to handle this seperately
+                if len(lines) == 1:
+                    return lines[0].splitlines(False)[0]
+
                 for line in lines[:-1]:
                     return line.splitlines(False)[0]
                 pending = lines[-1]
