@@ -105,15 +105,18 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler=Non
     if extension in ["csv", "txt"]:
         fieldnames = None
 
-        cols_from_metadata = get_cols_from_metadata(stream)
+        col_order = stream.get('column_order', None)
 
         if file_handler:
             # If file is extracted from zip or gz use file object else get file object from s3 bucket
             file_handle = file_handler
         # support parallel import for both csv, txt files.
         elif start_byte is not None and end_byte is not None:
-            if len(cols_from_metadata) == 0:
-                raise Exception("Failed to get cols from metadata")
+            if (col_order is None):
+                col_order = get_cols_from_metadata(stream)
+
+            if len(col_order) == 0:
+                raise Exception("Failed to get cols order")
 
             file_handle = s3.get_csv_file(
                 config['bucket'], s3_path, start_byte, end_byte, range_size)
@@ -128,19 +131,19 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler=Non
             file_handle = preprocess.PreprocessStream(
                 file_handle, table_spec, start_byte == 0 and table_spec.get('has_header', True))
 
-            fieldnames = cols_from_metadata
+            fieldnames = col_order
 
         else:
             file_handle = s3.get_file_handle(config, s3_path)
-            if len(cols_from_metadata) > 0:
+            if col_order is not None and len(col_order) > 0:
                 # same as above but for single thread. Set handle_first_row param to True if table_spec.has_header == True to avoid
                 # having header row parsed as first record
                 file_handle = preprocess.PreprocessStream(
                     file_handle, table_spec, table_spec.get('has_header', True))
-                fieldnames = cols_from_metadata
+                fieldnames = col_order
             else:
-                # If cols_from_metadata isn't present, that means we didn't do discovery with this tap - this occurs during TQP imports
-                # Pass parameters to PreprocessStream to guarantee header property is set, so we can use it in place of 'cols_from_metadata'
+                # If col_order isn't present, that means we didn't do discovery with this tap - this occurs during TQP imports
+                # Pass parameters to PreprocessStream to guarantee header property is set, so we can use it in place of 'col_order'
                 file_handle = preprocess.PreprocessStream(
                     file_handle, table_spec, True, s3_path, config)
                 fieldnames = file_handle.header
