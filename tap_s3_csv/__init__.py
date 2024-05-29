@@ -47,8 +47,9 @@ def do_sync(config, catalog, state):
     json_lib = config.get('json_lib', 'orjson')
     row_limit = config.get('row_limit', None)
 
-    # Exports splunk logs for row and col count: total_col and tables_config
+    # Exports splunk logs for row and col count
     total_col = 0
+    name=""
     tables_config = config['tables']
 
     LOGGER.info(f'Starting sync ({start_byte}-{end_byte}).')
