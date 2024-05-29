@@ -46,8 +46,11 @@ def do_sync(config, catalog, state):
     range_size = config.get('range_size', 1024*1024*5)
     json_lib = config.get('json_lib', 'orjson')
     row_limit = config.get('row_limit', None)
-    name=config['tables'][0]["search_prefix"]
+
+    # Exports splunk logs for row and col count: total_col and tables_config
     total_col = 0
+    tables_config = config['tables']
+
     LOGGER.info(f'Starting sync ({start_byte}-{end_byte}).')
 
     for stream in catalog['streams']:
@@ -63,8 +66,10 @@ def do_sync(config, catalog, state):
 
         key_properties = mdata.get((), {}).get('table-key-properties', [])
         singer.write_schema(stream_name, stream['schema'], key_properties)
-        if("properties" in stream['schema'] and total_col ==0):
-            total_col=len(stream['schema']["properties"].items())
+
+        # Exports splunk logs for row and col count
+        if("properties" in stream['schema']):
+            total_col=max(total_col, len(stream['schema']["properties"].items()))
         LOGGER.info("%s: Starting sync", stream_name)
         counter_value = sync_stream(
             config, state, table_spec, stream, start_byte, end_byte, range_size, json_lib)
@@ -74,7 +79,12 @@ def do_sync(config, catalog, state):
     # timers_str = ', '.join(f'"{k}": {v:.0f}' for k, v in timers.items())
     # logMsg = f"{IMPORT_PERF_METRICS_LOG_PREFIX} {{{timers_str}}}"
     # LOGGER.info(logMsg)
-    LOGGER.info("EXPORTS name: "+name+" row: "+str(counter_value)+", col: "+str(total_col))
+
+    # Exports splunk logs for row and col count (multisheet files)
+    for table_config in tables_config:
+        if ('search_prefix' in table_config):
+            name=name+table_config["search_prefix"]
+    LOGGER.info("EXPORTS name: " + name + " row: " + str(counter_value) + ", col: " + str(total_col))
 
     LOGGER.info('Done syncing.')
 
