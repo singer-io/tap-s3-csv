@@ -47,7 +47,7 @@ def do_sync(config, catalog, state):
     json_lib = config.get('json_lib', 'orjson')
     row_limit = config.get('row_limit', None)
 
-    # Exports splunk logs for row and col count
+    # Export logs for row and col count
     total_col = 0
     name=""
     tables_config = config['tables']
@@ -81,11 +81,11 @@ def do_sync(config, catalog, state):
     # logMsg = f"{IMPORT_PERF_METRICS_LOG_PREFIX} {{{timers_str}}}"
     # LOGGER.info(logMsg)
 
-    # Exports splunk logs for row and col count (multisheet files)
+    # Export logs for row and col count (multisheet files)
     for table_config in tables_config:
         if ('search_prefix' in table_config):
             name=name+table_config["search_prefix"]
-    LOGGER.info("EXPORTS name: " + name + " row: " + str(counter_value) + ", col: " + str(total_col))
+    LOGGER.info("EXPORTS tap-s3-csv name: " + name + " row: " + str(counter_value) + ", col: " + str(total_col))
 
     LOGGER.info('Done syncing.')
 
