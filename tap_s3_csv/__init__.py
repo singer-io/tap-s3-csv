@@ -49,8 +49,13 @@ def do_sync(config, catalog, state):
 
     # Export logs for row and col count
     total_col = 0
+    total_row = 0
     name=""
     tables_config = config['tables']
+    # Export logs for row and col count (multisheet files)
+    for table_config in tables_config:
+        if ('search_prefix' in table_config):
+            name=name+table_config["search_prefix"]
 
     LOGGER.info(f'Starting sync ({start_byte}-{end_byte}).')
 
@@ -68,24 +73,22 @@ def do_sync(config, catalog, state):
         key_properties = mdata.get((), {}).get('table-key-properties', [])
         singer.write_schema(stream_name, stream['schema'], key_properties)
 
-        # Exports splunk logs for row and col count
-        if("properties" in stream['schema']):
-            total_col=max(total_col, len(stream['schema']["properties"].items()))
         LOGGER.info("%s: Starting sync", stream_name)
         counter_value = sync_stream(
             config, state, table_spec, stream, start_byte, end_byte, range_size, json_lib)
+        # Exports logs for row and col count
+        if("properties" in stream['schema']):
+            total_col=len(stream['schema']["properties"].items())
+            total_row=counter_value-total_row
+            json_row_col = { "name": name, "row": total_row,"col": total_col}
+            LOGGER.info("EXPORTS tap-s3-csv value: "+str(json_row_col))
+
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
 
     # import performance logging - left here for convenience
     # timers_str = ', '.join(f'"{k}": {v:.0f}' for k, v in timers.items())
     # logMsg = f"{IMPORT_PERF_METRICS_LOG_PREFIX} {{{timers_str}}}"
     # LOGGER.info(logMsg)
-
-    # Export logs for row and col count (multisheet files)
-    for table_config in tables_config:
-        if ('search_prefix' in table_config):
-            name=name+table_config["search_prefix"]
-    LOGGER.info("EXPORTS tap-s3-csv name: " + name + " row: " + str(counter_value) + ", col: " + str(total_col))
 
     LOGGER.info('Done syncing.')
 
