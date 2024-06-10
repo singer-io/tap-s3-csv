@@ -49,7 +49,6 @@ def do_sync(config, catalog, state):
 
     # Export logs for row and col count
     total_col = 0
-    total_row = 0
     name=""
     tables_config = config['tables']
     # Export logs for row and col count (multisheet files)
@@ -79,8 +78,7 @@ def do_sync(config, catalog, state):
         # Exports logs for row and col count
         if("properties" in stream['schema']):
             total_col=len(stream['schema']["properties"].items())
-            total_row=counter_value-total_row
-            json_row_col = { "name": name, "row": total_row,"col": total_col}
+            json_row_col = { "name": name, "row": counter_value,"col": total_col}
             LOGGER.info("EXPORTS tap-s3-csv value: "+str(json_row_col))
 
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
