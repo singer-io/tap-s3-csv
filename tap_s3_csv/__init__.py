@@ -78,7 +78,7 @@ def do_sync(config, catalog, state):
         # Exports logs for row and col count
         if("properties" in stream['schema']):
             total_col_count=len(stream['schema']["properties"].items())
-            json_row_col = { "name": name, "row": counter_value,"col": total_col_count}
+            json_row_col = { "file": stream_name, "name": name, "row": counter_value,"col": total_col_count}
             LOGGER.info("EXPORTS tap-s3-csv data_props: "+str(json_row_col))
 
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
