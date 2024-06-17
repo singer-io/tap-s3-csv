@@ -75,7 +75,9 @@ def main():
     config = args.config
 
     config['tables'] = validate_table_config(config)
-    sync_start_time = singer_utils.strptime_with_tz(datetime.now())
+    now = datetime.now()
+    sync_start_time = singer_utils.strptime_with_tz(now.strftime("%Y-%m-%dT%H:%M:%SZ"))
+
     try:
         for page in s3.list_files_in_bucket(config):
             break
