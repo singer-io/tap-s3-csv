@@ -41,7 +41,7 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
 
-    state = singer.write_bookmark(state, table_name, 'modified_since', sync_start_time)
+    state = singer.write_bookmark(state, table_name, 'modified_since', sync_start_time.isoformat())
     singer.write_state(state)
 
     if s3.skipped_files_count:
