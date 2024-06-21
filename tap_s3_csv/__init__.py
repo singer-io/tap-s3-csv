@@ -47,6 +47,17 @@ def do_sync(config, catalog, state):
     json_lib = config.get('json_lib', 'orjson')
     row_limit = config.get('row_limit', None)
 
+    # Export logs for row and col count
+    total_col_count = 0
+    current_col_count = 0
+    total_row_count = 0
+    name=""
+    tables_config = config['tables']
+    # Export logs for row and col count (multisheet files)
+    for table_config in tables_config:
+        if 'search_prefix' in table_config:
+            name=name+table_config["search_prefix"]
+
     LOGGER.info(f'Starting sync ({start_byte}-{end_byte}).')
 
     for stream in catalog['streams']:
@@ -66,13 +77,24 @@ def do_sync(config, catalog, state):
         LOGGER.info("%s: Starting sync", stream_name)
         counter_value = sync_stream(
             config, state, table_spec, stream, start_byte, end_byte, range_size, json_lib)
+        # Exports logs for row and col count
+        if "properties" in stream['schema']:
+            current_col_count = len(stream['schema']["properties"].items())
+            total_col_count += current_col_count
+            json_row_col = {"name": name, "stream_id":stream_name, "row": counter_value, "col": current_col_count}
+            LOGGER.info("EXPORTS tap-s3-csv individual_file_data_props: " + str(json_row_col))
+        total_row_count += counter_value
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
+        
 
     # import performance logging - left here for convenience
     # timers_str = ', '.join(f'"{k}": {v:.0f}' for k, v in timers.items())
     # logMsg = f"{IMPORT_PERF_METRICS_LOG_PREFIX} {{{timers_str}}}"
     # LOGGER.info(logMsg)
-
+    
+    # Exports logs for row and col count
+    json_row_col = { "file": stream_name, "name": name, "row": total_row_count, "col": total_col_count}
+    LOGGER.info("EXPORTS tap-s3-csv data_props: " + str(json_row_col))
     LOGGER.info('Done syncing.')
 
 
