@@ -93,7 +93,7 @@ def do_sync(config, catalog, state):
     # LOGGER.info(logMsg)
     
     # Exports logs for row and col count
-    json_row_col = { "file": stream_name, "name": name, "row": total_row_count, "col": total_col_count}
+    json_row_col = {"name": name, "row": total_row_count, "col": total_col_count}
     LOGGER.info("EXPORTS tap-s3-csv data_props: " + str(json_row_col))
     LOGGER.info('Done syncing.')
 
