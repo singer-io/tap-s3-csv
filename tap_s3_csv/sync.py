@@ -30,7 +30,7 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
 
     s3_files = s3.get_input_files_for_table(
         config, table_spec, modified_since)
-    LOGGER.info("****-- s3_files--:%s", len(s3_files))
+    LOGGER.info("****-- s3_files--:%s", s3_files)
     records_streamed = 0
 
     # We sort here so that tracking the modified_since bookmark makes
@@ -39,7 +39,7 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
     # based on anything else then we could just sync files as we see them.
     # Sort using a generator expression
     sorted_files = sorted(s3_files, key=lambda item: item['last_modified'])
-    LOGGER.info("**** sorted_files--:%s", sorted_files)
+    LOGGER.info("**** sorted_files--:%s", len(sorted_files))
     for s3_file in sorted_files:
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
