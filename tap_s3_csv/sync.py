@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import gzip
+import heapq
 
 from singer import metadata
 from singer import Transformer
@@ -19,6 +20,10 @@ from tap_s3_csv import (
 )
 
 LOGGER = singer.get_logger()
+
+def external_sort(iterables):
+    # return heapq.merge(*iterables)
+    return heapq.merge(*iterables, key=lambda item: item['last_modified'])
 
 def sync_stream(config, state, table_spec, stream, sync_start_time):
     table_name = table_spec['table_name']
@@ -38,8 +43,9 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
     # we can sort in memory which is suboptimal. If we could bookmark
     # based on anything else then we could just sync files as we see them.
     # Sort using a generator expression
-    sorted_files = sorted(s3_files, key=lambda item: item['last_modified'])
-    LOGGER.info("**** sorted_files--:%s", len(sorted_files))
+    # sorted_files = sorted(s3_files, key=lambda item: item['last_modified'])
+    sorted_files = external_sort([s3_files])
+    LOGGER.info("**** sorted_files sucessfully")
     for s3_file in sorted_files:
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
