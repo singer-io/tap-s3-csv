@@ -452,9 +452,9 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
         if matcher.search(key):
             matched_files_count += 1
             if modified_since is None or modified_since < last_modified:
-                # LOGGER.info('Will download key "%s" as it was last modified %s',
-                #             key,
-                #             last_modified)
+                LOGGER.info('Will download key "%s" as it was last modified %s',
+                            key,
+                            last_modified)
                 yield {'key': key, 'last_modified': last_modified}
         else:
             unmatched_files_count += 1

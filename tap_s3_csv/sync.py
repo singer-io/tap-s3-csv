@@ -21,9 +21,26 @@ from tap_s3_csv import (
 
 LOGGER = singer.get_logger()
 
-def external_sort(iterables):
-    # return heapq.merge(*iterables)
-    return heapq.merge(*iterables, key=lambda item: item['last_modified'])
+def external_sort_large_dataset(s3_files, chunk_size=2000):
+    chunks = []
+    chunk = []
+
+    # Reads data in chunks and sort each chunk
+    for record in s3_files:
+        chunk.append(record)
+
+        if len(chunk) >= chunk_size:
+            sorted_chunk = sorted(chunk, key=lambda item: item['last_modified'])
+            chunks.append(sorted_chunk)
+            chunk = []
+
+    # Handles remaining records in the last chunk
+    if chunk:
+        chunks.append(sorted(chunk, key=lambda item: item['last_modified']))
+
+    # Merges sorted chunks using heapq.merge()
+    sorted_files = heapq.merge(*chunks, key=lambda item: item['last_modified'])
+    return sorted_files
 
 def sync_stream(config, state, table_spec, stream, sync_start_time):
     table_name = table_spec['table_name']
@@ -35,7 +52,6 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
 
     s3_files = s3.get_input_files_for_table(
         config, table_spec, modified_since)
-    LOGGER.info("****-- s3_files--:%s", s3_files)
     records_streamed = 0
 
     # We sort here so that tracking the modified_since bookmark makes
@@ -43,15 +59,17 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
     # we can sort in memory which is suboptimal. If we could bookmark
     # based on anything else then we could just sync files as we see them.
     # Sort using a generator expression
-    # sorted_files = sorted(s3_files, key=lambda item: item['last_modified'])
-    sorted_files = external_sort([s3_files])
-    LOGGER.info("**** sorted_files sucessfully")
+    sorted_files = external_sort_large_dataset(s3_files)
+    LOGGER.info("sorted all s3 files sucessfully")
+
     for s3_file in sorted_files:
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
-
-    state = singer.write_bookmark(state, table_name, 'modified_since', sync_start_time.isoformat())
-    singer.write_state(state)
+        if s3_file['last_modified'] < sync_start_time:
+            state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
+        else :
+            state = singer.write_bookmark(state, table_name, 'modified_since', sync_start_time.isoformat())
+        singer.write_state(state)
 
     if s3.skipped_files_count:
         LOGGER.warn("%s files got skipped during the last sync.",s3.skipped_files_count)
