@@ -21,7 +21,7 @@ from tap_s3_csv import (
 
 LOGGER = singer.get_logger()
 
-def external_sort_large_dataset(s3_files, chunk_size=2000):
+def external_sort_large_dataset(s3_files, chunk_size=1000):
     chunks = []
     chunk = []
 
