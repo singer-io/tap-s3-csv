@@ -1,8 +1,10 @@
+from datetime import datetime
 import json
 import sys
 import singer
 
 from singer import metadata
+from singer import utils as singer_utils
 from tap_s3_csv.discover import discover_streams
 from tap_s3_csv import s3
 from tap_s3_csv.sync import sync_stream
@@ -27,7 +29,7 @@ def stream_is_selected(mdata):
     return mdata.get((), {}).get('selected', False)
 
 
-def do_sync(config, catalog, state):
+def do_sync(config, catalog, state, sync_start_time):
     LOGGER.info('Starting sync.')
 
     for stream in catalog['streams']:
@@ -43,7 +45,7 @@ def do_sync(config, catalog, state):
         singer.write_schema(stream_name, stream['schema'], key_properties)
 
         LOGGER.info("%s: Starting sync", stream_name)
-        counter_value = sync_stream(config, state, table_spec, stream)
+        counter_value = sync_stream(config, state, table_spec, stream, sync_start_time)
         LOGGER.info("%s: Completed sync (%s rows)", stream_name, counter_value)
 
     LOGGER.info('Done syncing.')
@@ -73,6 +75,8 @@ def main():
     config = args.config
 
     config['tables'] = validate_table_config(config)
+    now = datetime.now()
+    sync_start_time = singer_utils.strptime_with_tz(now.strftime("%Y-%m-%dT%H:%M:%SZ"))
 
     try:
         for page in s3.list_files_in_bucket(config):
@@ -84,7 +88,7 @@ def main():
     if args.discover:
         do_discover(args.config)
     elif args.properties:
-        do_sync(config, args.properties, args.state)
+        do_sync(config, args.properties, args.state, sync_start_time)
 
 
 if __name__ == '__main__':

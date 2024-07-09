@@ -8,6 +8,7 @@ import sys
 import backoff
 import boto3
 import singer
+from datetime import timedelta
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -470,6 +471,69 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
                 LOGGER.info("Found %s matching files and %s non-matching files",
                             matched_files_count, unmatched_files_count)
 
+    if matched_files_count == 0:
+        raise Exception("No files found matching pattern {}".format(pattern))
+
+#pylint: disable=global-statement
+def get_input_files_for_table_sync(config, table_spec, sync_start_time, modified_since=None):
+    global skipped_files_count
+    bucket = config['bucket']
+    current_window_start = modified_since
+    current_window_end = current_window_start + timedelta(days=7)
+    to_return = []
+
+    pattern = table_spec['search_pattern']
+    try:
+        matcher = re.compile(pattern)
+    except re.error as e:
+        raise ValueError(
+            ("search_pattern for table `{}` is not a valid regular "
+             "expression. See "
+             "https://docs.python.org/3.9/library/re.html#regular-expression-syntax").format(table_spec['table_name']),
+            pattern) from e
+
+    LOGGER.info(
+        'Checking bucket "%s" for keys matching "%s"', bucket, pattern)
+
+    matched_files_count = 0
+    unmatched_files_count = 0
+    max_files_before_log = 30000
+
+    while current_window_start < sync_start_time:
+        current_window_end = current_window_start + timedelta(days=7)
+
+        for s3_object in list_files_in_bucket(config, table_spec.get('search_prefix')):
+            key = s3_object['Key']
+            last_modified = s3_object['LastModified']
+
+            if s3_object['Size'] == 0:
+                LOGGER.warning('Skipping matched file "%s" as it is empty', key)
+                skipped_files_count = skipped_files_count + 1
+                unmatched_files_count += 1
+                continue
+
+            if matcher.search(key):
+                matched_files_count += 1
+                # if modified_since is None or modified_since < last_modified:
+                if modified_since <= last_modified < current_window_end:
+                    LOGGER.info('Will download key "%s" as it was last modified %s',
+                                key,
+                                last_modified)
+                    yield {'key': key, 'last_modified': last_modified}
+            else:
+                unmatched_files_count += 1
+
+            if (unmatched_files_count + matched_files_count) % max_files_before_log == 0:
+                # Are we skipping greater than 50% of the files?
+                if (unmatched_files_count / (matched_files_count + unmatched_files_count)) > 0.5:
+                    LOGGER.warn(("Found %s matching files and %s non-matching files. "
+                                "You should consider adding a `search_prefix` to the config "
+                                "or removing non-matching files from the bucket."),
+                                matched_files_count, unmatched_files_count)
+                else:
+                    LOGGER.info("Found %s matching files and %s non-matching files",
+                                matched_files_count, unmatched_files_count)
+        current_window_start = current_window_end
     if matched_files_count == 0:
         raise Exception("No files found matching pattern {}".format(pattern))
 
