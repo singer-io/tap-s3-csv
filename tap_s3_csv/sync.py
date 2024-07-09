@@ -4,6 +4,7 @@ import io
 import json
 import gzip
 from datetime import timedelta
+import itertools
 
 from singer import metadata
 from singer import Transformer
@@ -23,13 +24,12 @@ LOGGER = singer.get_logger()
 
 def sync_stream(config, state, table_spec, stream, sync_start_time):
     table_name = table_spec['table_name']
-    modified_since = singer_utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
-                                            config['start_date'])
+    modified_since = singer_utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or config['start_date'])
 
     LOGGER.info('Syncing table "%s".', table_name)
     LOGGER.info('Getting files modified since %s.', modified_since)
 
-    # Fetch all files modified since modified_since
+    # Fetch generator of all files modified since modified_since
     s3_files = s3.get_input_files_for_table(config, table_spec, modified_since)
 
     records_streamed = 0
@@ -37,25 +37,22 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
     batch_end_time = current_window_start + timedelta(days=7)
 
     while current_window_start < sync_start_time:
-        # Filter files for the current 7-day window
-        LOGGER.info("Retrieving data from date:'%s' to :'%s', ",current_window_start, batch_end_time)
-        current_window_files = [
-            s3_file for s3_file in s3_files
-            if current_window_start <= s3_file['last_modified'] < batch_end_time
-        ]
-        LOGGER.info("current_window_files..:%s",current_window_files)
-        # Sort files in the current window by last_modified timestamp
-        current_window_files_sorted = sorted(current_window_files, key=lambda item: item['last_modified'])
+        LOGGER.info("Retrieving data from date:'%s' to :'%s'.", current_window_start, batch_end_time)
 
-        # Process files in the current window
-        for s3_file in current_window_files_sorted:
-            records_streamed += sync_table_file(config, s3_file['key'], table_spec, stream)
+        # Process each file within the current 7-day window
+        for key, group in itertools.groupby(s3_files, key=lambda x: x['last_modified'].date()):
+            group_list = list(group)  # Convert group iterator to list for sorting
+            group_list_sorted = sorted(group_list, key=lambda x: x['last_modified'])  # Sort by last_modified timestamp
 
-            if s3_file['last_modified'] < sync_start_time:
-                state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
-            else:
-                state = singer.write_bookmark(state, table_name, 'modified_since', sync_start_time.isoformat())
-            singer.write_state(state)
+            for s3_file in group_list_sorted:
+                if current_window_start <= s3_file['last_modified'] < batch_end_time:
+                    records_streamed += sync_table_file(config, s3_file['key'], table_spec, stream)
+
+                    if s3_file['last_modified'] < sync_start_time:
+                        state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
+                    else:
+                        state = singer.write_bookmark(state, table_name, 'modified_since', sync_start_time.isoformat())
+                    singer.write_state(state)
 
         # Move to the next 7-day window
         current_window_start = batch_end_time
