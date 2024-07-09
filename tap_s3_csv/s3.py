@@ -449,10 +449,10 @@ def process_s3_objects(config, table_spec, matcher, modified_since=None, sync_st
 
                     if matcher.search(key):
                         matched_files_count += 1
-                        if modified_since <= last_modified < current_window_end:
-                            # LOGGER.info('Will download key "%s" as it was last modified %s',
-                            #             key,
-                            #             last_modified)
+                        if current_window_start <= last_modified < current_window_end:
+                            LOGGER.info('Will download key "%s" as it was last modified %s',
+                                        key,
+                                        last_modified)
                             yield {'key': key, 'last_modified': last_modified}
                     else:
                         unmatched_files_count += 1
