@@ -1,0 +1,32 @@
+name: Veracode Static Scan
+
+on:
+  schedule:
+    # Run this at 10:00 AM UTC every Sunday, https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#schedule
+    - cron: '0 10 * * SUN'
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v2
+      - name: Zip
+        uses: montudor/action-zip@v1
+        with:
+          args: zip -qq -r ELT_tap-s3-csv.zip .
+      - name: Get timestamp
+        run: echo TIMESTAMP=$(date +%Y-%m-%d_%H:%M:%S) >> $GITHUB_ENV
+      - name: Veracode Upload And Scan
+        uses: veracode/veracode-uploadandscan-action@0.2.6
+        with:
+          appname: ELT_tap-s3-csv
+          createprofile: true
+          filepath: ./ELT_tap-s3-csv.zip
+          version: ${{ env.TIMESTAMP }}
+          vid: ${{ secrets.VERACODE_API_KEY_ID }}
+          vkey: ${{ secrets.VERACODE_API_KEY_SECRET }}
+          scantimeout: 120
+          criticality: High
