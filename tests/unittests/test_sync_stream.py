@@ -25,10 +25,8 @@ class TestSyncStream(unittest.TestCase):
         stream = None
         sync_start_time = datetime(2024, 8, 14, 12, 0, 0)
 
-        # Act
         records_streamed = sync_stream(config, state, table_spec, stream, sync_start_time)
 
-        # Assert
         self.assertEqual(records_streamed, 1)
         # Check that the bookmark was set to the last_modified date of the file
         mock_write_bookmark.assert_called_with(state, 'test_table', 'modified_since', '2024-08-13T12:00:00')
@@ -54,10 +52,8 @@ class TestSyncStream(unittest.TestCase):
         stream = None
         sync_start_time = datetime(2024, 8, 14, 12, 0, 0)
 
-        # Act
         records_streamed = sync_stream(config, state, table_spec, stream, sync_start_time)
 
-        # Assert
         self.assertEqual(records_streamed, 1)
         mock_write_bookmark.assert_called_with(state, 'test_table', 'modified_since', sync_start_time.isoformat())
         mock_write_state.assert_called_once()
