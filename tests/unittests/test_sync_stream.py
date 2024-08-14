@@ -11,7 +11,11 @@ class TestSyncStream(unittest.TestCase):
     @patch('tap_s3_csv.singer.write_bookmark')
     @patch('tap_s3_csv.singer.write_state')
     @patch('tap_s3_csv.LOGGER')
-    def test_sync_stream_if_block(self, mock_logger, mock_write_state, mock_write_bookmark, mock_get_bookmark, mock_sync_table_file, mock_get_input_files_for_table):
+    def test_sync_stream_with_files_older_than_sync_start_time(self, mock_logger, mock_write_state, mock_write_bookmark, mock_get_bookmark, mock_sync_table_file, mock_get_input_files_for_table):
+        """
+        Tests the sync_stream function when the last_modified date of files is earlier than sync_start_time.
+        In this case, the bookmark is updated to the last_modified date of the file.
+        """
         mock_get_bookmark.return_value = '2024-01-01T00:00:00Z'
         mock_get_input_files_for_table.return_value = [
             {'key': 'file1.csv', 'last_modified': datetime(2024, 8, 13, 12, 0, 0)}
@@ -28,7 +32,7 @@ class TestSyncStream(unittest.TestCase):
         records_streamed = sync_stream(config, state, table_spec, stream, sync_start_time)
 
         self.assertEqual(records_streamed, 1)
-        # Check that the bookmark was set to the last_modified date of the file
+        # Verify that the bookmark was updated to the last_modified date of the file
         mock_write_bookmark.assert_called_with(state, 'test_table', 'modified_since', '2024-08-13T12:00:00')
         mock_write_state.assert_called_once()
 
@@ -38,7 +42,11 @@ class TestSyncStream(unittest.TestCase):
     @patch('tap_s3_csv.singer.write_bookmark')
     @patch('tap_s3_csv.singer.write_state')
     @patch('tap_s3_csv.LOGGER')
-    def test_sync_stream_else_block(self, mock_logger, mock_write_state, mock_write_bookmark, mock_get_bookmark, mock_sync_table_file, mock_get_input_files_for_table):
+    def test_sync_stream_with_files_newer_than_sync_start_time(self, mock_logger, mock_write_state, mock_write_bookmark, mock_get_bookmark, mock_sync_table_file, mock_get_input_files_for_table):
+        """
+        Tests the sync_stream function when the last_modified date of files is later than sync_start_time.
+        In this case, the bookmark is updated to sync_start_time.
+        """
         mock_get_bookmark.return_value = '2024-01-01T00:00:00Z'
         mock_get_input_files_for_table.return_value = [
             {'key': 'file1.csv', 'last_modified': datetime(2024, 8, 15, 12, 0, 0)}
@@ -55,5 +63,6 @@ class TestSyncStream(unittest.TestCase):
         records_streamed = sync_stream(config, state, table_spec, stream, sync_start_time)
 
         self.assertEqual(records_streamed, 1)
+        # Verify that the bookmark was updated to the sync_start_time
         mock_write_bookmark.assert_called_with(state, 'test_table', 'modified_since', sync_start_time.isoformat())
         mock_write_state.assert_called_once()
