@@ -91,16 +91,16 @@ class AssumeRoleProvider():
 
 @retry_pattern
 def setup_aws_client(config):
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
-                                                config['role_name'])
+    # Assume role in the proxy account
+    proxy_role_arn = "arn:aws:iam::{}:role/{}".format(config['proxy_account_id'].replace('-', ''), config['proxy_role_name'])
     session = Session()
     fetcher = AssumeRoleCredentialFetcher(
         session.create_client,
         session.get_credentials(),
-        role_arn,
+        proxy_role_arn,
         extra_args={
             'DurationSeconds': 3600,
-            'RoleSessionName': 'TapS3CSV',
+            'RoleSessionName': 'AssumeRoleInProxy',
             'ExternalId': config['external_id']
         },
         cache=JSONFileCache()
@@ -112,9 +112,35 @@ def setup_aws_client(config):
         CredentialResolver([AssumeRoleProvider(fetcher)])
     )
 
-    LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
+    LOGGER.info("Attempting to assume role in proxy account: %s", proxy_role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session)
 
+    # Use the assumed role credentials to assume role in the source account
+    try:
+        sts_client = boto3.client('sts')
+        assumed_role = sts_client.assume_role(
+            RoleArn="arn:aws:iam::{}:role/{}".format(config['source_account_id'].replace('-', ''), config['source_role_name']),
+            RoleSessionName='AssumeRoleInsource'
+        )
+        credentials = assumed_role['Credentials']
+
+        # Use assumed credentials to list S3 buckets
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=credentials['AccessKeyId'],
+            aws_secret_access_key=credentials['SecretAccessKey'],
+            aws_session_token=credentials['SessionToken'],
+            region_name=config['region']
+        )
+
+        response = s3_client.list_buckets()
+        buckets = response['Buckets']
+        for bucket in buckets:
+            print(bucket['Name'])
+    except NoCredentialsError:
+        LOGGER.error("Failed to assume role or access S3. No valid credentials.")
+    except Exception as e:
+        LOGGER.error("An error occurred: %s", str(e))
 
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
