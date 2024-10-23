@@ -91,8 +91,9 @@ class AssumeRoleProvider():
 
 @retry_pattern
 def setup_aws_client(config):
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
-                                                config['role_name'])
+    role_arn = "arn:aws:iam::{}:role/{}".format(config['cust_account_id'].replace('-', ''), config['cust_role_name'])
+
+     # Create a new boto3 session
     session = Session()
     fetcher = AssumeRoleCredentialFetcher(
         session.create_client,
@@ -114,6 +115,10 @@ def setup_aws_client(config):
 
     LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session)
+
+    # Create and return the S3 client
+    s3_client = refreshable_session.create_client('s3')
+    return s3_client
 
 
 def get_sampled_schema_for_table(config, table_spec):
@@ -490,7 +495,10 @@ def list_files_in_bucket(config, search_prefix=None):
     # Set connect and read timeout for resource
     timeout = get_request_timeout(config)
     client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
-    s3_client = boto3.client('s3', config=client_config)
+    s3_client = setup_aws_client(config)
+
+    if s3_client is None:
+        raise Exception("Failed to create S3 client.")
 
     s3_object_count = 0
 
@@ -524,7 +532,9 @@ def get_file_handle(config, s3_path):
     # Set connect and read timeout for resource
     timeout = get_request_timeout(config)
     client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
-    s3_client = boto3.resource('s3', config=client_config)
+    # s3_client = boto3.resource('s3', config=client_config)
+    session = boto3.Session()
+    s3_client = session.resource('s3')
 
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)

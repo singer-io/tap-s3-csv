@@ -1,6 +1,7 @@
 import json
 import sys
 import singer
+import boto3
 
 from singer import metadata
 from tap_s3_csv.discover import discover_streams
@@ -10,8 +11,37 @@ from tap_s3_csv.config import CONFIG_CONTRACT
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
+REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "external_id", "cust_account_id", "cust_role_name", "proxy_account_id", "proxy_role_name"]
 
+def assume_role(role_arn, session_name):
+    """Assume an IAM role and return temporary credentials."""
+    sts_client = boto3.client('sts')
+    response = sts_client.assume_role(
+        RoleArn=role_arn,
+        RoleSessionName=session_name
+    )
+    return response['Credentials']
+
+
+def setup_aws_client(config):
+    """Setup S3 client using assumed role credentials."""
+    # Assume role in the proxy account
+    proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id']}:role/{config['proxy_role_name']}"
+    proxy_credentials = assume_role(proxy_role_arn, 'ProxySession')
+
+    # Use proxy credentials to assume role in the cust account
+    cust_role_arn = f"arn:aws:iam::{config['cust_account_id']}:role/{config['cust_role_name']}"
+    cust_credentials = assume_role(cust_role_arn, 'CustSession')
+
+    # Create an S3 client using the cust role credentials
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=cust_credentials['AccessKeyId'],
+        aws_secret_access_key=cust_credentials['SecretAccessKey'],
+        aws_session_token=cust_credentials['SessionToken']
+    )
+    LOGGER.info("S3 client created using assumed role credentials")
+    return s3_client
 
 def do_discover(config):
     LOGGER.info("Starting discover")
@@ -75,6 +105,7 @@ def main():
     config['tables'] = validate_table_config(config)
 
     try:
+        # s3_client = setup_aws_client(config)
         for page in s3.list_files_in_bucket(config):
             break
         LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
