@@ -11,7 +11,6 @@ import singer
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
-    CredentialResolver,
     DeferredRefreshableCredentials,
     JSONFileCache
 )
@@ -76,44 +75,83 @@ def log_backoff_attempt(details):
 # tap is yielding data from that function so backoff is not working over tap function(list_files_in_bucket()).
 PageIterator._make_request = retry_pattern(PageIterator._make_request)
 
-class AssumeRoleProvider():
-    METHOD = 'assume-role'
+class AssumeRoleCredentialFetcher:
+    def __init__(self, sts_client, current_credentials, role_arn, extra_args, cache):
+        self.sts_client = sts_client
+        self.current_credentials = current_credentials
+        self.role_arn = role_arn
+        self.extra_args = extra_args
+        self.cache = cache
 
-    def __init__(self, fetcher):
-        self._fetcher = fetcher
-
-    def load(self):
-        return DeferredRefreshableCredentials(
-            self._fetcher.fetch_credentials,
-            self.METHOD
+    def fetch_credentials(self):
+        # This is where you assume the role
+        response = self.sts_client.assume_role(
+            RoleArn=self.role_arn,
+            RoleSessionName=self.extra_args['RoleSessionName'],
+            ExternalId=self.extra_args.get('ExternalId'),
+            DurationSeconds=self.extra_args.get('DurationSeconds', 3600)
         )
-
+        return {
+            'access_key': response['Credentials']['AccessKeyId'],
+            'secret_key': response['Credentials']['SecretAccessKey'],
+            'token': response['Credentials']['SessionToken'],
+        }
 
 @retry_pattern
 def setup_aws_client(config):
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
-                                                config['role_name'])
-    session = Session()
-    fetcher = AssumeRoleCredentialFetcher(
-        session.create_client,
+    proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id']}:role/{config['proxy_role_name']}"
+    session = boto3.Session()
+
+    # Create STS client
+    sts_client = session.client('sts')
+
+    # Fetch proxy credentials
+    proxy_fetcher = AssumeRoleCredentialFetcher(
+        sts_client,
         session.get_credentials(),
-        role_arn,
+        proxy_role_arn,
         extra_args={
             'DurationSeconds': 3600,
-            'RoleSessionName': 'TapS3CSV',
-            'ExternalId': config['external_id']
+            'RoleSessionName': 'TapProxySession',
+            'ExternalId': config['proxy_external_id']
         },
         cache=JSONFileCache()
     )
 
-    refreshable_session = Session()
-    refreshable_session.register_component(
-        'credential_provider',
-        CredentialResolver([AssumeRoleProvider(fetcher)])
+    try:
+        proxy_credentials = proxy_fetcher.fetch_credentials()
+    except ClientError as e:
+        LOGGER.error("Failed to fetch proxy credentials: %s", e)
+        raise
+
+    # Create a new session with the proxy credentials
+    proxy_session = boto3.Session(
+        aws_access_key_id=proxy_credentials['access_key'],
+        aws_secret_access_key=proxy_credentials['secret_key'],
+        aws_session_token=proxy_credentials['token']
     )
 
-    LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
-    boto3.setup_default_session(botocore_session=refreshable_session)
+    cust_role_arn = f"arn:aws:iam::{config['cust_account_id'].replace('-', '')}:role/{config['cust_role_name']}"
+    cust_fetcher = AssumeRoleCredentialFetcher(
+        proxy_session.client('sts'),
+        proxy_session.get_credentials(),
+        cust_role_arn,
+        extra_args={
+            'DurationSeconds': 3600,
+            'RoleSessionName': 'TapS3CSV',
+            'ExternalId': config['cust_external_id']
+        },
+        cache=JSONFileCache()
+    )
+
+    # Fetch customer role credentials
+    cust_credentials = cust_fetcher.fetch_credentials()
+    # Set the default session globally
+    boto3.setup_default_session(
+        aws_access_key_id=cust_credentials['access_key'],
+        aws_secret_access_key=cust_credentials['secret_key'],
+        aws_session_token=cust_credentials['token']
+    )
 
 
 def get_sampled_schema_for_table(config, table_spec):
