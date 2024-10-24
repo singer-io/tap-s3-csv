@@ -11,7 +11,6 @@ import singer
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
-    CredentialResolver,
     DeferredRefreshableCredentials,
     JSONFileCache
 )
@@ -28,10 +27,6 @@ from tap_s3_csv import (
     utils,
     conversion
 )
-
-# from debugpy import wait_for_client, listen
-# listen(8000)
-# wait_for_client()
 
 LOGGER = singer.get_logger()
 
@@ -163,21 +158,6 @@ def setup_aws_client(config):
 
     # Fetch customer role credentials
     cust_credentials = cust_fetcher.fetch_credentials()
-
-    # Create a new session with the proxy credentials
-    # cust_session = boto3.Session(
-    #     aws_access_key_id=cust_credentials['access_key'],
-    #     aws_secret_access_key=cust_credentials['secret_key'],
-    #     aws_session_token=cust_credentials['token']
-    # )
-    # cust_session = Session()
-
-    # cust_session.register_component(
-    #     'credential_provider',
-    #     CredentialResolver([AssumeRoleProvider(cust_fetcher)])
-    # )
-
-    LOGGER.info("Attempting to assume_role on RoleArn: %s", cust_role_arn)
     # Set the default session globally
     boto3.setup_default_session(
         aws_access_key_id=cust_credentials['access_key'],
@@ -185,58 +165,6 @@ def setup_aws_client(config):
         aws_session_token=cust_credentials['token']
     )
 
-    # # Create the S3 client with customer credentials
-    # s3_client = boto3.client(
-    #     's3',
-    #     aws_access_key_id=cust_credentials['access_key'],
-    #     aws_secret_access_key=cust_credentials['secret_key'],
-    #     aws_session_token=cust_credentials['token']
-    # )
-
-    # return s3_client
-
-
-# def assume_role(role_arn, session_name):
-#     """Assume an IAM role and return temporary credentials."""
-#     sts_client = boto3.client('sts')
-#     response = sts_client.assume_role(
-#         RoleArn=role_arn,
-#         RoleSessionName=session_name
-#     )
-#     return response['Credentials']
-
-# @retry_pattern
-# def setup_aws_client(config):
-#     """Setup S3 client using assumed role credentials."""
-#     # Assume role in the proxy account
-#     proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id']}:role/{config['proxy_role_name']}"
-#     proxy_credentials = assume_role(proxy_role_arn, 'ProxySession')
-
-#     sts_client = boto3.client('sts',
-#         aws_access_key_id=proxy_credentials['AccessKeyId'],
-#         aws_secret_access_key=proxy_credentials['SecretAccessKey'],
-#         aws_session_token=proxy_credentials['SessionToken']
-#     )
-
-#     # Use proxy credentials to assume role in the cust account
-#     cust_role_arn = f"arn:aws:iam::{config['cust_account_id']}:role/{config['cust_role_name']}"
-#     # cust_credentials = assume_role(cust_role_arn, 'CustSession')
-
-#     response = sts_client.assume_role(
-#             RoleArn=cust_role_arn,
-#             RoleSessionName='CustS3Access'
-#         )
-#     cust_credentials = response
-
-#     # Create an S3 client using the cust role credentials
-#     s3_client = boto3.client(
-#         's3',
-#         aws_access_key_id=cust_credentials['AccessKeyId'],
-#         aws_secret_access_key=cust_credentials['SecretAccessKey'],
-#         aws_session_token=cust_credentials['SessionToken']
-#     )
-#     LOGGER.info("S3 client created using assumed role credentials")
-#     return s3_client
 
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
