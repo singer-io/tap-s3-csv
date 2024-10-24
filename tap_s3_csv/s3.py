@@ -29,6 +29,10 @@ from tap_s3_csv import (
     conversion
 )
 
+# from debugpy import wait_for_client, listen
+# listen(8000)
+# wait_for_client()
+
 LOGGER = singer.get_logger()
 
 SDC_SOURCE_BUCKET_COLUMN = "_sdc_source_bucket"
@@ -76,17 +80,17 @@ def log_backoff_attempt(details):
 # tap is yielding data from that function so backoff is not working over tap function(list_files_in_bucket()).
 PageIterator._make_request = retry_pattern(PageIterator._make_request)
 
-# class AssumeRoleProvider():
-#     METHOD = 'assume-role'
+class AssumeRoleProvider():
+    METHOD = 'assume-role'
 
-#     def __init__(self, fetcher):
-#         self._fetcher = fetcher
+    def __init__(self, fetcher):
+        self._fetcher = fetcher
 
-#     def load(self):
-#         return DeferredRefreshableCredentials(
-#             self._fetcher.fetch_credentials,
-#             self.METHOD
-#         )
+    def load(self):
+        return DeferredRefreshableCredentials(
+            self._fetcher.fetch_credentials,
+            self.METHOD
+        )
 
 class AssumeRoleCredentialFetcher:
     def __init__(self, sts_client, current_credentials, role_arn, extra_args, cache):
@@ -160,15 +164,36 @@ def setup_aws_client(config):
     # Fetch customer role credentials
     cust_credentials = cust_fetcher.fetch_credentials()
 
-    # Create the S3 client with customer credentials
-    s3_client = boto3.client(
-        's3',
+    # Create a new session with the proxy credentials
+    # cust_session = boto3.Session(
+    #     aws_access_key_id=cust_credentials['access_key'],
+    #     aws_secret_access_key=cust_credentials['secret_key'],
+    #     aws_session_token=cust_credentials['token']
+    # )
+    # cust_session = Session()
+
+    # cust_session.register_component(
+    #     'credential_provider',
+    #     CredentialResolver([AssumeRoleProvider(cust_fetcher)])
+    # )
+
+    LOGGER.info("Attempting to assume_role on RoleArn: %s", cust_role_arn)
+    # Set the default session globally
+    boto3.setup_default_session(
         aws_access_key_id=cust_credentials['access_key'],
         aws_secret_access_key=cust_credentials['secret_key'],
         aws_session_token=cust_credentials['token']
     )
 
-    return s3_client
+    # # Create the S3 client with customer credentials
+    # s3_client = boto3.client(
+    #     's3',
+    #     aws_access_key_id=cust_credentials['access_key'],
+    #     aws_secret_access_key=cust_credentials['secret_key'],
+    #     aws_session_token=cust_credentials['token']
+    # )
+
+    # return s3_client
 
 
 # def assume_role(role_arn, session_name):
@@ -587,10 +612,7 @@ def list_files_in_bucket(config, search_prefix=None):
     # Set connect and read timeout for resource
     timeout = get_request_timeout(config)
     client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
-    s3_client = setup_aws_client(config)
-
-    if s3_client is None:
-        raise Exception("Failed to create S3 client.")
+    s3_client = boto3.client('s3', config=client_config)
 
     s3_object_count = 0
 
