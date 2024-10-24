@@ -75,18 +75,6 @@ def log_backoff_attempt(details):
 # tap is yielding data from that function so backoff is not working over tap function(list_files_in_bucket()).
 PageIterator._make_request = retry_pattern(PageIterator._make_request)
 
-class AssumeRoleProvider():
-    METHOD = 'assume-role'
-
-    def __init__(self, fetcher):
-        self._fetcher = fetcher
-
-    def load(self):
-        return DeferredRefreshableCredentials(
-            self._fetcher.fetch_credentials,
-            self.METHOD
-        )
-
 class AssumeRoleCredentialFetcher:
     def __init__(self, sts_client, current_credentials, role_arn, extra_args, cache):
         self.sts_client = sts_client
