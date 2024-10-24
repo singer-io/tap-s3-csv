@@ -11,7 +11,7 @@ from tap_s3_csv.config import CONFIG_CONTRACT
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "external_id", "cust_account_id", "cust_role_name", "proxy_account_id", "proxy_role_name"]
+REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "proxy_external_id", "cust_external_id", "proxy_account_id", "cust_account_id", "proxy_role_name", "cust_role_name"]
 
 def assume_role(role_arn, session_name):
     """Assume an IAM role and return temporary credentials."""

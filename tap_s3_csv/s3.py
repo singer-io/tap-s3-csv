@@ -76,50 +76,142 @@ def log_backoff_attempt(details):
 # tap is yielding data from that function so backoff is not working over tap function(list_files_in_bucket()).
 PageIterator._make_request = retry_pattern(PageIterator._make_request)
 
-class AssumeRoleProvider():
-    METHOD = 'assume-role'
+# class AssumeRoleProvider():
+#     METHOD = 'assume-role'
 
-    def __init__(self, fetcher):
-        self._fetcher = fetcher
+#     def __init__(self, fetcher):
+#         self._fetcher = fetcher
 
-    def load(self):
-        return DeferredRefreshableCredentials(
-            self._fetcher.fetch_credentials,
-            self.METHOD
+#     def load(self):
+#         return DeferredRefreshableCredentials(
+#             self._fetcher.fetch_credentials,
+#             self.METHOD
+#         )
+
+class AssumeRoleCredentialFetcher:
+    def __init__(self, sts_client, current_credentials, role_arn, extra_args, cache):
+        self.sts_client = sts_client
+        self.current_credentials = current_credentials
+        self.role_arn = role_arn
+        self.extra_args = extra_args
+        self.cache = cache
+
+    def fetch_credentials(self):
+        # This is where you assume the role
+        response = self.sts_client.assume_role(
+            RoleArn=self.role_arn,
+            RoleSessionName=self.extra_args['RoleSessionName'],
+            ExternalId=self.extra_args.get('ExternalId'),
+            DurationSeconds=self.extra_args.get('DurationSeconds', 3600)
         )
-
+        return {
+            'access_key': response['Credentials']['AccessKeyId'],
+            'secret_key': response['Credentials']['SecretAccessKey'],
+            'token': response['Credentials']['SessionToken'],
+        }
 
 @retry_pattern
 def setup_aws_client(config):
-    role_arn = "arn:aws:iam::{}:role/{}".format(config['cust_account_id'].replace('-', ''), config['cust_role_name'])
+    proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id']}:role/{config['proxy_role_name']}"
+    session = boto3.Session()
 
-     # Create a new boto3 session
-    session = Session()
-    fetcher = AssumeRoleCredentialFetcher(
-        session.create_client,
+    # Create STS client
+    sts_client = session.client('sts')
+
+    # Fetch proxy credentials
+    proxy_fetcher = AssumeRoleCredentialFetcher(
+        sts_client,
         session.get_credentials(),
-        role_arn,
+        proxy_role_arn,
         extra_args={
             'DurationSeconds': 3600,
-            'RoleSessionName': 'TapS3CSV',
-            'ExternalId': config['external_id']
+            'RoleSessionName': 'TapProxySession',
+            'ExternalId': config['proxy_external_id']
         },
         cache=JSONFileCache()
     )
 
-    refreshable_session = Session()
-    refreshable_session.register_component(
-        'credential_provider',
-        CredentialResolver([AssumeRoleProvider(fetcher)])
+    try:
+        proxy_credentials = proxy_fetcher.fetch_credentials()
+    except ClientError as e:
+        LOGGER.error("Failed to fetch proxy credentials: %s", e)
+        raise
+
+    # Create a new session with the proxy credentials
+    proxy_session = boto3.Session(
+        aws_access_key_id=proxy_credentials['access_key'],
+        aws_secret_access_key=proxy_credentials['secret_key'],
+        aws_session_token=proxy_credentials['token']
     )
 
-    LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
-    boto3.setup_default_session(botocore_session=refreshable_session)
+    cust_role_arn = f"arn:aws:iam::{config['cust_account_id'].replace('-', '')}:role/{config['cust_role_name']}"
+    cust_fetcher = AssumeRoleCredentialFetcher(
+        proxy_session.client('sts'),
+        proxy_session.get_credentials(),
+        cust_role_arn,
+        extra_args={
+            'DurationSeconds': 3600,
+            'RoleSessionName': 'TapS3CSV',
+            'ExternalId': config['cust_external_id']
+        },
+        cache=JSONFileCache()
+    )
 
-    # Create and return the S3 client
-    s3_client = refreshable_session.create_client('s3')
+    # Fetch customer role credentials
+    cust_credentials = cust_fetcher.fetch_credentials()
+
+    # Create the S3 client with customer credentials
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=cust_credentials['access_key'],
+        aws_secret_access_key=cust_credentials['secret_key'],
+        aws_session_token=cust_credentials['token']
+    )
+
     return s3_client
 
+
+# def assume_role(role_arn, session_name):
+#     """Assume an IAM role and return temporary credentials."""
+#     sts_client = boto3.client('sts')
+#     response = sts_client.assume_role(
+#         RoleArn=role_arn,
+#         RoleSessionName=session_name
+#     )
+#     return response['Credentials']
+
+# @retry_pattern
+# def setup_aws_client(config):
+#     """Setup S3 client using assumed role credentials."""
+#     # Assume role in the proxy account
+#     proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id']}:role/{config['proxy_role_name']}"
+#     proxy_credentials = assume_role(proxy_role_arn, 'ProxySession')
+
+#     sts_client = boto3.client('sts',
+#         aws_access_key_id=proxy_credentials['AccessKeyId'],
+#         aws_secret_access_key=proxy_credentials['SecretAccessKey'],
+#         aws_session_token=proxy_credentials['SessionToken']
+#     )
+
+#     # Use proxy credentials to assume role in the cust account
+#     cust_role_arn = f"arn:aws:iam::{config['cust_account_id']}:role/{config['cust_role_name']}"
+#     # cust_credentials = assume_role(cust_role_arn, 'CustSession')
+
+#     response = sts_client.assume_role(
+#             RoleArn=cust_role_arn,
+#             RoleSessionName='CustS3Access'
+#         )
+#     cust_credentials = response
+
+#     # Create an S3 client using the cust role credentials
+#     s3_client = boto3.client(
+#         's3',
+#         aws_access_key_id=cust_credentials['AccessKeyId'],
+#         aws_secret_access_key=cust_credentials['SecretAccessKey'],
+#         aws_session_token=cust_credentials['SessionToken']
+#     )
+#     LOGGER.info("S3 client created using assumed role credentials")
+#     return s3_client
 
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
@@ -532,9 +624,7 @@ def get_file_handle(config, s3_path):
     # Set connect and read timeout for resource
     timeout = get_request_timeout(config)
     client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
-    # s3_client = boto3.resource('s3', config=client_config)
-    session = boto3.Session()
-    s3_client = session.resource('s3')
+    s3_client = boto3.resource('s3', config=client_config)
 
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
