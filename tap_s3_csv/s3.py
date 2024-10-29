@@ -8,6 +8,7 @@ import sys
 import backoff
 import boto3
 import singer
+import time
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -38,6 +39,7 @@ skipped_files_count = 0
 
 # timeout request after 300 seconds
 REQUEST_TIMEOUT = 300
+SESSION_DURATION = 900
 
 def is_access_denied_error(error):
     """
@@ -89,8 +91,9 @@ class AssumeRoleCredentialFetcher:
             RoleArn=self.role_arn,
             RoleSessionName=self.extra_args['RoleSessionName'],
             ExternalId=self.extra_args.get('ExternalId'),
-            DurationSeconds=self.extra_args.get('DurationSeconds', 3600)
+            DurationSeconds=self.extra_args.get('DurationSeconds', SESSION_DURATION)
         )
+        LOGGER.info("fetch_credentials:%s",response)
         return {
             'access_key': response['Credentials']['AccessKeyId'],
             'secret_key': response['Credentials']['SecretAccessKey'],
@@ -98,7 +101,7 @@ class AssumeRoleCredentialFetcher:
         }
 
 @retry_pattern
-def setup_aws_client(config):
+def setup_aws_client(config, flag=False):
     proxy_role_arn = f"arn:aws:iam::{config['proxy_account_id']}:role/{config['proxy_role_name']}"
     session = boto3.Session()
 
@@ -111,7 +114,7 @@ def setup_aws_client(config):
         session.get_credentials(),
         proxy_role_arn,
         extra_args={
-            'DurationSeconds': 3600,
+            'DurationSeconds': SESSION_DURATION,
             'RoleSessionName': 'TapProxySession',
             'ExternalId': config['proxy_external_id']
         },
@@ -137,7 +140,7 @@ def setup_aws_client(config):
         proxy_session.get_credentials(),
         cust_role_arn,
         extra_args={
-            'DurationSeconds': 3600,
+            'DurationSeconds': SESSION_DURATION,
             'RoleSessionName': 'TapS3CSV',
             'ExternalId': config['cust_external_id']
         },
@@ -152,6 +155,10 @@ def setup_aws_client(config):
         aws_secret_access_key=cust_credentials['secret_key'],
         aws_session_token=cust_credentials['token']
     )
+
+    if flag==False:
+        LOGGER.info("sleeping after default session for 15 mins")
+        time.sleep(950)
 
 
 def get_sampled_schema_for_table(config, table_spec):
@@ -523,13 +530,20 @@ def get_request_timeout(config):
         request_timeout = REQUEST_TIMEOUT
     return request_timeout
 
+def refresh_session(config):
+    # This function calls setup_aws_client to refresh the credentials
+    LOGGER.info("Refreshing AWS session...")
+    setup_aws_client(config, True)
+
 @retry_pattern
 def list_files_in_bucket(config, search_prefix=None):
-    # Set connect and read timeout for resource
-    timeout = get_request_timeout(config)
-    client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
-    s3_client = boto3.client('s3', config=client_config)
+    def create_s3_client():
+        timeout = get_request_timeout(config)
+        client_config = Config(connect_timeout=timeout, read_timeout=timeout)
+        return boto3.client('s3', config=client_config)
 
+    s3_client = create_s3_client()
+    LOGGER.info("in list_files_in_bucket.......1")
     s3_object_count = 0
 
     max_results = 1000
@@ -543,12 +557,29 @@ def list_files_in_bucket(config, search_prefix=None):
         args['Prefix'] = search_prefix
 
     paginator = s3_client.get_paginator('list_objects_v2')
+    LOGGER.info("in list_files_in_bucket.......2")
     pages = 0
-    for page in paginator.paginate(**args):
-        pages += 1
-        LOGGER.debug("On page %s", pages)
-        s3_object_count += len(page['Contents'])
-        yield from page['Contents']
+
+    while True:
+        try:
+            for page in paginator.paginate(**args):
+                LOGGER.info("in list_files_in_bucket.......3")
+                pages += 1
+                LOGGER.debug("On page %s", pages)
+                s3_object_count += len(page.get('Contents', []))
+                yield from page.get('Contents', [])
+            break  # Break if pagination is successful
+        except ClientError as e:
+            # Check if the error is due to an expired token
+            if e.response['Error']['Code'] == 'ExpiredToken':
+                LOGGER.warning("Token expired, refreshing credentials...")
+                refresh_session(config)
+                # Re-create the S3 client with new credentials
+                s3_client = create_s3_client()
+                paginator = s3_client.get_paginator('list_objects_v2')  # Recreate paginator with new client
+            else:
+                LOGGER.error("Failed to list files: %s", e)
+                raise
 
     if s3_object_count > 0:
         LOGGER.info("Found %s files.", s3_object_count)
@@ -558,12 +589,26 @@ def list_files_in_bucket(config, search_prefix=None):
 
 @retry_pattern
 def get_file_handle(config, s3_path):
-    bucket = config['bucket']
-    # Set connect and read timeout for resource
-    timeout = get_request_timeout(config)
-    client_config = Config(connect_timeout=timeout,  read_timeout=timeout)
-    s3_client = boto3.resource('s3', config=client_config)
+    def create_s3_resource():
+        timeout = get_request_timeout(config)
+        client_config = Config(connect_timeout=timeout, read_timeout=timeout)
+        return boto3.resource('s3', config=client_config)
 
-    s3_bucket = s3_client.Bucket(bucket)
+    s3_resource = create_s3_resource()
+    bucket = config['bucket']
+    s3_bucket = s3_resource.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
-    return s3_object.get()['Body']
+
+    while True:
+        try:
+            return s3_object.get()['Body']
+        except ClientError as e:
+            if e.response['Error']['Code'] == 'ExpiredToken':
+                LOGGER.warning("Token expired, refreshing credentials...")
+                refresh_session(config)
+                s3_resource = create_s3_resource()
+                s3_bucket = s3_resource.Bucket(bucket)
+                s3_object = s3_bucket.Object(s3_path)
+            else:
+                LOGGER.error("Failed to get file handle: %s", e)
+                raise
