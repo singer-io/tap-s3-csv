@@ -559,16 +559,24 @@ def list_files_in_bucket(config, search_prefix=None):
     paginator = s3_client.get_paginator('list_objects_v2')
     LOGGER.info("in list_files_in_bucket.......2")
     pages = 0
+    continuation_token = None
 
     while True:
         try:
+            if continuation_token:
+                args['ContinuationToken'] = continuation_token
+
             for page in paginator.paginate(**args):
                 LOGGER.info("in list_files_in_bucket.......3")
                 pages += 1
                 LOGGER.debug("On page %s", pages)
                 s3_object_count += len(page.get('Contents', []))
                 yield from page.get('Contents', [])
-            break  # Break if pagination is successful
+                LOGGER.info("sleeping for 15 mins in list function")
+                # time.sleep(950)
+                continuation_token = page.get('NextContinuationToken')
+                # time.sleep(950)
+            break
         except ClientError as e:
             # Check if the error is due to an expired token
             if e.response['Error']['Code'] == 'ExpiredToken':
@@ -576,7 +584,7 @@ def list_files_in_bucket(config, search_prefix=None):
                 refresh_session(config)
                 # Re-create the S3 client with new credentials
                 s3_client = create_s3_client()
-                paginator = s3_client.get_paginator('list_objects_v2')  # Recreate paginator with new client
+                paginator = s3_client.get_paginator('list_objects_v2')
             else:
                 LOGGER.error("Failed to list files: %s", e)
                 raise
@@ -598,6 +606,7 @@ def get_file_handle(config, s3_path):
     bucket = config['bucket']
     s3_bucket = s3_resource.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
+    # time.sleep(950)
 
     while True:
         try:
