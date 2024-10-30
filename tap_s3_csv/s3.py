@@ -144,7 +144,7 @@ def setup_aws_client(config):
         CredentialResolver([AssumeRoleProvider(fetcher_cust)])
     )
 
-    LOGGER.info("Attempting to assume Role in Account B and then in Account C")
+    LOGGER.info("Attempting to assume_role on RoleArn: %s", cust_role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session_cust)
 
 def get_sampled_schema_for_table(config, table_spec):
