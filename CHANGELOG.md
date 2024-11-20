@@ -1,8 +1,12 @@
 # Changelog
 
+## 1.3.9
+  * Handle S3 files race condition
+  * [#67](https://github.com/singer-io/tap-s3-csv/pull/67)
+
 ## 1.3.8
   * Add Missing Type Information in JSON Schema
-  * [#55](https://github.com/singer-io/tap-s3-csv/pull/62)
+  * [#62](https://github.com/singer-io/tap-s3-csv/pull/62)
 
 ## 1.3.7
   * Remove Backoff for Access Denied errors

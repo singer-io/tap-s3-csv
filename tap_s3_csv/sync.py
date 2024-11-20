@@ -20,7 +20,7 @@ from tap_s3_csv import (
 
 LOGGER = singer.get_logger()
 
-def sync_stream(config, state, table_spec, stream):
+def sync_stream(config, state, table_spec, stream, sync_start_time):
     table_name = table_spec['table_name']
     modified_since = singer_utils.strptime_with_tz(singer.get_bookmark(state, table_name, 'modified_since') or
                                             config['start_date'])
@@ -40,8 +40,10 @@ def sync_stream(config, state, table_spec, stream):
     for s3_file in sorted(s3_files, key=lambda item: item['last_modified']):
         records_streamed += sync_table_file(
             config, s3_file['key'], table_spec, stream)
-
-        state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
+        if s3_file['last_modified'] < sync_start_time:
+            state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
+        else:
+            state = singer.write_bookmark(state, table_name, 'modified_since', sync_start_time.isoformat())
         singer.write_state(state)
 
     if s3.skipped_files_count:
