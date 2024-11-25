@@ -79,7 +79,8 @@ def main():
             break
         LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
     except:
-        s3.setup_aws_client(config)
+        # s3.setup_aws_client(config)
+        pass
 
     if args.discover:
         do_discover(args.config)
