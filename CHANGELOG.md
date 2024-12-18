@@ -1,7 +1,7 @@
 # Changelog
 
 ## 1.4.0
-  * Add proxy AWS Account as a middleware to mask the Qlik AWS account ID
+  * Adds proxy AWS Account support
   * [#69](https://github.com/singer-io/tap-s3-csv/pull/69)
 
 ## 1.3.9
