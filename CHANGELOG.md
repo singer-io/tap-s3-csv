@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.0
+  * Adds proxy AWS Account support
+  * [#69](https://github.com/singer-io/tap-s3-csv/pull/69)
+
 ## 1.3.9
   * Handle S3 files race condition
   * [#67](https://github.com/singer-io/tap-s3-csv/pull/67)

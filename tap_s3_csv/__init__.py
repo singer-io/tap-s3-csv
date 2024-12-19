@@ -83,7 +83,13 @@ def main():
             break
         LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
     except:
-        s3.setup_aws_client(config)
+        # Check if proxy_account_id and proxy_role_name are in config
+        if 'proxy_account_id' in config and 'proxy_role_name' in config:
+            # If both are present, call setup_aws_client_with_proxy
+            s3.setup_aws_client_with_proxy(config)
+        else:
+            # Otherwise, call setup_aws_client
+            s3.setup_aws_client(config)
 
     if args.discover:
         do_discover(args.config)
