@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.1
+## 1.5.0
   * Changes JSONFileCache location [#70](https://github.com/singer-io/tap-s3-csv/pull/70)
 
 ## 1.4.0
