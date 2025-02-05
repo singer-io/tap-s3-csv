@@ -121,6 +121,7 @@ def setup_aws_client_with_proxy(config):
     proxy_role_arn = "arn:aws:iam::{}:role/{}".format(config['proxy_account_id'].replace('-', ''),
                                                           config['proxy_role_name'])
     cust_role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''), config['role_name'])
+    credentials_cache_path = config.get("credentials_cache_path", JSONFileCache.CACHE_DIR)
 
     # Step 1: Assume Role in Account Proxy and set up refreshable session
     session_proxy = Session()
@@ -132,7 +133,7 @@ def setup_aws_client_with_proxy(config):
             'DurationSeconds': 3600,
             'RoleSessionName': 'ProxySession'
         },
-        cache=JSONFileCache()
+        cache=JSONFileCache(credentials_cache_path)
     )
 
     # Refreshable credentials for Account Proxy
@@ -153,7 +154,7 @@ def setup_aws_client_with_proxy(config):
             'RoleSessionName': 'TapS3CSVCustSession',
             'ExternalId': config['external_id']
         },
-        cache=JSONFileCache()
+        cache=JSONFileCache(credentials_cache_path)
     )
 
     # Set up refreshable session for Customer Account
