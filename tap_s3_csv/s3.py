@@ -132,7 +132,7 @@ def setup_aws_client_with_proxy(config):
             'DurationSeconds': 3600,
             'RoleSessionName': 'ProxySession'
         },
-        cache=JSONFileCache()
+        cache=JSONFileCache("/tmp")
     )
 
     # Refreshable credentials for Account Proxy
@@ -153,7 +153,7 @@ def setup_aws_client_with_proxy(config):
             'RoleSessionName': 'TapS3CSVCustSession',
             'ExternalId': config['external_id']
         },
-        cache=JSONFileCache()
+        cache=JSONFileCache("/tmp")
     )
 
     # Set up refreshable session for Customer Account
