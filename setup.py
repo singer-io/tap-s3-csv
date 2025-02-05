@@ -3,7 +3,7 @@
 from setuptools import setup
 
 setup(name='tap-s3-csv',
-      version='1.4.0',
+      version='1.4.1',
       description='Singer.io tap for extracting CSV files from S3',
       author='Stitch',
       url='https://singer.io',

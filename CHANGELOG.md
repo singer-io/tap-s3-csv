@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.4.1
+  * Changes JSONFileCache location [#70](https://github.com/singer-io/tap-s3-csv/pull/70)
+
 ## 1.4.0
   * Adds proxy AWS Account support
   * [#69](https://github.com/singer-io/tap-s3-csv/pull/69)
