@@ -3,6 +3,7 @@ import random
 import csv
 import cchardet as chardet
 import clevercsv
+from clevercsv.dialect import SimpleDialect
 
 from tap_s3_csv import s3, preprocess
 
@@ -172,6 +173,18 @@ def detect_dialect(config, s3_file, table):
                 sample = '\n'.join(decoded)
                 dialect = clevercsv.Sniffer().sniff(
                     sample, [',', ';', '|', '^', '\t', ' '])
+                
+                # clevercsv sniffer can return None if undecided or if it has any trouble reading
+                if dialect == None:
+
+                    # reduces confusion on escape characters and new line characters
+                    sample = repr(sample)
+                    dialect = clevercsv.Sniffer().sniff(
+                    sample, [',', ';', '|', '^', '\t', ' '])
+
+                    # if there is still confusion default
+                    if dialect == None:
+                        dialect = SimpleDialect(',', '"', '')
                 delimiter = dialect.delimiter
 
                 # we're currently only using clevercsv for dialect detection, csv can only handle 1 character
