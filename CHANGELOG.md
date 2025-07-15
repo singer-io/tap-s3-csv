@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.5.1
+  * Bump dependency versions for twistlock compliance [#72](https://github.com/singer-io/tap-s3-csv/pull/72)
+
 ## 1.5.0
   * Changes JSONFileCache location [#70](https://github.com/singer-io/tap-s3-csv/pull/70)
 
