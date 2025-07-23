@@ -4,22 +4,22 @@ orbs:
 jobs:
   build:
     docker:
-      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester
+      - image: 218546966473.dkr.ecr.us-east-1.amazonaws.com/circle-ci:stitch-tap-tester-uv
     steps:
       - checkout
       - run:
           name: 'Setup virtual env'
           command: |
-            virtualenv -p python3 /usr/local/share/virtualenvs/tap-s3-csv
+            uv venv --python 3.12 /usr/local/share/virtualenvs/tap-s3-csv
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
-            pip install .
-            pip install pylint
+            uv pip install .
+            uv pip install pylint
             pylint tap_s3_csv -d duplicate-code,consider-using-f-string,logging-format-interpolation,missing-docstring,invalid-name,line-too-long,too-many-locals,too-few-public-methods,fixme,stop-iteration-return,broad-except,bare-except,unused-variable,unnecessary-comprehension,no-member,deprecated-method,protected-access,broad-exception-raised,too-many-positional-arguments
       - run:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
-            pip install nose coverage parameterized
+            uv pip install nose coverage parameterized
             nosetests --with-coverage --cover-erase --cover-package=tap_s3_csv --cover-html-dir=htmlcov tests/unittests
             coverage html
       - store_test_results:
