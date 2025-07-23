@@ -19,8 +19,8 @@ jobs:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
-            uv pip install nose coverage parameterized
-            nosetests --with-coverage --cover-erase --cover-package=tap_s3_csv --cover-html-dir=htmlcov tests/unittests
+            uv pip install pytest coverage parameterized
+            coverage run -m pytest tests/unittests
             coverage html
       - store_test_results:
           path: test_output/report.xml
