@@ -19,7 +19,7 @@ jobs:
           name: 'Unit Tests'
           command: |
             source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
-            pip install pytest coverage parameterized
+            uv pip install pytest coverage parameterized
             coverage run -m pytest tests/unittests
             coverage html
       - store_test_results:
