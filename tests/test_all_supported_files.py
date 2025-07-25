@@ -111,8 +111,8 @@ class S3AllFilesSupport(S3CSVBaseTest):
         no_records = len(csv_records) + len(jsonl_records) + len(gz_has_csv_records) + len(gz_has_jsonl_records) + len(zip_records)
         self.assertEqual(expected_records, no_records)
 
-        self.assertEquals(expected_csv_records, csv_records)
-        self.assertEquals(expected_jsonl_records, jsonl_records)
-        self.assertEquals(expected_gz_has_csv_records, gz_has_csv_records)
-        self.assertEquals(expected_gz_has_jsonl_records, gz_has_jsonl_records)
-        self.assertEquals(expected_zip_records, zip_records)
+        self.assertEqual(expected_csv_records, csv_records)
+        self.assertEqual(expected_jsonl_records, jsonl_records)
+        self.assertEqual(expected_gz_has_csv_records, gz_has_csv_records)
+        self.assertEqual(expected_gz_has_jsonl_records, gz_has_jsonl_records)
+        self.assertEqual(expected_zip_records, zip_records)
