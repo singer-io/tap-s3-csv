@@ -15,7 +15,7 @@ setup(name='tap-s3-csv',
           'urllib3==2.5.0',
           'singer-encodings==0.1.2',
           'singer-python==5.13.2',
-          'voluptuous==0.10.5'
+          'voluptuous==0.15.2'
       ],
       extras_require={
           'dev': [
