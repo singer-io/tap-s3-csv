@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.5.2
+  * Bump `voluptuous` version for python compatibility [#76](https://github.com/singer-io/tap-s3-csv/pull/76)
+
 ## 1.5.1
   * Bump dependency versions for twistlock compliance [#72](https://github.com/singer-io/tap-s3-csv/pull/72)
 
