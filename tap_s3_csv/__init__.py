@@ -82,17 +82,16 @@ def main():
     now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
     sync_start_time = singer_utils.strptime_with_tz(now_str)
 
-    try:
-        for page in s3.list_files_in_bucket(config):
-            break
-        LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
-    except:
-        # Check if proxy_account_id and proxy_role_name are in config
-        if 'proxy_account_id' in config and 'proxy_role_name' in config:
-            # If both are present, call setup_aws_client_with_proxy
-            s3.setup_aws_client_with_proxy(config)
-        else:
-            # Otherwise, call setup_aws_client
+    if 'proxy_account_id' in config and 'proxy_role_name' in config:
+        # Bypass the check for direct access if using a proxy account to avoid
+        # leaking the account ID of the originating account
+        s3.setup_aws_client_with_proxy(config)
+    else:
+        try:
+            for page in s3.list_files_in_bucket(config):
+                break
+            LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
+        except:
             s3.setup_aws_client(config)
 
     if args.discover:
