@@ -55,7 +55,11 @@ def validate_table_config(config):
     tables_config = json.loads(config['tables'])
 
     for table_config in tables_config:
-        if ('search_prefix' in table_config) and (table_config.get('search_prefix') is None):
+        if search_prefix := table_config.get('search_prefix'):
+            # Root dir is implicit
+            if search_prefix.startswith('/'):
+                table_config['search_prefix'] = search_prefix[1:]
+        else:
             table_config.pop('search_prefix')
         if table_config.get('key_properties') == "" or table_config.get('key_properties') is None:
             table_config['key_properties'] = []
