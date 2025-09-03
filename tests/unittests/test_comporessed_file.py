@@ -101,7 +101,7 @@ class TestCompressedFileSupport(unittest.TestCase):
 
         files = s3.get_files_to_sample(config, sample_keys, max_files)
 
-        self.assertEquals(max_files, len(files))
+        self.assertEqual(max_files, len(files))
 
 
     @mock.patch("tap_s3_csv.s3.get_file_handle")
@@ -267,7 +267,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
         actual_output = s3.get_files_to_sample(config, [sample_key], 5)
 
-        self.assertEquals(0,len(actual_output))
+        self.assertEqual(0,len(actual_output))
 
         mocked_logger.assert_called_with('Skipping "%s" file as .tar.gz extension is not supported',sample_key["key"])
 
@@ -285,7 +285,7 @@ class TestUnsupportedFiles(unittest.TestCase):
             mocked_file_handle.return_value = zip_file.fp
             mocked_infer.return_value = [zip_file.open(file) for file in zip_file.namelist()]
             actual_output = s3.get_files_to_sample(config, [sample_key], 5)
-            self.assertEquals(0,len(actual_output))
+            self.assertEqual(0,len(actual_output))
 
 
     def test_sampling_of_tar_gz_file_samples(self, mocked_logger):

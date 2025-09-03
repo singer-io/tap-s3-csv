@@ -147,8 +147,8 @@ class TestConnectTimeoutErrorBackoff(unittest.TestCase):
             pass
     
         # Verify that resource ans Config object called 5 times
-        self.assertEquals(mocked_resource.call_count, 5)
-        self.assertEquals(mocked_boto_config.call_count, 5)
+        self.assertEqual(mocked_resource.call_count, 5)
+        self.assertEqual(mocked_boto_config.call_count, 5)
 
     def test_connect_timeout_on_make_request(self, mocked_sleep):
         """
@@ -166,7 +166,7 @@ class TestConnectTimeoutErrorBackoff(unittest.TestCase):
             pass
     
         # Verify that PageIterator.method called 5 times
-        self.assertEquals(mocked_method.call_count, 5)
+        self.assertEqual(mocked_method.call_count, 5)
 
 
 # Mock objects for boto resource
@@ -200,8 +200,8 @@ class TestReadTimeoutErrorBackoff(unittest.TestCase):
             pass
 
         # Verify that resource ans Config object called 5 times
-        self.assertEquals(mocked_resource.call_count, 5)
-        self.assertEquals(mocked_boto_config.call_count, 5)
+        self.assertEqual(mocked_resource.call_count, 5)
+        self.assertEqual(mocked_boto_config.call_count, 5)
 
     def test_read_timeout_on_make_request(self, mocked_sleep):
         """
@@ -219,4 +219,4 @@ class TestReadTimeoutErrorBackoff(unittest.TestCase):
             pass
     
         # Verify that PageIterator.method called 5 times
-        self.assertEquals(mocked_method.call_count, 5)
+        self.assertEqual(mocked_method.call_count, 5)
