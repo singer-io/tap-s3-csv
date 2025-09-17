@@ -15,7 +15,7 @@ jobs:
             uv pip install .
             uv pip install pylint
             ## my extra junk
-            apt-get update && apt-get install git
+            apt-get update && apt-get install -y git
             git clone git@github.com:singer-io/singer-encodings.git
             cd singer-encodings
             git checkout SAC-28668-add-parquet-support
