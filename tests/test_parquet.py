@@ -2,8 +2,26 @@ import unittest
 from tap_tester import connections, menagerie, runner
 
 class ParquetSyncFileTest(unittest.TestCase):
-    def test_run(self):
-        props = {
+    def resource_name(self):
+        return ["parquetfile1.parquet"]
+
+    def name(self):
+        return "test_parquet"
+
+    def expected_check_streams(self):
+        return {"parquet"}
+
+    def expected_sync_streams(self):
+        return {"parquet"}
+
+    def expected_pks(self):
+        return {"parquet": set()}
+
+    def expected_automatic_fields(self):
+        return {"parquet": set()}
+
+    def get_properties(self, original = True):
+        return {
             'start_date' : '2021-11-02T00:00:00Z',
             'bucket': 'tap-s3-csv-test-bucket',
             'account_id': '218546966473',
@@ -14,6 +32,7 @@ class ParquetSyncFileTest(unittest.TestCase):
             }]
         }
 
+    def test_run(self):
         conn_id = connections.ensure_connection(self)
         check_job_name = runner.run_check_mode(self, conn_id)
         exit_status = menagerie.get_exit_status(conn_id, check_job_name)
