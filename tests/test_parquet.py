@@ -1,7 +1,8 @@
 import unittest
+from base import S3CSVBaseTest
 from tap_tester import connections, menagerie, runner
 
-class ParquetSyncFileTest(unittest.TestCase):
+class ParquetSyncFileTest(S3CSVBaseTest):
     def resource_name(self):
         return ["parquetfile1.parquet"]
 
