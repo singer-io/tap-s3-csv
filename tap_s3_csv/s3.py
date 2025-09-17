@@ -8,6 +8,7 @@ import sys
 import backoff
 import boto3
 import singer
+import s3fs
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -22,13 +23,16 @@ from botocore.config import Config
 from botocore.paginate import PageIterator
 from singer_encodings import (
     compression,
-    csv
+    csv,
+    parquet
 )
 
 from tap_s3_csv import (
     utils,
     conversion
 )
+
+fs = s3fs.S3FileSystem()
 
 LOGGER = singer.get_logger()
 
@@ -254,6 +258,23 @@ def get_records_for_csv(s3_path, sample_rate, iterator):
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
 
+def get_records_for_parquet(s3_path, sample_rate, iterator):
+
+    current_row = 0
+    sampled_row_count = 0
+
+    for row in iterator:
+        if (current_row % sample_rate) == 0:
+            sampled_row_count += 1
+            if (sampled_row_count % 200) == 0:
+                LOGGER.info("Sampled %s rows from %s",
+                            sampled_row_count, s3_path)
+            yield row
+
+        current_row += 1
+
+    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
+
 def get_records_for_jsonl(s3_path, sample_rate, iterator):
 
     current_row = 0
@@ -371,6 +392,16 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
             table_spec, jsonl_sample_records, s3_path)
 
         return records
+
+    if extension == "parquet":
+        iterator = parquet.get_row_iterator(file_handle)
+        if iterator:
+            return get_records_for_parquet(s3_path, sample_rate, iterator)
+        else:
+            LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+            skipped_files_count = skipped_files_count + 1
+            return []
+
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
         skipped_files_count = skipped_files_count + 1
@@ -398,7 +429,7 @@ def get_files_to_sample(config, s3_files, max_files):
     global skipped_files_count
     sampled_files = []
 
-    OTHER_FILES = ["csv","gz","jsonl","txt"]
+    OTHER_FILES = ["csv","gz","jsonl","txt","parquet"]
 
     for s3_file in s3_files:
         file_key = s3_file.get('key')
@@ -409,7 +440,11 @@ def get_files_to_sample(config, s3_files, max_files):
         if file_key:
             file_name = file_key.split("/").pop()
             extension = file_name.split(".").pop().lower()
-            file_handle = get_file_handle(config, file_key)
+            file_handle = None
+            if extension == 'parquet':
+                file_handle = get_s3fs_file_handle(config, file_key)
+            else:
+                file_handle = get_file_handle(config, file_key)
 
             # Check whether file is without extension or not
             if not extension or file_name.lower() == extension:
@@ -580,3 +615,8 @@ def get_file_handle(config, s3_path):
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
     return s3_object.get()['Body']
+
+@retry_pattern
+def get_s3fs_file_handle(config, s3_path):
+    bucket = config['bucket']
+    return fs.open(f's3://{bucket}/{s3_path}', 'rb')
