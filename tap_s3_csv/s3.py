@@ -183,6 +183,7 @@ def get_sampled_schema_for_table(config, table_spec):
 
     if not samples:
         #Return empty properties for accept everything from data if no samples found
+        LOGGER.info("No samples found, returning empty props")
         return {
             'type': 'object',
             'properties': {}
