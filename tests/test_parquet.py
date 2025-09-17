@@ -3,6 +3,9 @@ from base import S3CSVBaseTest
 from tap_tester import connections, menagerie, runner
 
 class ParquetSyncFileTest(S3CSVBaseTest):
+
+    table_entry = [{'table_name': 'sample_parquet', 'search_prefix': '', 'search_pattern': 'parquetfile1.parquet'}]
+
     def resource_name(self):
         return ["parquetfile1.parquet"]
 
@@ -20,18 +23,6 @@ class ParquetSyncFileTest(S3CSVBaseTest):
 
     def expected_automatic_fields(self):
         return {"parquet": set()}
-
-    def get_properties(self, original = True):
-        return {
-            'start_date' : '2021-11-02T00:00:00Z',
-            'bucket': 'tap-s3-csv-test-bucket',
-            'account_id': '218546966473',
-            'tables': [{
-                'table_name': 'sample_parquet',
-                'search_prefix': '',
-                'search_pattern': 'parquetfile1.parquet'
-            }]
-        }
 
     def test_run(self):
         conn_id = connections.ensure_connection(self)
