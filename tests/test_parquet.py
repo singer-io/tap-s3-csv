@@ -1,3 +1,4 @@
+import json
 import unittest
 from base import S3CSVBaseTest
 from tap_tester import connections, menagerie, runner
@@ -23,6 +24,19 @@ class ParquetSyncFileTest(S3CSVBaseTest):
 
     def expected_automatic_fields(self):
         return {"parquet": set()}
+
+    def get_properties(self, original: bool = True):
+        props = {
+            'start_date' : '2021-11-02T00:00:00Z',
+            'bucket': 'tap-s3-csv-test-bucket',
+            'account_id': '218546966473',
+            'tables': json.dumps(self.table_entry)
+        }
+        if original:
+            return props
+
+        props['start_date'] = self.START_DATE
+        return props
 
     def test_run(self):
         conn_id = connections.ensure_connection(self)
