@@ -198,11 +198,9 @@ def get_sampled_schema_for_table(config, table_spec):
     }
 
     data_schema = conversion.generate_schema2(samples)
+    data_schema['properties'] = merge_dicts(data_schema.get('properties'), metadata_schema)
 
-    return {
-        'type': 'object',
-        'properties': merge_dicts(data_schema, metadata_schema)
-    }
+    return data_schema
 
 def merge_dicts(first, second):
     to_return = first.copy()
