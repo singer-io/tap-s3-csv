@@ -42,7 +42,7 @@ jobs:
             uv pip install --upgrade awscli
             aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
             source dev_env.sh
-            run-test --tap=tap-s3-csv tests/test_zip_with_csv_files.py
+            run-test --tap=tap-s3-csv tests/test_zip_contains_csv_with_jsonl.py
       - slack/notify-on-failure:
           only_for_branches: master
 
