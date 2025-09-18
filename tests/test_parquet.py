@@ -5,7 +5,8 @@ from tap_tester import connections, menagerie, runner
 
 class ParquetSyncFileTest(S3CSVBaseTest):
 
-    table_entry = [{'table_name': 'sample_parquet', 'search_prefix': '', 'search_pattern': 'parquetfile1.parquet'}]
+    table_entry = [{'table_name': 'sample_parquet', 'search_prefix': '', 'search_pattern': 'parquetfile1.parquet'},
+                   {'table_name': 'sample_parquet', 'search_prefix': '', 'search_pattern': 'nestedparquetfile.parquet'}]
 
     def resource_name(self):
         return ["parquetfile1.parquet"]
