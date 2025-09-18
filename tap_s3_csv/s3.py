@@ -175,7 +175,7 @@ def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
     s3_files_gen = get_input_files_for_table(config, table_spec)
-
+    LOGGER.info(f's3_files_gen: {[x for x in s3_files_gen]}')
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
     if skipped_files_count:
@@ -197,10 +197,12 @@ def get_sampled_schema_for_table(config, table_spec):
             'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}}
     }
 
-    data_schema = conversion.generate_schema2(samples)
-    data_schema['properties'] = merge_dicts(data_schema.get('properties'), metadata_schema)
+    data_schema = conversion.generate_schema(samples, table_spec)
 
-    return data_schema
+    return {
+        'type': 'object',
+        'properties': merge_dicts(data_schema, metadata_schema)
+    }
 
 def merge_dicts(first, second):
     to_return = first.copy()

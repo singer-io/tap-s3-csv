@@ -79,5 +79,4 @@ class TestGetSampledSchema(unittest.TestCase):
             }
         }
 
-        print(returned_schema)
         self.assertEqual(returned_schema, expected_schema)
