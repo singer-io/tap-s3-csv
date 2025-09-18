@@ -234,7 +234,7 @@ def to_json_schema(obs):
 
     return result
 
-def generate_schema2(samples, table_spec):
+def generate_schema2(samples):
     obs = {}
     for record in samples:
         obs = add_observations(obs, [], record)
