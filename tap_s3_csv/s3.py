@@ -197,7 +197,7 @@ def get_sampled_schema_for_table(config, table_spec):
             'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}}
     }
 
-    data_schema = conversion.generate_schema(samples, table_spec)
+    data_schema = conversion.generate_schema2(samples)
 
     return {
         'type': 'object',
