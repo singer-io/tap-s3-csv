@@ -174,13 +174,12 @@ def setup_aws_client_with_proxy(config):
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
-    LOGGER.info('CONFIG', config)
-    LOGGER.info('TABLE_SPEC', table_spec)
+    LOGGER.info(f'CONFIG {config}')
+    LOGGER.info(f'TABLE_SPEC {table_spec}')
     s3_files_gen = get_input_files_for_table(config, table_spec)
 
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
-    LOGGER.info('SAMPLES', samples)
     if skipped_files_count:
         LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
 
