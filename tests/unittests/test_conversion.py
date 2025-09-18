@@ -99,8 +99,8 @@ class TestConversion(unittest.TestCase):
 
     @mock.patch('tap_s3_csv.conversion.count_sample',side_effect=mock_count_sample)
     def test_generate_schema(self,mock_count_sample):
+        self.maxDiff = None
         samples = [{'name': 'test', 'id': 3, 'marks': [45.85, 25.38], 'students': {'no': 5, 'col': 6}, 'created_at': '20-05-2021', 'tota': []}]
-        table_spec = {'search_prefix': '', 'search_pattern': 'test\\/.*\\.jsonl', 'table_name': 'jsonl_table', 'key_properties': ['id'],'date_overrides': ['created_at'], 'delimiter': ','}
         res = conversion.generate_schema2(samples)
         expected_result = {'name': {'type': ['null', 'string']}, 'id': {'type': ['null', 'integer', 'string']}, 'marks': {'anyOf': [{'type': 'array', 'items': {'type': ['null', 'number', 'string']}}, {'type': ['null', 'string']}]}, 'students': {'anyOf': [{'type': 'object', 'properties': {}}, {'type': ['null', 'string']}]}, 'created_at': {'anyOf': [{'type': ['null', 'string'], 'format': 'date-time'}, {'type': ['null', 'string']}]}, 'tota': {'anyOf': [{'type': 'array', 'items': {'type': ['null', 'string']}}, {'type': ['null', 'string']}]}}
         self.assertEqual(res, expected_result)
