@@ -5,9 +5,7 @@ from tap_tester import connections, menagerie, runner
 
 class ParquetSyncFileTest(S3CSVBaseTest):
 
-    table_entry = [{'table_name': 'sample_parquet', 'search_prefix': '', 'search_pattern': '.*.parquet'},
-                   # {'table_name': 'sample_parquet', 'search_prefix': '', 'search_pattern': 'nestedparquetfile.parquet'}
-                   ]
+    table_entry = [{'table_name': 'sample_parquet', 'search_prefix': '', 'search_pattern': 'nestedparquetfile.parquet'}]
 
     def resource_name(self):
         return ["parquetfile1.parquet"]
@@ -48,4 +46,26 @@ class ParquetSyncFileTest(S3CSVBaseTest):
 
         c = menagerie.get_catalogs(conn_id)[0]
         c_annotated = menagerie.get_annotated_schema(conn_id, c['stream_id'])
-        print(c_annotated)
+
+        expected_schema = {
+            'type': 'object',
+            'properties': {
+                'id': {'type': ['null', 'integer', 'string'], 'inclusion': 'available'},
+                'data': {'anyOf': [{'type': 'object', 'properties': {}}, {'type': ['null', 'string']}], 'inclusion': 'available'},
+                '_sdc_source_bucket': {'type': 'string', 'inclusion': 'available'},
+                '_sdc_source_file': {'type': 'string', 'inclusion': 'available'},
+                '_sdc_source_lineno': {'type': 'integer', 'inclusion': 'available'},
+                '_sdc_extra': {'type': 'array', 'items': {'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}, 'inclusion': 'available'}}
+        }
+
+        self.assertEqual(expected_schema, c_annotated.get('annotated-schema'))
+
+        # Clear state before our run
+        menagerie.set_state(conn_id, {})
+
+        # Run a sync job using orchestrator
+        self.run_and_verify_sync(conn_id)
+
+        synced_records = runner.get_records_from_target_output()
+
+        print(synced_records)
