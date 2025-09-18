@@ -45,5 +45,5 @@ class ParquetSyncFileTest(S3CSVBaseTest):
         menagerie.verify_check_exit_status(self, exit_status, check_job_name)
 
         c = menagerie.get_catalogs(conn_id)[0]
-        c_annotated = menagerie.get_annotated_schema(self.conn_id, c['stream_id'])
+        c_annotated = menagerie.get_annotated_schema(conn_id, c['stream_id'])
         print(c_annotated)
