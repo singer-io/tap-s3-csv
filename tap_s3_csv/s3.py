@@ -175,7 +175,6 @@ def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
     s3_files_gen = get_input_files_for_table(config, table_spec)
-    LOGGER.info(f's3_files_gen: {[x for x in s3_files_gen]}')
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
     if skipped_files_count:
