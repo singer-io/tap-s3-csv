@@ -34,7 +34,6 @@ class TestGetSampledSchema(unittest.TestCase):
         '''
             properties should be as per samples if samples found from any files used in sampling
         '''
-        self.maxDiff = None
         config = {}
         table_spec = {}
         returned_schema = s3.get_sampled_schema_for_table(config, table_spec)
@@ -80,4 +79,5 @@ class TestGetSampledSchema(unittest.TestCase):
             }
         }
 
+        print(returned_schema)
         self.assertEqual(returned_schema, expected_schema)
