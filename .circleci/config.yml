@@ -16,24 +16,19 @@ jobs:
             uv pip install pylint
             ## my extra junk
             apt-get update && apt-get install -y git
-            git clone git@github.com:singer-io/singer-encodings.git
-            cd singer-encodings
-            git checkout SAC-28668-add-parquet-support
-            uv pip install .
-            uv pip install 'attrs==25.3.0'
-            cd ..
+            (git clone git@github.com:singer-io/singer-encodings.git && cd singer-encodings && git checkout SAC-28668-add-parquet-support && uv pip install .)
             # pylint tap_s3_csv -d duplicate-code,consider-using-f-string,logging-format-interpolation,missing-docstring,invalid-name,line-too-long,too-many-locals,too-few-public-methods,fixme,stop-iteration-return,broad-except,bare-except,unused-variable,unnecessary-comprehension,no-member,deprecated-method,protected-access,broad-exception-raised,too-many-positional-arguments
-      # - run:
-      #     name: 'Unit Tests'
-      #     command: |
-      #       source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
-      #       uv pip install pytest coverage parameterized
-      #       coverage run -m pytest tests/unittests
-      #       coverage html
-      # - store_test_results:
-      #     path: test_output/report.xml
-      # - store_artifacts:
-      #     path: htmlcov
+      - run:
+          name: 'Unit Tests'
+          command: |
+            source /usr/local/share/virtualenvs/tap-s3-csv/bin/activate
+            uv pip install pytest coverage parameterized
+            coverage run -m pytest tests/unittests
+            coverage html
+      - store_test_results:
+          path: test_output/report.xml
+      - store_artifacts:
+          path: htmlcov
       - add_ssh_keys
       - run:
           name: 'Integration Tests'
@@ -42,7 +37,7 @@ jobs:
             uv pip install --upgrade awscli
             aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
             source dev_env.sh
-            run-test --tap=tap-s3-csv tests/test_parquet.py
+            run-test --tap=tap-s3-csv tests
       - slack/notify-on-failure:
           only_for_branches: master
 

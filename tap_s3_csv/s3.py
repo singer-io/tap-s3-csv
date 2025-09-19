@@ -21,16 +21,14 @@ from botocore.exceptions import ClientError, ConnectTimeoutError, ReadTimeoutErr
 from botocore.session import Session
 from botocore.config import Config
 from botocore.paginate import PageIterator
+import singer.schema_generation as schema
 from singer_encodings import (
     compression,
     csv,
     parquet
 )
 
-from tap_s3_csv import (
-    utils,
-    conversion
-)
+from tap_s3_csv import utils
 
 fs = s3fs.S3FileSystem()
 
@@ -196,12 +194,10 @@ def get_sampled_schema_for_table(config, table_spec):
             'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}}
     }
 
-    data_schema = conversion.generate_schema(samples, table_spec)
+    data_schema = schema.generate_schema(samples)
+    data_schema['properties'] = merge_dicts(data_schema.get('properties', {}), metadata_schema)
 
-    return {
-        'type': 'object',
-        'properties': merge_dicts(data_schema, metadata_schema)
-    }
+    return data_schema
 
 def merge_dicts(first, second):
     to_return = first.copy()

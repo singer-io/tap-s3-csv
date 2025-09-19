@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0
+  * Adds support for parquet files
+  * Updates schema generation to allow for more robust (i.e. nested)
+    data structures
+  * [#79](https://github.com/singer-io/tap-s3-csv/pull/79)
+
 ## 1.5.3
   * Remove leading `/` from `search_prefix`
   * Connect using proxy account directly, if supplied in config
