@@ -14,7 +14,7 @@ setup(name='tap-s3-csv',
           'boto3==1.39.8',
           'urllib3==2.5.0',
           'singer-encodings==0.1.2', # 0.1.4 - update to released version before merging
-          'singer-python==5.14.0',
+          'singer-python==5.14.1',
           'voluptuous==0.15.2',
           's3fs==2025.9.0'
       ],
