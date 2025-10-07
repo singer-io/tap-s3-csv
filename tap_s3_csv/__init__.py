@@ -96,6 +96,8 @@ def main():
 
     if args.discover:
         do_discover(args.config)
+    elif args.catalog:
+        do_sync(config, args.catalog.to_dict(), args.state, sync_start_time)
     elif args.properties:
         do_sync(config, args.properties, args.state, sync_start_time)
 
