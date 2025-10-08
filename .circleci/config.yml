@@ -16,7 +16,6 @@ jobs:
             uv pip install pylint
             ## my extra junk
             apt-get update && apt-get install -y git
-            (git clone git@github.com:singer-io/singer-encodings.git && cd singer-encodings && git checkout SAC-28668-add-parquet-support && uv pip install .)
             # pylint tap_s3_csv -d duplicate-code,consider-using-f-string,logging-format-interpolation,missing-docstring,invalid-name,line-too-long,too-many-locals,too-few-public-methods,fixme,stop-iteration-return,broad-except,bare-except,unused-variable,unnecessary-comprehension,no-member,deprecated-method,protected-access,broad-exception-raised,too-many-positional-arguments
       - run:
           name: 'Unit Tests'

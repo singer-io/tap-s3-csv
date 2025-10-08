@@ -195,9 +195,18 @@ def get_sampled_schema_for_table(config, table_spec):
     }
 
     data_schema = schema.generate_schema(samples)
+    for key in data_schema.get('properties', {}):
+        if key in table_spec.get('date_overrides', []):
+            data_schema['properties'][key] = update_schema_to_be_a_date(data_schema['properties'][key])
     data_schema['properties'] = merge_dicts(data_schema.get('properties', {}), metadata_schema)
 
     return data_schema
+
+def update_schema_to_be_a_date(schema):
+    if 'anyOf' not in schema:
+        schema = {'anyOf': [schema]}
+    schema['anyOf'].append({'type': 'string', 'format': 'date-time'})
+    return schema
 
 def merge_dicts(first, second):
     to_return = first.copy()
