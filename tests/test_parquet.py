@@ -5,7 +5,7 @@ from tap_tester import connections, menagerie, runner
 
 class ParquetSyncFileTest(S3CSVBaseTest):
 
-    table_entry = [{'table_name': 'parquet', 'search_prefix': '', 'search_pattern': 'nestedparquetfile.parquet'}]
+    table_entry = [{'table_name': 'parquet', 'search_prefix': 'tap-s3-csv', 'search_pattern': 'nestedparquetfile.parquet'}]
 
     def resource_name(self):
         return ["parquetfile1.parquet"]
@@ -24,19 +24,6 @@ class ParquetSyncFileTest(S3CSVBaseTest):
 
     def expected_automatic_fields(self):
         return {"parquet": set()}
-
-    def get_properties(self, original: bool = True):
-        props = {
-            'start_date' : '2021-11-02T00:00:00Z',
-            'bucket': 'tap-s3-csv-test-bucket',
-            'account_id': '218546966473',
-            'tables': json.dumps(self.table_entry)
-        }
-        if original:
-            return props
-
-        props['start_date'] = self.START_DATE
-        return props
 
     def test_run(self):
         conn_id = connections.ensure_connection(self)
@@ -81,6 +68,12 @@ class ParquetSyncFileTest(S3CSVBaseTest):
 
         records = runner.get_records_from_target_output()
         actual_records = [record.get("data") for record in records.get("parquet").get("messages")]
-        expected_records = [{'id': n, 'data': {'foo': f'foo_{n}'}, '_sdc_source_bucket': 'tap-s3-csv-test-bucket', '_sdc_source_file': 'nestedparquetfile.parquet'} for n in range(5000)]
+        expected_records = [
+            {'id': n,
+             'data': {'foo': f'foo_{n}'},
+             '_sdc_source_bucket': 'com-stitchdata-prod-circleci-assets',
+             '_sdc_source_file': 'tap-s3-csv/nestedparquetfile.parquet',
+             '_sdc_source_lineno': n + 1}
+            for n in range(5000)]
 
         self.assertEqual(expected_records, actual_records)
