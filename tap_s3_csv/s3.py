@@ -203,8 +203,8 @@ def get_sampled_schema_for_table(config, table_spec):
 
     return data_schema
 
-def update_schema_to_be_a_date(schema):
-    result = schema
+def update_schema_to_be_a_date(data_schema):
+    result = data_schema
     if 'anyOf' not in result:
         result = {'anyOf': [result]}
     result['anyOf'] = [{'type': 'string', 'format': 'date-time'}] + result['anyOf']
