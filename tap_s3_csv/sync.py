@@ -239,7 +239,7 @@ def sync_parquet_file(config, file_handle, s3_path, table_spec, stream):
 
     records_synced = 0
 
-    if iterator:
+    if iterator is not None:
         for row in iterator:
 
             custom_columns = {

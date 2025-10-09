@@ -7,7 +7,6 @@ import gzip
 import sys
 import backoff
 import boto3
-import singer
 import s3fs
 
 from botocore.credentials import (
@@ -21,6 +20,8 @@ from botocore.exceptions import ClientError, ConnectTimeoutError, ReadTimeoutErr
 from botocore.session import Session
 from botocore.config import Config
 from botocore.paginate import PageIterator
+
+import singer
 import singer.schema_generation as schema
 from singer_encodings import (
     compression,
@@ -203,10 +204,11 @@ def get_sampled_schema_for_table(config, table_spec):
     return data_schema
 
 def update_schema_to_be_a_date(schema):
-    if 'anyOf' not in schema:
-        schema = {'anyOf': [schema]}
-    schema['anyOf'].append({'type': 'string', 'format': 'date-time'})
-    return schema
+    result = schema
+    if 'anyOf' not in result:
+        result = {'anyOf': [result]}
+    result['anyOf'] = [{'type': 'string', 'format': 'date-time'}] + result['anyOf']
+    return result
 
 def merge_dicts(first, second):
     to_return = first.copy()
@@ -400,12 +402,11 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
 
     if extension == "parquet":
         iterator = parquet.get_row_iterator(file_handle)
-        if iterator:
+        if iterator is not None:
             return get_records_for_parquet(s3_path, sample_rate, iterator)
-        else:
-            LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
-            skipped_files_count = skipped_files_count + 1
-            return []
+        LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+        skipped_files_count = skipped_files_count + 1
+        return []
 
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
