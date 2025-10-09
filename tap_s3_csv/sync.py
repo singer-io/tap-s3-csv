@@ -247,7 +247,7 @@ def sync_parquet_file(config, file_handle, s3_path, table_spec, stream):
                 s3.SDC_SOURCE_FILE_COLUMN: s3_path,
 
                 # index zero, +1 for header row
-                # s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 1
+                s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 1
             }
             rec = {**row, **custom_columns}
 
