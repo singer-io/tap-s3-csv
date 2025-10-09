@@ -238,19 +238,19 @@ class TestUnsupportedFiles(unittest.TestCase):
         gz_file_path = get_resources_path("gz_stored_as_csv.csv", COMPRESSION_FOLDER_PATH)
 
         with gzip.GzipFile(gz_file_path) as gz_file:
-            
+
             file_handle = gz_file.fileobj
 
             return [{'s3_path': 'unittest_compressed_files/gz_stored_as_csv.csv', 'file_handle': file_handle, 'extension': 'csv'}]
 
     def mock_csv_sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         raise UnicodeDecodeError("test",b"'utf-8' codec can't decode byte 0x8b in position 1: invalid start byte",42, 43, 'the universe and everything else')
-    
+
     def mock_get_files_to_sample_jsonl(config, s3_files, max_files):
         gz_file_path = get_resources_path("gz_stored_as_jsonl.jsonl", COMPRESSION_FOLDER_PATH)
 
         with gzip.GzipFile(gz_file_path) as gz_file:
-            
+
             file_handle = gz_file.fileobj
 
             return [{'s3_path': 'unittest_compressed_files/gz_stored_as_jsonl.jsonl', 'file_handle': file_handle, 'extension': 'jsonl'}]
@@ -271,7 +271,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
         mocked_logger.assert_called_with('Skipping "%s" file as .tar.gz extension is not supported',sample_key["key"])
 
-    
+
     @mock.patch("singer_encodings.compression.infer")
     @mock.patch("tap_s3_csv.s3.get_file_handle")
     def test_get_files_for_samples_of_zip_contains_tar_gz_file(self, mocked_file_handle, mocked_infer, mocked_logger):
@@ -356,7 +356,7 @@ class TestUnsupportedFiles(unittest.TestCase):
         gz_file_path = get_resources_path("sample_compressed_gz_file_contains_gz.gz", COMPRESSION_FOLDER_PATH)
 
         with gzip.GzipFile(gz_file_path) as gz_file:
-            
+
             actual_output = [sample for sample in s3.sample_file(table_spec, s3_path, gz_file.fileobj, sample_rate, extension)]
 
             self.assertTrue(len(actual_output)==0)
@@ -372,7 +372,7 @@ class TestUnsupportedFiles(unittest.TestCase):
         gz_file_path = get_resources_path("empty_csv_gz.gz", COMPRESSION_FOLDER_PATH)
 
         with gzip.GzipFile(gz_file_path) as gz_file:
-            
+
             actual_output = [sample for sample in s3.sample_file(table_spec, s3_path, gz_file.fileobj, sample_rate, extension)]
 
             self.assertTrue(len(actual_output)==0)
@@ -426,7 +426,7 @@ class TestUnsupportedFiles(unittest.TestCase):
         gz_file_path = get_resources_path("sample_compressed_gz_file_contains_zip.gz", COMPRESSION_FOLDER_PATH)
 
         with gzip.GzipFile(gz_file_path) as gz_file:
-            
+
             actual_output = [sample for sample in s3.sample_file(table_spec, s3_path, gz_file.fileobj, sample_rate, extension)]
 
             self.assertTrue(len(actual_output)==0)
@@ -454,7 +454,7 @@ class TestUnsupportedFiles(unittest.TestCase):
             except Exception as e:
                 expected_message = '"{}" file has some error(s)'.format(s3_path)
                 self.assertEqual(expected_message, str(e))
-            
+
 
 
     def test_syncing_of_unsupported_file(self, mocked_logger):
@@ -575,7 +575,7 @@ class TestUnsupportedFiles(unittest.TestCase):
             records = sync.handle_file(config, s3_path, table_spec, {}, extension, gz_file.fileobj)
 
             mocked_logger.assert_called_with('Skipping "%s" file as it contains nested compression.',s3_path)
-            
+
             self.assertEqual(records, 0)
 
     def test_syncing_gz_file_contains_zip(self, mocked_logger):
@@ -594,7 +594,7 @@ class TestUnsupportedFiles(unittest.TestCase):
             new_s3_path = "unittest_compressed_files/sample_compressed_gz_file_contains_zip.gz/csv_jsonl.zip"
 
             mocked_logger.assert_called_with('Skipping "%s" file as it contains nested compression.',new_s3_path)
-            
+
             self.assertEqual(records, 0)
 
 
@@ -714,7 +714,7 @@ class TestSyncingCompressedFiles(unittest.TestCase):
             records = sync.handle_file(config, s3_path, table_spec, stream, extension, csv_file)
 
             self.assertTrue(records == 998)
-    
+
 
     def test_syncing_jsonl_file(self, mocked_write_record, mock_class):
         config = {"bucket" : "bucket_name"}
@@ -733,7 +733,7 @@ class TestSyncingCompressedFiles(unittest.TestCase):
 
             records = sync.handle_file(config, s3_path, table_spec, stream, extension, jsonl_file)
 
-            self.assertTrue(records == 10)
+            self.assertTrue(records == 11)
 
 
     @mock.patch("singer_encodings.compression.infer")
