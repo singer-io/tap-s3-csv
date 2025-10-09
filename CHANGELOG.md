@@ -4,13 +4,13 @@
   * Adds support for parquet files
   * Updates schema generation to allow for more robust (i.e. nested)
     data structures
-  * [#79](https://github.com/singer-io/tap-s3-csv/pull/79)
+  * [#80](https://github.com/singer-io/tap-s3-csv/pull/80)
 
 ## 1.5.3
   * Remove leading `/` from `search_prefix`
   * Connect using proxy account directly, if supplied in config
   * [#78](https://github.com/singer-io/tap-s3-csv/pull/78)
-  
+
 ## 1.5.2
   * Bump `voluptuous` version for python compatibility [#76](https://github.com/singer-io/tap-s3-csv/pull/76)
 
