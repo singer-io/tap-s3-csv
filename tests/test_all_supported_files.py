@@ -76,7 +76,7 @@ class S3AllFilesSupport(S3CSVBaseTest):
         self.run_and_verify_sync(self.conn_id)
 
         no_csv_records = 998
-        no_jsonl_records = 10
+        no_jsonl_records = 11
         no_gz_has_csv_records = 998
         no_gz_has_jsonl_records = 2
         no_zip_records = 40

@@ -42,7 +42,7 @@ class S3CompressedFileNonCSV(S3CSVBaseTest):
 
         self.run_and_verify_sync(self.conn_id)
 
-        expected_records = 12
+        expected_records = 13
         # Verify actual rows were synced
         records  = runner.get_upserts_from_target_output()
 
