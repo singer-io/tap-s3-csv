@@ -119,7 +119,7 @@ def setup_aws_client(config):
     LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session)
     global fs
-    fs = s3fs.S3FileSystem(session=refreshable_session)
+    fs = s3fs.S3FileSystem()
 
 @retry_pattern
 def setup_aws_client_with_proxy(config):
@@ -172,7 +172,7 @@ def setup_aws_client_with_proxy(config):
     LOGGER.info("Attempting to assume_role on RoleArn: %s", cust_role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session_cust)
     global fs
-    fs = s3fs.S3FileSystem(session=refreshable_session_cust)
+    fs = s3fs.S3FileSystem()
 
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
