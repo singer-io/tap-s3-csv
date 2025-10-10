@@ -7,7 +7,9 @@ import gzip
 import sys
 import backoff
 import boto3
-import s3fs
+# import s3fs
+
+from pyarrow.fs import S3FileSystem
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -21,8 +23,6 @@ from botocore.session import Session
 from botocore.config import Config
 from botocore.paginate import PageIterator
 
-from aiobotocore.session import AioSession
-
 import singer
 import singer.schema_generation as schema
 from singer_encodings import (
@@ -33,7 +33,7 @@ from singer_encodings import (
 
 from tap_s3_csv import utils
 
-fs = s3fs.S3FileSystem()
+fs = None #s3fs.S3FileSystem()
 
 LOGGER = singer.get_logger()
 
@@ -99,7 +99,7 @@ class AssumeRoleProvider():
 def setup_aws_client(config):
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
                                                 config['role_name'])
-    session = AioSession()
+    session = Session()
     fetcher = AssumeRoleCredentialFetcher(
         session.create_client,
         session.get_credentials(),
@@ -112,7 +112,7 @@ def setup_aws_client(config):
         cache=JSONFileCache()
     )
 
-    refreshable_session = AioSession()
+    refreshable_session = Session()
     refreshable_session.register_component(
         'credential_provider',
         CredentialResolver([AssumeRoleProvider(fetcher)])
@@ -121,7 +121,7 @@ def setup_aws_client(config):
     LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session)
     global fs
-    fs = s3fs.S3FileSystem(session=refreshable_session)
+    fs = s3fs.S3FileSystem()
 
 @retry_pattern
 def setup_aws_client_with_proxy(config):
@@ -131,7 +131,7 @@ def setup_aws_client_with_proxy(config):
     credentials_cache_path = config.get("credentials_cache_path", JSONFileCache.CACHE_DIR)
 
     # Step 1: Assume Role in Account Proxy and set up refreshable session
-    session_proxy = AioSession()
+    session_proxy = Session()
     fetcher_proxy = AssumeRoleCredentialFetcher(
         client_creator=session_proxy.create_client,
         source_credentials=session_proxy.get_credentials(),
@@ -151,7 +151,7 @@ def setup_aws_client_with_proxy(config):
     )
 
     # Step 2: Use Proxy Account's session to assume Role in Customer Account
-    session_cust = AioSession()
+    session_cust = Session()
     fetcher_cust = AssumeRoleCredentialFetcher(
         client_creator=session_cust.create_client,
         source_credentials=refreshable_credentials_proxy,
@@ -165,7 +165,7 @@ def setup_aws_client_with_proxy(config):
     )
 
     # Set up refreshable session for Customer Account
-    refreshable_session_cust = AioSession()
+    refreshable_session_cust = Session()
     refreshable_session_cust.register_component(
         'credential_provider',
         CredentialResolver([AssumeRoleProvider(fetcher_cust)])
@@ -174,7 +174,7 @@ def setup_aws_client_with_proxy(config):
     LOGGER.info("Attempting to assume_role on RoleArn: %s", cust_role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session_cust)
     global fs
-    fs = s3fs.S3FileSystem(session=refreshable_session_cust)
+    fs = S3FileSystem(access_key=refreshable_session_cust.get_credentials().access_key, secret_key=refreshable_session_cust.get_credentials().secret_key, session_token=refreshable_session_cust.get_credentials().token)
 
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
@@ -631,4 +631,4 @@ def get_file_handle(config, s3_path):
 @retry_pattern
 def get_s3fs_file_handle(config, s3_path):
     bucket = config['bucket']
-    return fs.open(f's3://{bucket}/{s3_path}', 'rb')
+    return fs.open_input_file(f'{bucket}/{s3_path}')
