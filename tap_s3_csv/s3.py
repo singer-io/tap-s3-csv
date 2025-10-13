@@ -120,8 +120,6 @@ def setup_aws_client(config):
 
     LOGGER.info("Attempting to assume_role on RoleArn: %s", role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session)
-    global fs
-    fs = s3fs.S3FileSystem()
 
 @retry_pattern
 def setup_aws_client_with_proxy(config):
@@ -173,8 +171,6 @@ def setup_aws_client_with_proxy(config):
 
     LOGGER.info("Attempting to assume_role on RoleArn: %s", cust_role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session_cust)
-    global fs
-    fs = S3FileSystem(access_key=refreshable_session_cust.get_credentials().access_key, secret_key=refreshable_session_cust.get_credentials().secret_key, session_token=refreshable_session_cust.get_credentials().token)
 
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
@@ -631,4 +627,11 @@ def get_file_handle(config, s3_path):
 @retry_pattern
 def get_s3fs_file_handle(config, s3_path):
     bucket = config['bucket']
+    creds = boto3.DEFAULT_SESSION.get_credentials()
+    fs = S3FileSystem(
+        access_key=creds.access_key,
+        secret_key=creds.secret_key,
+        session_token=creds.token
+    )
+
     return fs.open_input_file(f'{bucket}/{s3_path}')
