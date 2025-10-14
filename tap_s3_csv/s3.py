@@ -215,6 +215,7 @@ def setup_s3fs_client(config):
         AioCredentialResolver([AioAssumeRoleProvider(fetcher)])
     )
 
+    LOGGER.info('creating standard s3fs file system')
     global fs
     fs = S3FileSystem(session=refreshable_session)
 
@@ -267,6 +268,7 @@ def setup_s3fs_client_with_proxy(config):
         AioCredentialResolver([AioAssumeRoleProvider(fetcher_cust)])
     )
 
+    LOGGER.info('creating proxy s3fs file system')
     global fs
     fs = S3FileSystem(session=refreshable_session_cust)
 
@@ -728,5 +730,6 @@ def get_s3fs_file_handle(config, s3_path):
     bucket = config['bucket']
     global fs
     if fs is None:
+        LOGGER.info('creating default s3fs file system')
         fs = S3FileSystem()
     return fs.open(f's3://{bucket}/{s3_path}')
