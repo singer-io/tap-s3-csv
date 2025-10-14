@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import gzip
+import time
 
 from singer import metadata
 from singer import Transformer
@@ -241,7 +242,7 @@ def sync_parquet_file(config, file_handle, s3_path, table_spec, stream):
 
     if iterator is not None:
         for row in iterator:
-
+            time.sleep(10)
             custom_columns = {
                 s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
                 s3.SDC_SOURCE_FILE_COLUMN: s3_path,

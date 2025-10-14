@@ -10,8 +10,6 @@ import backoff
 import boto3
 from s3fs import S3FileSystem
 
-#from pyarrow.fs import S3FileSystem
-
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
     CredentialResolver,
@@ -46,7 +44,7 @@ from aiobotocore import credentials, session
 from botocore import exceptions
 from dateutil import parser
 
-fs = None #s3fs.S3FileSystem()
+fs = None
 
 LOGGER = singer.get_logger()
 
@@ -213,7 +211,7 @@ def create_refreshable_credentials_for_s3fs(config):
         role_arn=proxy_role_arn,
         extra_args={
             'DurationSeconds': 3600,
-            'RoleSessionName': 'ProxySession'
+            'RoleSessionName': 'AioProxySession'
         },
         cache=JSONFileCache(credentials_cache_path)
     )
@@ -233,7 +231,7 @@ def create_refreshable_credentials_for_s3fs(config):
         role_arn=cust_role_arn,
         extra_args={
             'DurationSeconds': 3600,
-            'RoleSessionName': 'TapS3CSVCustSession',
+            'RoleSessionName': 'AioTapS3CSVCustSession',
             'ExternalId': config['external_id']
         },
         cache=JSONFileCache(credentials_cache_path)
