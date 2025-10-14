@@ -17,17 +17,18 @@ from botocore.credentials import (
     JSONFileCache,
     RefreshableCredentials
 )
+from botocore.exceptions import ClientError, ConnectTimeoutError, ReadTimeoutError
+from botocore.session import Session
+from botocore.config import Config
+from botocore.paginate import PageIterator
+
 from aiobotocore.credentials import (
     AioAssumeRoleCredentialFetcher,
     AioCredentialResolver,
     AioDeferredRefreshableCredentials,
     AioRefreshableCredentials
 )
-from botocore.exceptions import ClientError, ConnectTimeoutError, ReadTimeoutError
-from botocore.session import Session
 from aiobotocore.session import AioSession
-from botocore.config import Config
-from botocore.paginate import PageIterator
 
 import singer
 import singer.schema_generation as schema
@@ -38,11 +39,6 @@ from singer_encodings import (
 )
 
 from tap_s3_csv import utils
-
-
-from aiobotocore import credentials, session
-from botocore import exceptions
-from dateutil import parser
 
 fs = None
 
@@ -195,6 +191,7 @@ def setup_aws_client_with_proxy(config):
     LOGGER.info("Attempting to assume_role on RoleArn: %s", cust_role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session_cust)
 
+#pylint: disable=global-statement
 @retry_pattern
 def setup_s3fs_client(config):
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
@@ -221,6 +218,7 @@ def setup_s3fs_client(config):
     global fs
     fs = S3FileSystem(session=refreshable_session)
 
+#pylint: disable=global-statement
 @retry_pattern
 def setup_s3fs_client_with_proxy(config):
     proxy_role_arn = "arn:aws:iam::{}:role/{}".format(config['proxy_account_id'].replace('-', ''),
