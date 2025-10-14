@@ -118,7 +118,6 @@ class AioAssumeRoleProvider():
             self.METHOD
         )
 
-
 @retry_pattern
 def setup_aws_client(config):
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
@@ -148,7 +147,7 @@ def setup_aws_client(config):
 @retry_pattern
 def setup_aws_client_with_proxy(config):
     proxy_role_arn = "arn:aws:iam::{}:role/{}".format(config['proxy_account_id'].replace('-', ''),
-                                                          config['proxy_role_name'])
+                                                      config['proxy_role_name'])
     cust_role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''), config['role_name'])
     credentials_cache_path = config.get("credentials_cache_path", JSONFileCache.CACHE_DIR)
 
@@ -197,9 +196,35 @@ def setup_aws_client_with_proxy(config):
     boto3.setup_default_session(botocore_session=refreshable_session_cust)
 
 @retry_pattern
-def create_refreshable_credentials_for_s3fs(config):
+def setup_s3fs_client(config):
+    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
+                                                config['role_name'])
+    session = AioSession()
+    fetcher = AioAssumeRoleCredentialFetcher(
+        client_creator=session.create_client,
+        source_credentials=asyncio.run(session.get_credentials()),
+        role_arn=role_arn,
+        extra_args={
+            'DurationSeconds': 3600,
+            'RoleSessionName': 'AioTapS3CSV',
+            'ExternalId': config['external_id']
+        },
+        cache=JSONFileCache()
+    )
+
+    refreshable_session = AioSession()
+    refreshable_session.register_component(
+        'credential_provider',
+        AioCredentialResolver([AioAssumeRoleProvider(fetcher)])
+    )
+
+    global fs
+    fs = S3FileSystem(session=refreshable_session)
+
+@retry_pattern
+def setup_s3fs_client_with_proxy(config):
     proxy_role_arn = "arn:aws:iam::{}:role/{}".format(config['proxy_account_id'].replace('-', ''),
-                                                          config['proxy_role_name'])
+                                                      config['proxy_role_name'])
     cust_role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''), config['role_name'])
     credentials_cache_path = config.get("credentials_cache_path", JSONFileCache.CACHE_DIR)
 
@@ -244,7 +269,8 @@ def create_refreshable_credentials_for_s3fs(config):
         AioCredentialResolver([AioAssumeRoleProvider(fetcher_cust)])
     )
 
-    return refreshable_session_cust
+    global fs
+    fs = S3FileSystem(session=refreshable_session_cust)
 
 
 def get_sampled_schema_for_table(config, table_spec):
@@ -702,11 +728,7 @@ def get_file_handle(config, s3_path):
 @retry_pattern
 def get_s3fs_file_handle(config, s3_path):
     bucket = config['bucket']
-    fs = S3FileSystem(
-        # key=creds.access_key,
-        # secret=creds.secret_key,
-        # token=creds.token
-        session=create_refreshable_credentials_for_s3fs(config)
-    )
-
+    global fs
+    if fs is None:
+        fs = S3FileSystem()
     return fs.open(f's3://{bucket}/{s3_path}')

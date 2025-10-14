@@ -257,9 +257,6 @@ def sync_parquet_file(config, file_handle, s3_path, table_spec, stream):
 
             singer.write_record(table_name, to_write)
             records_synced += 1
-            if records_synced % 1000000 == 0:
-                LOGGER.info(f'sleeping after {records_synced} records')
-                time.sleep(600)
     else:
         LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
         s3.skipped_files_count = s3.skipped_files_count + 1
