@@ -3,7 +3,6 @@ import csv
 import io
 import json
 import gzip
-import time
 
 from singer import metadata
 from singer import Transformer
