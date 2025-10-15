@@ -558,7 +558,7 @@ def get_files_to_sample(config, s3_files, max_files):
             file_name = file_key.split("/").pop()
             extension = file_name.split(".").pop().lower()
             file_handle = None
-            if extension == 'parquet' or extension == 'avro':
+            if extension in ['parquet', 'avro']:
                 file_handle = get_s3fs_file_handle(config, file_key)
             else:
                 file_handle = get_file_handle(config, file_key)
