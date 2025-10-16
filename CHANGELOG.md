@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.2.0
+  * Refactors JSONL support to use singer-encodings library [#82](https://github.com/singer-io/tap-s3-csv/pull/82)
+
 ## 2.1.0
   * Adds support for avro files [#81](https://github.com/singer-io/tap-s3-csv/pull/81)
 
