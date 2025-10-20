@@ -51,7 +51,7 @@ class TestJsonlSupport(unittest.TestCase):
     sync_jsonl_file
     sync_table_file - Check sync_jsonl_file is calling for jsonl
     '''
-    
+
 
     @mock.patch("tap_s3_csv.s3.check_key_properties_and_date_overrides_for_jsonl_file")
     def test_get_records_for_jsonl_in_sample_file_for_5_records_of_file_with_sample_rate_2(self, mocked_check_key_properties_and_date_overrides_for_jsonl_file):
@@ -110,8 +110,8 @@ class TestJsonlSupport(unittest.TestCase):
 
         s3_path = "test/abc.jsonl"
         file_handle = [
-            b'{"name":"test","id":"3","tt":"tetete"}\n',
-            b'{"name":"test1","id":"4","tt":"tetete","ab":"bb","mark11":["221","222"],"student11":{"no":5,"col":6}}\n',
+            {"name":"test","id":"3","tt":"tetete"},
+            {"name":"test1","id":"4","tt":"tetete","ab":"bb","mark11":["221","222"],"student11":{"no":5,"col":6}},
         ]
         table_spec = {'table_name': 'test_table'}
 
@@ -127,11 +127,11 @@ class TestJsonlSupport(unittest.TestCase):
 
         s3_path = "test/abc.jsonl"
         file_handle = [
-            b'{"name":"test","id":"0","tt":"tetete"}\n',
-            b'{"name":"test1","id":"1","tt":"tetete"}\n',
-            b'{"name":"test2","id":"2","tt":"tetete"}\n',
-            b'{"name":"test3","id":"3","tt":"tetete"}\n',
-            b'{"name":"test4","id":"4","tt":"tetete","ab":"bb","mark11":["221","222"],"student11":{"no":5,"col":6}}\n',
+            {"name":"test","id":"0","tt":"tetete"},
+            {"name":"test1","id":"1","tt":"tetete"},
+            {"name":"test2","id":"2","tt":"tetete"},
+            {"name":"test3","id":"3","tt":"tetete"},
+            {"name":"test4","id":"4","tt":"tetete","ab":"bb","mark11":["221","222"],"student11":{"no":5,"col":6}},
         ]
         table_spec = {'table_name': 'test_table'}
 
@@ -169,8 +169,8 @@ class TestJsonlSupport(unittest.TestCase):
             s3.check_key_properties_and_date_overrides_for_jsonl_file(table_spec,jsonl_sample_records, s3_path)
         except Exception:
             pass
-    
-    @mock.patch("tap_s3_csv.s3.get_records_for_jsonl", side_effect=mock_get_records_for_jsonl)
+
+    @mock.patch("tap_s3_csv.s3.get_records_for_iterator", side_effect=mock_get_records_for_jsonl)
     @mock.patch("tap_s3_csv.s3.check_key_properties_and_date_overrides_for_jsonl_file")
     def test_get_record_for_jsonl_called_in_sample_file_for_jsonl_file(self, mock_get_records_for_jsonl, mock_key_properties):
 
@@ -237,7 +237,7 @@ class TestJsonlSupport(unittest.TestCase):
         config = {'bucket': 'Test'}
         stream = {'stream': 'jsonl_table', 'tap_stream_id': 'jsonl_table', 'schema': {'type': 'object', 'properties': {'name': {'type': ['string', 'null']}, 'id': {'type': ['integer', 'string', 'null']}, 'marks': {'type': 'array', 'items': {'type': ['integer', 'string', 'null']}}, 'students': {'type': 'object', 'properties': {}}, '_sdc_source_bucket': {'type': 'string'}, '_sdc_source_file': {'type': 'string'}, '_sdc_source_lineno': {'type': 'integer'}, '_sdc_extra': {'type': 'array', 'items': {'type': 'string'}}}}, 'metadata': [{'breadcrumb': [], 'metadata': {'selected': True, 'table-key-properties': ['id']}}, {'breadcrumb': ['properties', 'name'], 'metadata': {
             'inclusion': 'available'}}, {'breadcrumb': ['properties', 'id'], 'metadata': {'inclusion': 'automatic'}}, {'breadcrumb': ['properties', 'marks'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', 'students'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', '_sdc_source_bucket'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', '_sdc_source_file'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', '_sdc_source_lineno'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', '_sdc_extra'], 'metadata': {'inclusion': 'available'}}]}
-        
+
         sync.sync_table_file(config, s3_path, table_spec, stream)
         self.assertEqual(mock_sync_csv_file.call_count, 1)
 
@@ -250,31 +250,6 @@ class TestJsonlSupport(unittest.TestCase):
         config = {'bucket': 'Test'}
         stream = {'stream': 'jsonl_table', 'tap_stream_id': 'jsonl_table', 'schema': {'type': 'object', 'properties': {'name': {'type': ['string', 'null']}, 'id': {'type': ['integer', 'string', 'null']}, 'marks': {'type': 'array', 'items': {'type': ['integer', 'string', 'null']}}, 'students': {'type': 'object', 'properties': {}}, '_sdc_source_bucket': {'type': 'string'}, '_sdc_source_file': {'type': 'string'}, '_sdc_source_lineno': {'type': 'integer'}, '_sdc_extra': {'type': 'array', 'items': {'type': 'string'}}}}, 'metadata': [{'breadcrumb': [], 'metadata': {'selected': True, 'table-key-properties': ['id']}}, {'breadcrumb': ['properties', 'name'], 'metadata': {
             'inclusion': 'available'}}, {'breadcrumb': ['properties', 'id'], 'metadata': {'inclusion': 'automatic'}}, {'breadcrumb': ['properties', 'marks'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', 'students'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', '_sdc_source_bucket'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', '_sdc_source_file'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', '_sdc_source_lineno'], 'metadata': {'inclusion': 'available'}}, {'breadcrumb': ['properties', '_sdc_extra'], 'metadata': {'inclusion': 'available'}}]}
-        
+
         sync.sync_table_file(config, s3_path, table_spec, stream)
         self.assertEqual(mock_sync_csv_file.call_count, 1)
-
-    @mock.patch("tap_s3_csv.s3.LOGGER.info")
-    def test_get_record_for_jsonl_with_empty_json(self,mocked_logger):
-    
-        s3_path = "test\\abc.jsonl"
-        sample_rate = 5
-        iterator = [b'{}\n']
-
-        expected_output = s3.get_records_for_jsonl(s3_path, sample_rate, iterator)
-        try:
-            next(expected_output)
-        except StopIteration:
-            pass
-        mocked_logger.assert_called_with("Sampled %s rows from %s", 0, s3_path)
-
-    def test_sync_jsonl_file_with_empty_json(self):
-    
-        s3_path = "test\\abc.jsonl"
-        iterator = [b'{}\n']
-        table_spec = {'table_name': 'test_table'}
-        config = {'bucket':'Test'}
-        stream = {'stream': 'jsonl_table', 'tap_stream_id': 'jsonl_table', "schema": {},"metadata": [{"breadcrumb": [],"metadata": {"table-key-properties": []}}]}
-
-        expected_output = sync.sync_jsonl_file(config, iterator, s3_path, table_spec, stream)
-        self.assertEqual(expected_output, 0)

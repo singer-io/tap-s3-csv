@@ -36,6 +36,7 @@ from singer_encodings import (
     avro,
     compression,
     csv,
+    jsonl,
     parquet
 )
 
@@ -368,7 +369,7 @@ def get_records_for_csv(s3_path, sample_rate, iterator):
 
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
-def get_records_for_avro_parquet(s3_path, sample_rate, iterator):
+def get_records_for_iterator(s3_path, sample_rate, iterator):
 
     current_row = 0
     sampled_row_count = 0
@@ -384,52 +385,6 @@ def get_records_for_avro_parquet(s3_path, sample_rate, iterator):
         current_row += 1
 
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
-
-def get_records_for_parquet(s3_path, sample_rate, iterator):
-
-    current_row = 0
-    sampled_row_count = 0
-
-    for row in iterator:
-        if (current_row % sample_rate) == 0:
-            sampled_row_count += 1
-            if (sampled_row_count % 200) == 0:
-                LOGGER.info("Sampled %s rows from %s",
-                            sampled_row_count, s3_path)
-            yield row
-
-        current_row += 1
-
-    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
-
-def get_records_for_jsonl(s3_path, sample_rate, iterator):
-
-    current_row = 0
-    sampled_row_count = 0
-
-    for row in iterator:
-
-        if (current_row % sample_rate) == 0:
-            decoded_row = row.decode('utf-8')
-            if decoded_row.strip():
-                row = json.loads(decoded_row)
-                # Skipping the empty json.
-                if len(row) == 0:
-                    current_row += 1
-                    continue
-            else:
-                current_row += 1
-                continue
-            sampled_row_count += 1
-            if (sampled_row_count % 200) == 0:
-                LOGGER.info("Sampled %s rows from %s",
-                            sampled_row_count, s3_path)
-            yield row
-
-        current_row += 1
-
-    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
-
 
 def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path):
 
@@ -507,8 +462,8 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     if extension == "jsonl":
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle
-        records = get_records_for_jsonl(
-            s3_path, sample_rate, file_handle)
+        records = get_records_for_iterator(
+            s3_path, sample_rate, jsonl.get_row_iterator(file_handle))
         check_jsonl_sample_records, records = itertools.tee(
             records)
         jsonl_sample_records = list(check_jsonl_sample_records)
@@ -523,7 +478,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     if extension == "parquet":
         iterator = parquet.get_row_iterator(file_handle)
         if iterator is not None:
-            return get_records_for_avro_parquet(s3_path, sample_rate, iterator)
+            return get_records_for_iterator(s3_path, sample_rate, iterator)
         LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
@@ -531,7 +486,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     if extension == "avro":
         iterator = avro.get_row_iterator(file_handle)
         if iterator is not None:
-            return get_records_for_avro_parquet(s3_path, sample_rate, iterator)
+            return get_records_for_iterator(s3_path, sample_rate, iterator)
         LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
