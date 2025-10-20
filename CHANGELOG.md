@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.1.0
+  * Adds support for avro files [#81](https://github.com/singer-io/tap-s3-csv/pull/81)
+
 ## 2.0.0
   * Adds support for parquet files
   * Updates schema generation to allow for more robust (i.e. nested)

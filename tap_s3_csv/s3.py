@@ -33,6 +33,7 @@ from aiobotocore.session import AioSession
 import singer
 import singer.schema_generation as schema
 from singer_encodings import (
+    avro,
     compression,
     csv,
     parquet
@@ -367,6 +368,22 @@ def get_records_for_csv(s3_path, sample_rate, iterator):
 
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
+def get_records_for_avro_parquet(s3_path, sample_rate, iterator):
+
+    current_row = 0
+    sampled_row_count = 0
+
+    for row in iterator:
+        if (current_row % sample_rate) == 0:
+            sampled_row_count += 1
+            if (sampled_row_count % 200) == 0:
+                LOGGER.info("Sampled %s rows from %s",
+                            sampled_row_count, s3_path)
+            yield row
+
+        current_row += 1
+
+    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
 def get_records_for_parquet(s3_path, sample_rate, iterator):
 
@@ -506,7 +523,15 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
     if extension == "parquet":
         iterator = parquet.get_row_iterator(file_handle)
         if iterator is not None:
-            return get_records_for_parquet(s3_path, sample_rate, iterator)
+            return get_records_for_avro_parquet(s3_path, sample_rate, iterator)
+        LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+        skipped_files_count = skipped_files_count + 1
+        return []
+
+    if extension == "avro":
+        iterator = avro.get_row_iterator(file_handle)
+        if iterator is not None:
+            return get_records_for_avro_parquet(s3_path, sample_rate, iterator)
         LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
         skipped_files_count = skipped_files_count + 1
         return []
@@ -538,7 +563,7 @@ def get_files_to_sample(config, s3_files, max_files):
     global skipped_files_count
     sampled_files = []
 
-    OTHER_FILES = ["csv","gz","jsonl","txt","parquet"]
+    OTHER_FILES = ["csv","gz","jsonl","txt","parquet","avro"]
 
     for s3_file in s3_files:
         file_key = s3_file.get('key')
@@ -550,7 +575,7 @@ def get_files_to_sample(config, s3_files, max_files):
             file_name = file_key.split("/").pop()
             extension = file_name.split(".").pop().lower()
             file_handle = None
-            if extension == 'parquet':
+            if extension in ['parquet', 'avro']:
                 file_handle = get_s3fs_file_handle(config, file_key)
             else:
                 file_handle = get_file_handle(config, file_key)

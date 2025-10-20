@@ -10,6 +10,7 @@ from singer import utils as singer_utils
 
 import singer
 from singer_encodings import (
+    avro,
     compression,
     csv as csv_helper,
     parquet
@@ -67,7 +68,7 @@ def sync_table_file(config, s3_path, table_spec, stream):
     try:
         if extension == "zip":
             return sync_compressed_file(config, s3_path, table_spec, stream)
-        if extension in ["csv", "gz", "jsonl", "txt", "parquet"]:
+        if extension in ["csv", "gz", "jsonl", "txt", "parquet", "avro"]:
             return handle_file(config, s3_path, table_spec, stream, extension)
         LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
     except (UnicodeDecodeError,json.decoder.JSONDecodeError):
@@ -102,6 +103,10 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
     if extension == "parquet":
         file_handle = file_handler if file_handler else s3.get_s3fs_file_handle(config, s3_path)
         return sync_parquet_file(config, file_handle, s3_path, table_spec, stream)
+
+    if extension == "avro":
+        file_handle = file_handler if file_handler else s3.get_s3fs_file_handle(config, s3_path)
+        return sync_avro_file(config, file_handle, s3_path, table_spec, stream)
 
     if extension == "jsonl":
 
@@ -230,12 +235,11 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
 
     return records_synced
 
-def sync_parquet_file(config, file_handle, s3_path, table_spec, stream):
+def sync_avro_parquet_file(config, iterator, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
 
     bucket = config['bucket']
     table_name = table_spec['table_name']
-    iterator = parquet.get_row_iterator(file_handle)
 
     records_synced = 0
 
@@ -262,6 +266,13 @@ def sync_parquet_file(config, file_handle, s3_path, table_spec, stream):
 
     return records_synced
 
+def sync_avro_file(config, file_handle, s3_path, table_spec, stream):
+    iterator = avro.get_row_iterator(file_handle)
+    return sync_avro_parquet_file(config, iterator, s3_path, table_spec, stream)
+
+def sync_parquet_file(config, file_handle, s3_path, table_spec, stream):
+    iterator = parquet.get_row_iterator(file_handle)
+    return sync_avro_parquet_file(config, iterator, s3_path, table_spec, stream)
 
 def sync_jsonl_file(config, iterator, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
