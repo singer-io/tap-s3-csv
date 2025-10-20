@@ -385,6 +385,23 @@ def get_records_for_avro_parquet(s3_path, sample_rate, iterator):
 
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
+def get_records_for_parquet(s3_path, sample_rate, iterator):
+
+    current_row = 0
+    sampled_row_count = 0
+
+    for row in iterator:
+        if (current_row % sample_rate) == 0:
+            sampled_row_count += 1
+            if (sampled_row_count % 200) == 0:
+                LOGGER.info("Sampled %s rows from %s",
+                            sampled_row_count, s3_path)
+            yield row
+
+        current_row += 1
+
+    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
+
 def get_records_for_jsonl(s3_path, sample_rate, iterator):
 
     current_row = 0

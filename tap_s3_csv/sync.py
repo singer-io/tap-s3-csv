@@ -235,6 +235,7 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
 
     return records_synced
 
+<<<<<<< HEAD
 def sync_avro_parquet_file(config, iterator, s3_path, table_spec, stream):
     LOGGER.info('Syncing file "%s".', s3_path)
 
