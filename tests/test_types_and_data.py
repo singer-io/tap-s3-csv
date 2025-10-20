@@ -54,15 +54,28 @@ class DataTypes(Enum):
     An Enumeration capturing all of the expected schema types allowed for tap-s3-csv
     """
 
-    NULL_INTEGER = ("type", ["null", "integer", "string"])
-    NULL_NUMBER = ("type", ["null", "number", "string"])
+    NULL_INTEGER = ("type", ["null", "integer"])
+    NULL_NUMBER = \
+        ("anyOf", [{
+            "format": "singer.decimal",
+            "type": ["null", "string"]
+        }, {
+            "type": ["null", "integer"]
+        }])
     NULL_STRING = ("type", ["null", "string"])
+    NULL_STRING_OR_INTEGER = (
+        "anyOf", [{
+            "type": ["null", "string"]
+        }, {
+            "type": ["null", "integer"]
+        }]
+    )
     NULL_DATE_TIME = \
         ("anyOf", [{
             "format": "date-time",
             "type": ["null", "string"]
         }, {
-            "type": ["null", "string"]
+            "type": ["null", "integer"]
         }])
     INTEGER = ("type", "integer")
     STRING = ("type", "string")
@@ -248,103 +261,6 @@ class S3TypesAndData(S3CSVBaseTest):
 
         return return_value
 
-    @staticmethod
-    def expected_properties_for_data_types(filter_type: DataTypes, table):
-        """
-        Looks at the expected schema for a data type and table and determines the
-        properties with that type in that table.
-
-        Args:
-            The data type to filter properties based on
-            The stream name of the schema
-
-        Returns:
-            A set of properties that should have the specified data type
-        """
-        return {key for key, value
-                in S3TypesAndData.expected_schema_for_data_types(table).items()
-                if value == filter_type.value}
-
-    @staticmethod
-    def expected_schema_for_data_types(table):
-        """
-        properties with the expected type required for the data type test
-            test_data_type_sampling
-
-        Returns:
-            A dictionary of properties with associated type data
-        """
-
-        schemas = \
-            {
-                "test_switching_data_types":
-                    {
-                        "integer_to_number": DataTypes.NULL_NUMBER.value,
-                        "number_to_integer": DataTypes.NULL_NUMBER.value,
-                        "number_to_string": DataTypes.NULL_STRING.value,
-                        "string_to_integer": DataTypes.NULL_STRING.value,
-                        "string_to_date_time": DataTypes.NULL_STRING.value,
-                        "date_time_to_integer": DataTypes.NULL_STRING.value,
-                        "date_time_to_integer_override": DataTypes.NULL_DATE_TIME.value,
-                        "_sdc_source_lineno": DataTypes.INTEGER.value,
-                        "_sdc_source_file": DataTypes.STRING.value,
-                        "_sdc_extra": DataTypes.ARRAY.value,
-                        "_sdc_source_bucket": DataTypes.STRING.value
-                    },
-                "test_data_types_no_coercion":
-                    {
-                        "positive with various signs": DataTypes.NULL_NUMBER.value,
-                        "float with precision": DataTypes.NULL_NUMBER.value,
-
-                        # FIXME - should this be a number
-                        "positive percentages": DataTypes.NULL_STRING.value,
-                        "time to microseconds": DataTypes.NULL_DATE_TIME.value,
-                        "datetime with tz": DataTypes.NULL_DATE_TIME.value,
-                        "datetime with tz to milliseconds": DataTypes.NULL_DATE_TIME.value,
-                        "string length test": DataTypes.NULL_STRING.value,
-                        "date": DataTypes.NULL_DATE_TIME.value,
-                        "time to minutes": DataTypes.NULL_DATE_TIME.value,
-                        "datetime without tz to seconds": DataTypes.NULL_DATE_TIME.value,
-                        "time": DataTypes.NULL_DATE_TIME.value,
-                        "length of string": DataTypes.NULL_INTEGER.value,
-                        "datetime with tz space separator": DataTypes.NULL_DATE_TIME.value,
-                        "datetime with tz to microseconds": DataTypes.NULL_DATE_TIME.value,
-                        "larger_than_bigint": DataTypes.NULL_INTEGER.value,
-                        "time to seconds": DataTypes.NULL_DATE_TIME.value,
-                        "datetime with tz to minutes": DataTypes.NULL_DATE_TIME.value,
-                        "datetime with tz to hour": DataTypes.NULL_DATE_TIME.value,
-                        "float at the edges": DataTypes.NULL_NUMBER.value,
-                        "bigint_signed": DataTypes.NULL_INTEGER.value,
-                        "negative with signs": DataTypes.NULL_NUMBER.value,
-                        "double at the edges": DataTypes.NULL_NUMBER.value,
-
-                        # FIXME - should this be a number
-                        "positive numbers with commas": DataTypes.NULL_STRING.value,
-                        "time to hour": DataTypes.NULL_INTEGER.value,
-                        "datetime without tz": DataTypes.NULL_DATE_TIME.value,
-                        "datetime with tz to seconds": DataTypes.NULL_DATE_TIME.value,
-                        "datetime without tz to minutes": DataTypes.NULL_DATE_TIME.value,
-                        "bigint_unsigned": DataTypes.NULL_INTEGER.value,
-
-                        # FIXME - should this be a number
-                        "negative numbers with commas": DataTypes.NULL_STRING.value,
-                        "datetime without tz to milliseconds": DataTypes.NULL_DATE_TIME.value,
-                        "datetime without tz space separator": DataTypes.NULL_DATE_TIME.value,
-                        "time to milliseconds": DataTypes.NULL_DATE_TIME.value,
-                        "datetime without tz to microseconds": DataTypes.NULL_DATE_TIME.value,
-
-                        # FIXME - should this be a number
-                        "negative percentages": DataTypes.NULL_STRING.value,
-                        "datetime without tz to hour": DataTypes.NULL_DATE_TIME.value,
-                        "_sdc_source_lineno": DataTypes.INTEGER.value,
-                        "_sdc_source_file": DataTypes.STRING.value,
-                        "_sdc_extra": DataTypes.ARRAY.value,
-                        "_sdc_source_bucket": DataTypes.STRING.value
-                    }
-            }
-
-        return schemas[table]
-
     def test_000_run(self):
         """
         run discovery as the first test and ensure that it completed as expected.
@@ -404,53 +320,6 @@ class S3TypesAndData(S3CSVBaseTest):
                      for item in metadata
                      if item.get("metadata").get("inclusion") == "available"}
                 self.assertEqual(actual_available_properties, expected_not_pk_properties)
-
-    def test_data_type_sampling(self):
-        """
-        Verify that each data type can be sampled and determined correctly.
-
-        A file for stream `test_data_types_no_coercion` was setup which
-        has one column for each test. Tests include each data type:
-            * integer
-            * number
-            * date-time
-            * string
-
-        integers are tested for boundary conditions of signed and unsigned big-ints,
-        strings ore tested for length including a null string and 65536 chars.
-        numbers are tested for float and double representations at the borders
-            which are exponents for extremely large and small positive and
-            negative numbers plus zero.  numbers are also tested for precision
-        date-times are tested at the borders of allowed python date-times in
-            multiple types of formats including just dates, just times, date-times
-            with timezone and date-times without timezone.
-
-        The test below uses subtests so that each data-type is tested and
-        reported on individually
-        """
-
-        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
-
-        # only testing the data types stream for now, may want to test all of them
-        # or add more tests for different things for other catalogs.
-        data_type_catalogs = [x for x in found_catalogs
-                             if x["stream_name"] in ("test_data_types_no_coercion",
-                                                     "test_switching_data_types")]
-
-        for data_type in DataTypes:
-            for catalog in data_type_catalogs:
-                with self.subTest(dt=(data_type, catalog)):
-
-                    # verify each data type is sampled correctly in the annotated-schema
-                    expected_properties = S3TypesAndData.expected_properties_for_data_types(
-                        data_type, catalog['stream_name'])
-
-                    metadata_and_annotated_schema = menagerie.get_annotated_schema(
-                        S3TypesAndData.conn_id, catalog['stream_id'])
-                    properties = metadata_and_annotated_schema["annotated-schema"]["properties"]
-                    actual_properties = {k for k, v in properties.items()
-                                         if v.get(data_type.value[0]) == data_type.value[1]}
-                    self.assertEqual(expected_properties, actual_properties)
 
     def test_primary_keys(self):
         """

@@ -1,3 +1,4 @@
+import asyncio
 import itertools
 import functools
 import re
@@ -7,7 +8,7 @@ import gzip
 import sys
 import backoff
 import boto3
-import singer
+from s3fs import S3FileSystem
 
 from botocore.credentials import (
     AssumeRoleCredentialFetcher,
@@ -20,15 +21,26 @@ from botocore.exceptions import ClientError, ConnectTimeoutError, ReadTimeoutErr
 from botocore.session import Session
 from botocore.config import Config
 from botocore.paginate import PageIterator
+
+from aiobotocore.credentials import (
+    AioAssumeRoleCredentialFetcher,
+    AioCredentialResolver,
+    AioDeferredRefreshableCredentials,
+    AioRefreshableCredentials
+)
+from aiobotocore.session import AioSession
+
+import singer
+import singer.schema_generation as schema
 from singer_encodings import (
     compression,
-    csv
+    csv,
+    parquet
 )
 
-from tap_s3_csv import (
-    utils,
-    conversion
-)
+from tap_s3_csv import utils
+
+fs = None
 
 LOGGER = singer.get_logger()
 
@@ -90,6 +102,18 @@ class AssumeRoleProvider():
         )
 
 
+class AioAssumeRoleProvider():
+    METHOD = 'assume-role'
+
+    def __init__(self, fetcher):
+        self._fetcher = fetcher
+
+    async def load(self):
+        return AioDeferredRefreshableCredentials(
+            self._fetcher.fetch_credentials,
+            self.METHOD
+        )
+
 @retry_pattern
 def setup_aws_client(config):
     role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
@@ -119,7 +143,7 @@ def setup_aws_client(config):
 @retry_pattern
 def setup_aws_client_with_proxy(config):
     proxy_role_arn = "arn:aws:iam::{}:role/{}".format(config['proxy_account_id'].replace('-', ''),
-                                                          config['proxy_role_name'])
+                                                      config['proxy_role_name'])
     cust_role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''), config['role_name'])
     credentials_cache_path = config.get("credentials_cache_path", JSONFileCache.CACHE_DIR)
 
@@ -167,11 +191,92 @@ def setup_aws_client_with_proxy(config):
     LOGGER.info("Attempting to assume_role on RoleArn: %s", cust_role_arn)
     boto3.setup_default_session(botocore_session=refreshable_session_cust)
 
+#pylint: disable=global-statement
+@retry_pattern
+def setup_s3fs_client(config):
+    role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''),
+                                                config['role_name'])
+    session = AioSession()
+    fetcher = AioAssumeRoleCredentialFetcher(
+        client_creator=session.create_client,
+        source_credentials=asyncio.run(session.get_credentials()),
+        role_arn=role_arn,
+        extra_args={
+            'DurationSeconds': 3600,
+            'RoleSessionName': 'AioTapS3CSV',
+            'ExternalId': config['external_id']
+        },
+        cache=JSONFileCache()
+    )
+
+    refreshable_session = AioSession()
+    refreshable_session.register_component(
+        'credential_provider',
+        AioCredentialResolver([AioAssumeRoleProvider(fetcher)])
+    )
+
+    LOGGER.info('creating standard s3fs file system')
+    global fs
+    fs = S3FileSystem(session=refreshable_session)
+
+#pylint: disable=global-statement
+@retry_pattern
+def setup_s3fs_client_with_proxy(config):
+    proxy_role_arn = "arn:aws:iam::{}:role/{}".format(config['proxy_account_id'].replace('-', ''),
+                                                      config['proxy_role_name'])
+    cust_role_arn = "arn:aws:iam::{}:role/{}".format(config['account_id'].replace('-', ''), config['role_name'])
+    credentials_cache_path = config.get("credentials_cache_path", JSONFileCache.CACHE_DIR)
+
+    # Step 1: Assume Role in Account Proxy and set up refreshable session
+    session_proxy = AioSession()
+    fetcher_proxy = AioAssumeRoleCredentialFetcher(
+        client_creator=session_proxy.create_client,
+        source_credentials=asyncio.run(session_proxy.get_credentials()),
+        role_arn=proxy_role_arn,
+        extra_args={
+            'DurationSeconds': 3600,
+            'RoleSessionName': 'AioProxySession'
+        },
+        cache=JSONFileCache(credentials_cache_path)
+    )
+
+    # Refreshable credentials for Account Proxy
+    refreshable_credentials_proxy = AioRefreshableCredentials.create_from_metadata(
+        metadata=asyncio.run(fetcher_proxy.fetch_credentials()),
+        refresh_using=fetcher_proxy.fetch_credentials,
+        method="sts-assume-role"
+    )
+
+    # Step 2: Use Proxy Account's session to assume Role in Customer Account
+    session_cust = AioSession()
+    fetcher_cust = AioAssumeRoleCredentialFetcher(
+        client_creator=session_cust.create_client,
+        source_credentials=refreshable_credentials_proxy,
+        role_arn=cust_role_arn,
+        extra_args={
+            'DurationSeconds': 3600,
+            'RoleSessionName': 'AioTapS3CSVCustSession',
+            'ExternalId': config['external_id']
+        },
+        cache=JSONFileCache(credentials_cache_path)
+    )
+
+    # Set up refreshable session for Customer Account
+    refreshable_session_cust = AioSession()
+    refreshable_session_cust.register_component(
+        'credential_provider',
+        AioCredentialResolver([AioAssumeRoleProvider(fetcher_cust)])
+    )
+
+    LOGGER.info('creating proxy s3fs file system')
+    global fs
+    fs = S3FileSystem(session=refreshable_session_cust)
+
+
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
     s3_files_gen = get_input_files_for_table(config, table_spec)
-
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
 
     if skipped_files_count:
@@ -179,6 +284,7 @@ def get_sampled_schema_for_table(config, table_spec):
 
     if not samples:
         #Return empty properties for accept everything from data if no samples found
+        LOGGER.info("No samples found, returning empty props")
         return {
             'type': 'object',
             'properties': {}
@@ -192,12 +298,20 @@ def get_sampled_schema_for_table(config, table_spec):
             'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}}
     }
 
-    data_schema = conversion.generate_schema(samples, table_spec)
+    data_schema = schema.generate_schema(samples)
+    for key in data_schema.get('properties', {}):
+        if key in table_spec.get('date_overrides', []):
+            data_schema['properties'][key] = update_schema_to_be_a_date(data_schema['properties'][key])
+    data_schema['properties'] = merge_dicts(data_schema.get('properties', {}), metadata_schema)
 
-    return {
-        'type': 'object',
-        'properties': merge_dicts(data_schema, metadata_schema)
-    }
+    return data_schema
+
+def update_schema_to_be_a_date(data_schema):
+    result = data_schema
+    if 'anyOf' not in result:
+        result = {'anyOf': [result]}
+    result['anyOf'] = [{'type': 'string', 'format': 'date-time'}] + result['anyOf']
+    return result
 
 def merge_dicts(first, second):
     to_return = first.copy()
@@ -253,6 +367,23 @@ def get_records_for_csv(s3_path, sample_rate, iterator):
 
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
+
+def get_records_for_parquet(s3_path, sample_rate, iterator):
+
+    current_row = 0
+    sampled_row_count = 0
+
+    for row in iterator:
+        if (current_row % sample_rate) == 0:
+            sampled_row_count += 1
+            if (sampled_row_count % 200) == 0:
+                LOGGER.info("Sampled %s rows from %s",
+                            sampled_row_count, s3_path)
+            yield row
+
+        current_row += 1
+
+    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
 def get_records_for_jsonl(s3_path, sample_rate, iterator):
 
@@ -371,6 +502,15 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
             table_spec, jsonl_sample_records, s3_path)
 
         return records
+
+    if extension == "parquet":
+        iterator = parquet.get_row_iterator(file_handle)
+        if iterator is not None:
+            return get_records_for_parquet(s3_path, sample_rate, iterator)
+        LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+        skipped_files_count = skipped_files_count + 1
+        return []
+
     if extension == "zip":
         LOGGER.warning('Skipping "%s" file as it contains nested compression.',s3_path)
         skipped_files_count = skipped_files_count + 1
@@ -398,7 +538,7 @@ def get_files_to_sample(config, s3_files, max_files):
     global skipped_files_count
     sampled_files = []
 
-    OTHER_FILES = ["csv","gz","jsonl","txt"]
+    OTHER_FILES = ["csv","gz","jsonl","txt","parquet"]
 
     for s3_file in s3_files:
         file_key = s3_file.get('key')
@@ -409,7 +549,11 @@ def get_files_to_sample(config, s3_files, max_files):
         if file_key:
             file_name = file_key.split("/").pop()
             extension = file_name.split(".").pop().lower()
-            file_handle = get_file_handle(config, file_key)
+            file_handle = None
+            if extension == 'parquet':
+                file_handle = get_s3fs_file_handle(config, file_key)
+            else:
+                file_handle = get_file_handle(config, file_key)
 
             # Check whether file is without extension or not
             if not extension or file_name.lower() == extension:
@@ -580,3 +724,12 @@ def get_file_handle(config, s3_path):
     s3_bucket = s3_client.Bucket(bucket)
     s3_object = s3_bucket.Object(s3_path)
     return s3_object.get()['Body']
+
+@retry_pattern
+def get_s3fs_file_handle(config, s3_path):
+    bucket = config['bucket']
+    global fs
+    if fs is None:
+        LOGGER.info('creating default s3fs file system')
+        fs = S3FileSystem()
+    return fs.open(f's3://{bucket}/{s3_path}')

@@ -86,6 +86,7 @@ def main():
         # Bypass the check for direct access if using a proxy account to avoid
         # leaking the account ID of the originating account
         s3.setup_aws_client_with_proxy(config)
+        s3.setup_s3fs_client_with_proxy(config)
     else:
         try:
             for page in s3.list_files_in_bucket(config):
@@ -93,9 +94,12 @@ def main():
             LOGGER.warning("I have direct access to the bucket without assuming the configured role.")
         except:
             s3.setup_aws_client(config)
+            s3.setup_s3fs_client(config)
 
     if args.discover:
         do_discover(args.config)
+    elif args.catalog:
+        do_sync(config, args.catalog.to_dict(), args.state, sync_start_time)
     elif args.properties:
         do_sync(config, args.properties, args.state, sync_start_time)
 

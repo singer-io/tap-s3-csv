@@ -38,44 +38,20 @@ class TestGetSampledSchema(unittest.TestCase):
         table_spec = {}
         returned_schema = s3.get_sampled_schema_for_table(config, table_spec)
         expected_schema =  {
-            'type': 'object',
+            'type': ['null', 'object'],
             'properties': {
-            'id': {
-                'type': [
-                'null',
-                'integer',
-                'string'
-                ]
-            },
-            'name': {
-                'type': [
-                'null',
-                'string'
-                ]
-            },
-            '_sdc_source_bucket': {
-                'type': 'string'
-            },
-            '_sdc_source_file': {
-                'type': 'string'
-            },
-            '_sdc_source_lineno': {
-                'type': 'integer'
-            },
-            '_sdc_extra': {
-                'type': 'array',
-                'items': {
-                'anyOf': [
-                    {
-                    'type': 'object',
-                    'properties': {}
-                    },
-                    {
-                    'type': 'string'
+                'id': {'type': ['null', 'integer']},
+                'name': {'type': ['null', 'string']},
+                '_sdc_source_bucket': {'type': 'string'},
+                '_sdc_source_file': {'type': 'string'},
+                '_sdc_source_lineno': {'type': 'integer'},
+                '_sdc_extra': {
+                    'type': 'array',
+                    'items': {
+                        'anyOf': [{'type': 'object', 'properties': {}},
+                                  {'type': 'string'}]
                     }
-                ]
                 }
-            }
             }
         }
 

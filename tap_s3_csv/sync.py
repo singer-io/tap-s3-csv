@@ -11,7 +11,8 @@ from singer import utils as singer_utils
 import singer
 from singer_encodings import (
     compression,
-    csv as csv_helper
+    csv as csv_helper,
+    parquet
 )
 from tap_s3_csv import (
     utils,
@@ -66,7 +67,7 @@ def sync_table_file(config, s3_path, table_spec, stream):
     try:
         if extension == "zip":
             return sync_compressed_file(config, s3_path, table_spec, stream)
-        if extension in ["csv", "gz", "jsonl", "txt"]:
+        if extension in ["csv", "gz", "jsonl", "txt", "parquet"]:
             return handle_file(config, s3_path, table_spec, stream, extension)
         LOGGER.warning('"%s" having the ".%s" extension will not be synced.',s3_path,extension)
     except (UnicodeDecodeError,json.decoder.JSONDecodeError):
@@ -97,6 +98,10 @@ def handle_file(config, s3_path, table_spec, stream, extension, file_handler = N
         # If file is extracted from zip or gz use file object else get file object from s3 bucket
         file_handle = file_handler if file_handler else s3.get_file_handle(config, s3_path)._raw_stream #pylint:disable=protected-access
         return sync_csv_file(config, file_handle, s3_path, table_spec, stream)
+
+    if extension == "parquet":
+        file_handle = file_handler if file_handler else s3.get_s3fs_file_handle(config, s3_path)
+        return sync_parquet_file(config, file_handle, s3_path, table_spec, stream)
 
     if extension == "jsonl":
 
@@ -211,6 +216,38 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
 
                 # index zero, +1 for header row
                 s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 2
+            }
+            rec = {**row, **custom_columns}
+
+            with Transformer() as transformer:
+                to_write = transformer.transform(rec, stream['schema'], metadata.to_map(stream['metadata']))
+
+            singer.write_record(table_name, to_write)
+            records_synced += 1
+    else:
+        LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+        s3.skipped_files_count = s3.skipped_files_count + 1
+
+    return records_synced
+
+def sync_parquet_file(config, file_handle, s3_path, table_spec, stream):
+    LOGGER.info('Syncing file "%s".', s3_path)
+
+    bucket = config['bucket']
+    table_name = table_spec['table_name']
+    iterator = parquet.get_row_iterator(file_handle)
+
+    records_synced = 0
+
+    if iterator is not None:
+        for row in iterator:
+
+            custom_columns = {
+                s3.SDC_SOURCE_BUCKET_COLUMN: bucket,
+                s3.SDC_SOURCE_FILE_COLUMN: s3_path,
+
+                # index zero, +1 for header row
+                s3.SDC_SOURCE_LINENO_COLUMN: records_synced + 1
             }
             rec = {**row, **custom_columns}
 

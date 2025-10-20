@@ -38,6 +38,10 @@ class S3CompressedZipFileContainsCSVWithJSONL(S3CSVBaseTest):
 
         our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
 
+        for cat in our_catalogs:
+            print(cat['stream_id'])
+            print(menagerie.get_annotated_schema(self.conn_id, cat['stream_id']))
+
         self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs)
 
         self.run_and_verify_sync(self.conn_id)
