@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.2.1
+  * Fixes schema for _sdc_extra column [#83](https://github.com/singer-io/tap-s3-csv/pull/83)
+
 ## 2.2.0
   * Refactors JSONL support to use singer-encodings library [#82](https://github.com/singer-io/tap-s3-csv/pull/82)
 
