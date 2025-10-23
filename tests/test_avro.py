@@ -51,10 +51,8 @@ class AvroSyncFileTest(S3CSVBaseTest):
                 '_sdc_source_file': {'type': 'string', 'inclusion': 'available'},
                 '_sdc_source_lineno': {'type': 'integer', 'inclusion': 'available'},
                 '_sdc_extra': {
-                    'type': 'array',
-                    'items': {
-                        'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]
-                    },
+                    'type': ['null', 'array'],
+                    'items': {'type': 'object', 'properties': {}},
                 'inclusion': 'available'}
             }
         }
