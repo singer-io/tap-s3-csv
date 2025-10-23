@@ -296,8 +296,10 @@ def get_sampled_schema_for_table(config, table_spec):
         SDC_SOURCE_BUCKET_COLUMN: {'type': 'string'},
         SDC_SOURCE_FILE_COLUMN: {'type': 'string'},
         SDC_SOURCE_LINENO_COLUMN: {'type': 'integer'},
-        SDC_EXTRA_COLUMN: {'type': 'array', 'items': {
-            'anyOf': [{'type': 'object', 'properties': {}}, {'type': 'string'}]}}
+        SDC_EXTRA_COLUMN: {
+            'type': ['null', 'array'],
+            'items': {'type': 'object', 'properties': {}}
+        }
     }
 
     data_schema = schema.generate_schema(samples)
