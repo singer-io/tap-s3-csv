@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.2.3
+  * Bumps urllib3 dependency for twistlock compliance [#85](https://github.com/singer-io/tap-s3-csv/pull/85)
+
 ## 2.2.2
   * Bumps urllib3 dependency for dependabot compliance [#84](https://github.com/singer-io/tap-s3-csv/pull/84)
 
