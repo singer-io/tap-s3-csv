@@ -14,7 +14,7 @@ setup(name='tap-s3-csv',
           'boto3==1.39.8',
           'urllib3==2.6.3',
           'singer-encodings==0.3.0',
-          'singer-python==5.14.3',
+          'singer-python==5.19.0',
           'voluptuous==0.15.2',
           's3fs==2025.9.0'
       ],
