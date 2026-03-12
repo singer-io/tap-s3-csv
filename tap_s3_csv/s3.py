@@ -278,8 +278,12 @@ def setup_s3fs_client_with_proxy(config):
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
-    s3_files_gen = get_input_files_for_table(config, table_spec)
+    s3_files_gen = [x for x in get_input_files_for_table(config, table_spec)]
+    LOGGER.warning('XXXXX sync_stream config: %s', config)
+    LOGGER.warning('XXXXX sync_stream table_spec: %s', table_spec)
+    LOGGER.warning('XXXXX s3_files include %s files', len(s3_files_gen))
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
+    LOGGER.warning('XXXXX samples include %s files', len(samples))
 
     if skipped_files_count:
         LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
