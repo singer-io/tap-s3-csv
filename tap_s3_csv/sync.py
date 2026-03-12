@@ -31,8 +31,10 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
     LOGGER.info('Syncing table "%s".', table_name)
     LOGGER.info('Getting files modified since %s.', modified_since)
 
-    s3_files = s3.get_input_files_for_table(
-        config, table_spec, modified_since)
+    s3_files = [x for x in s3.get_input_files_for_table(config, table_spec, modified_since)]
+    LOGGER.warning('XXXXX sync_stream config: %s', config)
+    LOGGER.warning('XXXXX sync_stream table_spec: %s', table_spec)
+    LOGGER.warning('XXXXX s3_files include %s files', len(s3_files))
 
     records_streamed = 0
 
@@ -41,8 +43,8 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
     # we can sort in memory which is suboptimal. If we could bookmark
     # based on anything else then we could just sync files as we see them.
     for s3_file in sorted(s3_files, key=lambda item: item['last_modified']):
-        records_streamed += sync_table_file(
-            config, s3_file['key'], table_spec, stream)
+        LOGGER.warning('XXXXX attempting to sync %s', s3_file['key'])
+        records_streamed += sync_table_file(config, s3_file['key'], table_spec, stream)
         if s3_file['last_modified'] < sync_start_time:
             state = singer.write_bookmark(state, table_name, 'modified_since', s3_file['last_modified'].isoformat())
         else:
@@ -50,7 +52,7 @@ def sync_stream(config, state, table_spec, stream, sync_start_time):
         singer.write_state(state)
 
     if s3.skipped_files_count:
-        LOGGER.warn("%s files got skipped during the last sync.",s3.skipped_files_count)
+        LOGGER.warning("%s files got skipped during the last sync.",s3.skipped_files_count)
 
     LOGGER.info('Wrote %s records for table "%s".', records_streamed, table_name)
 
@@ -202,7 +204,9 @@ def sync_csv_file(config, file_handle, s3_path, table_spec, stream):
     # memory consumption but that's acceptable as well.
     csv.field_size_limit(sys.maxsize)
 
+    LOGGER.warning('XXXXX syncing csv file')
     if "properties" in stream["schema"]:
+        LOGGER.warning('XXXXX properties keys: %s', stream["schema"]["properties"].keys())
         iterator = csv_helper.get_row_iterator(
             file_handle, table_spec, stream["schema"]["properties"].keys(), True)
     else:
