@@ -632,10 +632,10 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
             unmatched_files_count += 1
             continue
 
-        LOGGER.warning('XXXXX modified_since %s and last_modified %s', modified_since, last_modified)
-        if modified_since is not None and last_modified is not None:
-            LOGGER.warning('XXXXX modified_since < last_modified: %s', modified_since < last_modified)
         if matcher.search(key):
+            LOGGER.warning('XXXXX key %s: modified_since %s and last_modified %s', key, modified_since, last_modified)
+            if modified_since is not None and last_modified is not None:
+                LOGGER.warning('XXXXX modified_since < last_modified: %s', modified_since < last_modified)
             matched_files_count += 1
             if modified_since is None or modified_since < last_modified:
                 LOGGER.info('Will download key "%s" as it was last modified %s',
