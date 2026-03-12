@@ -278,12 +278,8 @@ def setup_s3fs_client_with_proxy(config):
 def get_sampled_schema_for_table(config, table_spec):
     LOGGER.info('Sampling records to determine table schema.')
 
-    s3_files_gen = [x for x in get_input_files_for_table(config, table_spec)]
-    LOGGER.warning('XXXXX sync_stream config: %s', config)
-    LOGGER.warning('XXXXX sync_stream table_spec: %s', table_spec)
-    LOGGER.warning('XXXXX s3_files include %s files', len(s3_files_gen))
+    s3_files_gen = get_input_files_for_table(config, table_spec)
     samples = [sample for sample in sample_files(config, table_spec, s3_files_gen)]
-    LOGGER.warning('XXXXX samples include %s files', len(samples))
 
     if skipped_files_count:
         LOGGER.warning("%s files got skipped during the last sampling.",skipped_files_count)
@@ -620,9 +616,7 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
     matched_files_count = 0
     unmatched_files_count = 0
     max_files_before_log = 30000
-    s3_files = [x for x in list_files_in_bucket(config, table_spec.get('search_prefix'))]
-    LOGGER.warning('XXXXX s3_files %s', len(s3_files))
-    for s3_object in s3_files:
+    for s3_object in list_files_in_bucket(config, table_spec.get('search_prefix')):
         key = s3_object['Key']
         last_modified = s3_object['LastModified']
 
@@ -633,9 +627,6 @@ def get_input_files_for_table(config, table_spec, modified_since=None):
             continue
 
         if matcher.search(key):
-            LOGGER.warning('XXXXX key %s: modified_since %s and last_modified %s', key, modified_since, last_modified)
-            if modified_since is not None and last_modified is not None:
-                LOGGER.warning('XXXXX modified_since < last_modified: %s', modified_since < last_modified)
             matched_files_count += 1
             if modified_since is None or modified_since < last_modified:
                 LOGGER.info('Will download key "%s" as it was last modified %s',
