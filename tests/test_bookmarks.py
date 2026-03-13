@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date, timedelta, time
 from tap_tester import connections, menagerie, runner
 from functools import reduce
 from singer import metadata
@@ -133,7 +133,9 @@ class S3BookmarksStartDateSucceedsModifiedDate(S3CSVBaseTest):
         }
 
     def get_properties(self, original: bool = True):
-        self.start_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+        tomorrow = date.today() + timedelta(days=1)
+        self.start_date = datetime.combine(tomorrow, time.min).strftime("%Y-%m-%dT%H:%M:%SZ")
+
         return super().get_properties(original) | {'start_date': self.start_date}
 
     def test_run(self):
