@@ -106,17 +106,16 @@ class S3Bookmarks(S3CSVBaseTest):
 
 class S3BookmarksStartDateSucceedsModifiedDate(S3CSVBaseTest):
 
-    table_entry = [{'table_name': 'skipped', 'search_prefix': 'tap-s3-csv', 'search_pattern': 'bookmarks_small\\.csv'}]
-    start_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
+    table_entry = [{'table_name': 'skipped', 'search_prefix': 'tap_tester', 'search_pattern': 'tap_tester/bookmarks.*', 'key_properties': 'name'}]
 
     def setUp(self):
         self.conn_id = connections.ensure_connection(self)
 
     def resource_name(self):
-        return "small.csv"
+        return "bookmarks.csv"
 
     def name(self):
-        return "tap_tester_s3_csv_bookmarks_skipped"
+        return "tap_tester_s3_csv_bookmarks"
 
     def expected_check_streams(self):
         return {
@@ -130,10 +129,11 @@ class S3BookmarksStartDateSucceedsModifiedDate(S3CSVBaseTest):
 
     def expected_pks(self):
         return {
-            'skipped': set()
+            'skipped': {"name"}
         }
 
     def get_properties(self, original: bool = True):
+        self.start_date = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
         return super().get_properties(original) | {'start_date': self.start_date}
 
     def test_run(self):
