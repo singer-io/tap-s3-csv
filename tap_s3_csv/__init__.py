@@ -40,6 +40,8 @@ def do_sync(config, catalog, state, sync_start_time):
             LOGGER.info("%s: Skipping - not selected", stream_name)
             continue
 
+        bookmark = singer.get_bookmark(state, stream_name, 'modified_since') or config['start_date']
+        state = singer.set_bookmark(state, stream_name, 'modified_since', bookmark)
         singer.write_state(state)
         key_properties = metadata.get(mdata, (), 'table-key-properties')
         singer.write_schema(stream_name, stream['schema'], key_properties)

@@ -1,3 +1,4 @@
+from datetime import datetime, date, timedelta, time
 from tap_tester import connections, menagerie, runner
 from functools import reduce
 from singer import metadata
@@ -102,3 +103,54 @@ class S3Bookmarks(S3CSVBaseTest):
         records = runner.get_records_from_target_output()
         messages = records.get('chickens', {}).get('messages', [])
         self.assertEqual(len(messages), 0, msg="Sync'd incorrect count of messages: {}".format(len(messages)))
+
+class S3BookmarksStartDateSucceedsModifiedDate(S3CSVBaseTest):
+
+    table_entry = [{'table_name': 'skipped', 'search_prefix': 'tap_tester', 'search_pattern': 'tap_tester/bookmarks.*', 'key_properties': 'name'}]
+
+    def setUp(self):
+        self.conn_id = connections.ensure_connection(self)
+
+    def resource_name(self):
+        return "bookmarks.csv"
+
+    def name(self):
+        return "tap_tester_s3_csv_bookmarks"
+
+    def expected_check_streams(self):
+        return {
+            'skipped'
+        }
+
+    def expected_sync_streams(self):
+        return {
+            'skipped'
+        }
+
+    def expected_pks(self):
+        return {
+            'skipped': {"name"}
+        }
+
+    def get_properties(self, original: bool = True):
+        tomorrow = date.today() + timedelta(days=1)
+        self.start_date = datetime.combine(tomorrow, time.min).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        return super().get_properties(original) | {'start_date': self.start_date}
+
+    def test_run(self):
+        found_catalogs = self.run_and_verify_check_mode(self.conn_id)
+
+        # Select our catalogs
+        our_catalogs = [c for c in found_catalogs if c.get('tap_stream_id') in self.expected_sync_streams()]
+
+        self.perform_and_verify_table_and_field_selection(self.conn_id, our_catalogs)
+
+        # Clear state before our run
+        menagerie.set_state(self.conn_id, {})
+
+        # Sync 0 records because start date is after file modified_date
+        self.run_and_verify_sync(self.conn_id, True)
+
+        expected_state = {'bookmarks': {'skipped': {'modified_since': self.start_date}}}
+        self.assertEqual(menagerie.get_state(self.conn_id), expected_state)
