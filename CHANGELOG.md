@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.2.5
+  * Bumps singer-econdings to remove pyarrow vulnerability
+
 ## 2.2.4
   * Write bookmarks for streams that sync no records [#87](https://github.com/singer-io/tap-s3-csv/pull/87)
 
