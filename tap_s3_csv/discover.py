@@ -1,7 +1,7 @@
-from singer import metadata
-from tap_s3_csv import s3
 import singer
+from singer import metadata
 
+from tap_s3_csv import s3
 from tap_s3_csv.exceptions import S3CsvForbiddenError
 
 LOGGER = singer.get_logger()

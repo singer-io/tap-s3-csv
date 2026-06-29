@@ -20,9 +20,9 @@ class S3CsvClient:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        return False
+        pass
 
-    def make_request(self, method, _url=None, params=None, _headers=None, body=None):
+    def make_request(self, method, _url=None, params=None, _headers=None, _body=None):
         if method != "LIST":
             raise NotImplementedError("S3CsvClient supports only LIST method for access checks")
 
