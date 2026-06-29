@@ -36,5 +36,3 @@ class S3CsvClient:
                     error.response,
                 ) from error
             raise
-
-        return None
