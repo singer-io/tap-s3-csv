@@ -31,13 +31,7 @@ class TableStream:
             return True
 
         try:
-            self.client.make_request(
-                "LIST",
-                self.get_url_endpoint(),
-                self.update_params(),
-                None,
-                body=None,
-            )
+            self.client.make_request("LIST", self.update_params())
             return True
         except S3CsvForbiddenError as exc:
             LOGGER.warning(
