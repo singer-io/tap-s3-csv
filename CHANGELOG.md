@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2.3.0
-  * Streams the credentials cannot access (403) are now excluded from the catalog during discovery instead of raising an error for the entire run.
+  * Streams the credentials cannot access (403) are now excluded from the catalog during discovery instead of raising an error for the entire run. [#90](https://github.com/singer-io/tap-s3-csv/pull/90)
 
 ## 2.2.5
   * Bump urllib3 to 2.7.0 for security updates [#89](https://github.com/singer-io/tap-s3-csv/pull/89)
