@@ -85,11 +85,12 @@ def main():
     sync_start_time = singer_utils.strptime_with_tz(now_str)
 
     if 'proxy_account_id' in config and 'proxy_role_name' in config:
-        # Bypass the check for direct access if using a proxy account to avoid
-        # leaking the account ID of the originating account
         s3.setup_aws_client_with_proxy(config)
         s3.setup_s3fs_client_with_proxy(config)
     else:
+        # Always assume the configured role before making any AWS calls. Probing
+        # for direct bucket access first would issue requests with the
+        # originating account's credentials, so the client is set up upfront.
         s3.setup_aws_client(config)
         s3.setup_s3fs_client(config)
 
