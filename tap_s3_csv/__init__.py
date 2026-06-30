@@ -89,6 +89,9 @@ def main():
         # leaking the account ID of the originating account
         s3.setup_aws_client_with_proxy(config)
         s3.setup_s3fs_client_with_proxy(config)
+    else:
+        s3.setup_aws_client(config)
+        s3.setup_s3fs_client(config)
 
     if args.discover:
         do_discover(args.config)
