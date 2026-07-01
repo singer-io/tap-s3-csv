@@ -24,12 +24,6 @@ class TableStream:
         return {'search_prefix': self.table_spec.get('search_prefix')}
 
     def check_access(self):
-        if self.parent:
-            return True
-
-        if self.client is None:
-            return True
-
         try:
             self.client.make_request("LIST", self.update_params())
             return True
