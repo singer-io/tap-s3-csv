@@ -42,43 +42,54 @@ class TableStream:
             return False
 
 
-def _prune_inaccessible_children(table_specs, schemas: dict, field_metadata: dict) -> None:
-    table_map = {table_spec['table_name']: table_spec for table_spec in table_specs}
-    for name, table_spec in list(table_map.items()):
+def _prune_inaccessible_children(table_specs, accessible_stream_names):
+    filtered_table_specs = []
+
+    for table_spec in table_specs:
+        stream_name = table_spec['table_name']
         parent_name = table_spec.get('parent')
-        if name in schemas and parent_name and parent_name not in schemas:
+
+        if stream_name not in accessible_stream_names:
+            continue
+
+        if parent_name and parent_name not in accessible_stream_names:
             LOGGER.warning(
                 "Stream '%s' excluded from catalog because its parent stream '%s' is not accessible.",
-                name,
+                stream_name,
                 parent_name,
             )
-            schemas.pop(name, None)
-            field_metadata.pop(name, None)
+            continue
+
+        filtered_table_specs.append(table_spec)
+
+    return filtered_table_specs
 
 
-def _apply_access_checks(client, table_specs, schemas: dict, field_metadata: dict) -> None:
-    inaccessible_streams = [
-        table_spec['table_name']
-        for table_spec in table_specs
-        if table_spec['table_name'] in schemas
-        and not TableStream(table_spec=table_spec, client=client).check_access()
-    ]
+def _apply_access_checks(client, table_specs):
+    accessible_stream_names = []
+    inaccessible_stream_names = []
 
-    for stream_name in inaccessible_streams:
-        schemas.pop(stream_name, None)
-        field_metadata.pop(stream_name, None)
+    for table_spec in table_specs:
+        stream_name = table_spec['table_name']
+        if TableStream(table_spec=table_spec, client=client).check_access():
+            accessible_stream_names.append(stream_name)
+        else:
+            inaccessible_stream_names.append(stream_name)
 
-    _prune_inaccessible_children(table_specs, schemas, field_metadata)
+    accessible_table_specs = _prune_inaccessible_children(table_specs, accessible_stream_names)
 
-    if not schemas:
+    if not accessible_table_specs:
         raise S3CsvForbiddenError(
             "HTTP-error-code: 403, Error: The credentials do not have 'read' access to any supported streams."
         )
-    if inaccessible_streams:
+
+    if inaccessible_stream_names:
         LOGGER.warning(
             "No 'read' access to stream(s): %s. Excluded from catalog.",
-            ", ".join(inaccessible_streams),
+            ", ".join(inaccessible_stream_names),
         )
+
+    return accessible_table_specs
 
 
 def discover_streams(config, client=None):
@@ -86,16 +97,17 @@ def discover_streams(config, client=None):
     schemas = {}
     field_metadata = {}
 
-    for table_spec in config['tables']:
+    table_specs = config['tables']
+    if client is not None:
+        table_specs = _apply_access_checks(client, table_specs)
+
+    for table_spec in table_specs:
         stream_name = table_spec['table_name']
         schema = discover_schema(config, table_spec)
         schemas[stream_name] = schema
         field_metadata[stream_name] = load_metadata(table_spec, schema)
 
-    if client is not None:
-        _apply_access_checks(client, config['tables'], schemas, field_metadata)
-
-    for table_spec in config['tables']:
+    for table_spec in table_specs:
         stream_name = table_spec['table_name']
         if stream_name not in schemas:
             continue
