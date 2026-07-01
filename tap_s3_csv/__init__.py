@@ -9,15 +9,16 @@ from tap_s3_csv.discover import discover_streams
 from tap_s3_csv import s3
 from tap_s3_csv.sync import sync_stream
 from tap_s3_csv.config import CONFIG_CONTRACT
+from tap_s3_csv.client import S3CsvClient
 
 LOGGER = singer.get_logger()
 
 REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
 
 
-def do_discover(config):
+def do_discover(config, client):
     LOGGER.info("Starting discover")
-    streams = discover_streams(config)
+    streams = discover_streams(config, client)
     if not streams:
         raise Exception("No streams found")
     catalog = {"streams": streams}
@@ -98,12 +99,13 @@ def main():
             s3.setup_aws_client(config)
             s3.setup_s3fs_client(config)
 
-    if args.discover:
-        do_discover(args.config)
-    elif args.catalog:
-        do_sync(config, args.catalog.to_dict(), args.state, sync_start_time)
-    elif args.properties:
-        do_sync(config, args.properties, args.state, sync_start_time)
+    with S3CsvClient(config) as client:
+        if args.discover:
+            do_discover(config, client)
+        elif args.catalog:
+            do_sync(config, args.catalog.to_dict(), args.state, sync_start_time)
+        elif args.properties:
+            do_sync(config, args.properties, args.state, sync_start_time)
 
 
 if __name__ == '__main__':
