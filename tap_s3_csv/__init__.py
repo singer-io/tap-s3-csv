@@ -12,7 +12,19 @@ from tap_s3_csv.config import CONFIG_CONTRACT
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
+REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id"]
+
+# Config keys required only when the tap assumes a role (the secure default).
+ROLE_CONFIG_KEYS = ["external_id", "role_name"]
+
+
+def should_assume_role(config):
+    """Whether the tap should assume a role before accessing S3.
+
+    Secure by default: a role is always assumed unless the config explicitly
+    opts out by setting ``assume_role`` to ``false``.
+    """
+    return config.get("assume_role", True) is not False
 
 
 def do_discover(config):
@@ -84,15 +96,32 @@ def main():
     now_str = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
     sync_start_time = singer_utils.strptime_with_tz(now_str)
 
-    if 'proxy_account_id' in config and 'proxy_role_name' in config:
-        s3.setup_aws_client_with_proxy(config)
-        s3.setup_s3fs_client_with_proxy(config)
+    if not should_assume_role(config):
+        # Opt-out path: skip role assumption and rely on the ambient AWS
+        # credentials. boto3 uses its default session and s3fs lazily creates a
+        # default S3FileSystem, so no client setup is required here.
+        LOGGER.warning(
+            "assume_role is disabled; accessing S3 with ambient AWS "
+            "credentials without assuming a role."
+        )
     else:
-        # Always assume the configured role before making any AWS calls. Probing
-        # for direct bucket access first would issue requests with the
-        # originating account's credentials, so the client is set up upfront.
-        s3.setup_aws_client(config)
-        s3.setup_s3fs_client(config)
+        missing_keys = [key for key in ROLE_CONFIG_KEYS if not config.get(key)]
+        if missing_keys:
+            raise Exception(
+                "Assuming a role requires the following config keys: {}. "
+                "Set 'assume_role' to false to access S3 with ambient AWS "
+                "credentials instead.".format(", ".join(missing_keys))
+            )
+
+        if 'proxy_account_id' in config and 'proxy_role_name' in config:
+            s3.setup_aws_client_with_proxy(config)
+            s3.setup_s3fs_client_with_proxy(config)
+        else:
+            # Assume the configured role before making any AWS calls. Probing
+            # for direct bucket access first would issue requests with the
+            # originating account's credentials, so the client is set up upfront.
+            s3.setup_aws_client(config)
+            s3.setup_s3fs_client(config)
 
     if args.discover:
         do_discover(args.config)
