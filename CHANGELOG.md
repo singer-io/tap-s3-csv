@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2.2.6
-  * Security: always assume the configured role before making any AWS calls. Removes the direct-access probe that issued a `list_objects_v2` request with the originating account's credentials before assuming the customer role. Adds an explicit, opt-in `assume_role: false` config flag for accessing S3 with ambient credentials (secure by default).
+  * Security: always assume the configured role before making any AWS calls. Removes the direct-access probe that issued a `list_objects_v2` request with the originating account's credentials before assuming the customer role.
 
 ## 2.2.5
   * Bump urllib3 to 2.7.0 for security updates [#89](https://github.com/singer-io/tap-s3-csv/pull/89)

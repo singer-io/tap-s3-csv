@@ -44,7 +44,6 @@ Here is an example of basic config, and a bit of a run down on each of the prope
 - **external_id**: (potentially optional) Running this locally, you should be able to omit this property, it is provided to allow the tap to access buckets in accounts where the user doesn't have access to the account itself, but is able to assume a role in that account, through a shared secret. This is that secret, in that case.
 - **tables**: An escaped JSON string that the tap will use to search for files, and emit records as "tables" from those files. Will be used by a [`voluptuous`](https://github.com/alecthomas/voluptuous)-based configuration checker.
 - **request_timeout**: (optional) The maximum time for which request should wait to get a response. Default request_timeout is 300 seconds.
-- **assume_role**: (optional) Defaults to `true`. By default the tap assumes the role given by `role_name` in `account_id` before accessing S3. Set this to `false` to skip role assumption and access the bucket with the ambient AWS credentials instead (for example when running locally with credentials that already have direct bucket access). When `assume_role` is `false`, `role_name` and `external_id` are not required.
 
 Below are the additional properties, to add in config if running this tap using proxy AWS account as middleware:
 ```

@@ -36,7 +36,6 @@ class S3CSVBaseTest(unittest.TestCase):
             'start_date' : '2021-11-02T00:00:00Z',
             'bucket': 'com-stitchdata-prod-circleci-assets',
             'account_id': '218546966473',
-            'assume_role': False,
             'tables': json.dumps(self.table_entry)
         }
         if original:
