@@ -495,6 +495,10 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension, max_re
         return records
 
     if extension == "parquet":
+        if parquet.is_empty(file_handle):
+            LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+            skipped_files_count = skipped_files_count + 1
+            return []
         return get_records_for_parquet(s3_path, sample_rate, max_records, file_handle)
 
     if extension == "avro":
