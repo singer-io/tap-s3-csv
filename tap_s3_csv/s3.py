@@ -592,6 +592,18 @@ def sample_files(config, table_spec, s3_files,
             # Handled both error and skipping file with wrong extension.
             LOGGER.warn("Skipping %s file as parsing failed. Verify an extension of the file.",s3_path)
             skipped_files_count = skipped_files_count + 1
+        finally:
+            # Explicitly release the file handle once sampling is done so the
+            # underlying S3/S3FS connection and read buffers aren't held open
+            # for the entire discovery run (get_files_to_sample keeps every
+            # sampled file's handle alive in a list until this generator
+            # finishes, so relying on refcounting alone doesn't free them
+            # incrementally as each file is processed).
+            if hasattr(file_handle, "close"):
+                try:
+                    file_handle.close()
+                except Exception: #pylint:disable=broad-except
+                    LOGGER.debug('Could not close file handle for "%s"', s3_path)
 
 #pylint: disable=global-statement
 def get_input_files_for_table(config, table_spec, modified_since=None):
