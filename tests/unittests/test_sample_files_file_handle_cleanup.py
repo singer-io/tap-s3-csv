@@ -3,11 +3,11 @@ from unittest import mock
 from tap_s3_csv import s3
 
 
-def mock_sample_file_success(table_spec, s3_path, file_handle, sample_rate, extension):
+def mock_sample_file_success(table_spec, s3_path, file_handle, sample_rate, extension, max_records=1000):
     yield {'id': 1}
 
 
-def mock_sample_file_raises_unicode_error(table_spec, s3_path, file_handle, sample_rate, extension):
+def mock_sample_file_raises_unicode_error(table_spec, s3_path, file_handle, sample_rate, extension, max_records=1000):
     raise UnicodeDecodeError('utf-8', b'', 0, 1, 'bad byte')
 
 
