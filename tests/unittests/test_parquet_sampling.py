@@ -1,3 +1,5 @@
+import gzip
+import io
 import unittest
 import tempfile
 from unittest import mock
@@ -18,6 +20,22 @@ def make_parquet_file(num_rows, row_group_size, compression='snappy'):
     pq.write_table(table, parquet_file, row_group_size=row_group_size, compression=compression)
     parquet_file.seek(0)
     return parquet_file
+
+
+def make_gz_wrapped_parquet_file(num_rows, row_group_size, compression='snappy'):
+    # Mirrors how sampling_gz_file() expects its input: a file-like object
+    # containing the raw (still-compressed) gzip bytes, with the original
+    # filename embedded in the gzip header so utils.get_file_name_from_gzfile()
+    # can recover the ".parquet" extension.
+    raw_parquet_file = make_parquet_file(num_rows, row_group_size, compression)
+    raw_parquet_bytes = raw_parquet_file.read()
+    raw_parquet_file.close()
+
+    gz_file = tempfile.TemporaryFile('w+b')
+    with gzip.GzipFile(filename='data.parquet', mode='wb', fileobj=gz_file) as gz:
+        gz.write(raw_parquet_bytes)
+    gz_file.seek(0)
+    return gz_file
 
 
 class TestGetRecordsForParquet(unittest.TestCase):
@@ -101,3 +119,16 @@ class TestGetRecordsForParquet(unittest.TestCase):
         records = list(s3.sample_file({}, "s3://bucket/file.parquet", self.parquet_file, sample_rate=5, extension="parquet", max_records=1000))
 
         self.assertEqual([r['id'] for r in records], list(range(1, 101, 5)))
+
+    def test_max_records_is_respected_for_a_gz_wrapped_parquet_file(self):
+        # sampling_gz_file() forwards max_records through to the recursive
+        # sample_file() call on the decompressed inner file. This proves
+        # that forwarding actually has an effect: a gz-wrapped Parquet file
+        # honors the caller's max_records instead of silently falling back
+        # to the hardcoded default.
+        self.parquet_file = make_gz_wrapped_parquet_file(num_rows=100, row_group_size=10)
+
+        records = list(s3.sample_file(
+            {}, "s3://bucket/file.gz", self.parquet_file, sample_rate=1, extension="gz", max_records=5))
+
+        self.assertEqual([r['id'] for r in records], [1, 2, 3, 4, 5])
