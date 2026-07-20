@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import os
 import sys
 import singer
 
@@ -12,7 +13,23 @@ from tap_s3_csv.config import CONFIG_CONTRACT
 
 LOGGER = singer.get_logger()
 
-REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id", "external_id", "role_name"]
+REQUIRED_CONFIG_KEYS = ["start_date", "bucket", "account_id"]
+
+# Config keys required only when the tap assumes an AWS role (the default).
+ROLE_CONFIG_KEYS = ["external_id", "role_name"]
+
+# Private, test-only environment variable. When set to a truthy value the tap
+# skips role assumption and falls back to the default AWS credential chain.
+# It is intentionally an environment variable rather than a config property so
+# that it CANNOT be enabled through the Stitch connection layer by a customer;
+# it is only ever set in the CI/test environment. Role assumption is the secure
+# default.
+SKIP_ROLE_ASSUMPTION_ENV = "TAP_S3_CSV_SKIP_ROLE_ASSUMPTION"
+
+
+def should_assume_role():
+    """Return True unless the private, test-only opt-out environment variable is set."""
+    return os.environ.get(SKIP_ROLE_ASSUMPTION_ENV, "").strip().lower() not in ("1", "true", "yes")
 
 
 def do_discover(config):
@@ -77,7 +94,8 @@ def validate_table_config(config):
 
 @singer.utils.handle_top_exception(LOGGER)
 def main():
-    args = singer.utils.parse_args(REQUIRED_CONFIG_KEYS)
+    required_config_keys = REQUIRED_CONFIG_KEYS + (ROLE_CONFIG_KEYS if should_assume_role() else [])
+    args = singer.utils.parse_args(required_config_keys)
     config = args.config
 
     config['tables'] = validate_table_config(config)
@@ -87,12 +105,21 @@ def main():
     if 'proxy_account_id' in config and 'proxy_role_name' in config:
         s3.setup_aws_client_with_proxy(config)
         s3.setup_s3fs_client_with_proxy(config)
-    else:
+    elif should_assume_role():
         # Assume the configured role before making any AWS calls. Probing for
         # direct bucket access first would issue requests with the originating
         # account's credentials, so the client is always set up upfront.
         s3.setup_aws_client(config)
         s3.setup_s3fs_client(config)
+    else:
+        # Test-only path: role assumption is skipped and the default AWS
+        # credential chain is used. Reached only when SKIP_ROLE_ASSUMPTION_ENV is
+        # set, which cannot happen through the Stitch connection layer.
+        LOGGER.warning(
+            "%s is set; skipping role assumption and using the default AWS "
+            "credential chain. This is intended for testing only.",
+            SKIP_ROLE_ASSUMPTION_ENV,
+        )
 
     if args.discover:
         do_discover(args.config)
