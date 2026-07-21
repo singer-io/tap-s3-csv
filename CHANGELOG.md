@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.3.1
+  * Bump singer-encodings to 0.6.1 for memory-efficient Parquet row group decoding [#93](https://github.com/singer-io/tap-s3-csv/pull/93)
+
 ## 2.3.0
   * Close file handles after sampling, and reduce Parquet discovery memory usage by sampling rows before converting them to Python objects [#92](https://github.com/singer-io/tap-s3-csv/pull/92)
 
