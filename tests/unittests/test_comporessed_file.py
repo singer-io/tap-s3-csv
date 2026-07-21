@@ -243,7 +243,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
             return [{'s3_path': 'unittest_compressed_files/gz_stored_as_csv.csv', 'file_handle': file_handle, 'extension': 'csv'}]
 
-    def mock_csv_sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+    def mock_csv_sample_file(table_spec, s3_path, file_handle, sample_rate, extension, max_records=1000):
         raise UnicodeDecodeError("test",b"'utf-8' codec can't decode byte 0x8b in position 1: invalid start byte",42, 43, 'the universe and everything else')
 
     def mock_get_files_to_sample_jsonl(config, s3_files, max_files):
@@ -255,7 +255,7 @@ class TestUnsupportedFiles(unittest.TestCase):
 
             return [{'s3_path': 'unittest_compressed_files/gz_stored_as_jsonl.jsonl', 'file_handle': file_handle, 'extension': 'jsonl'}]
 
-    def mock_jsonl_sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+    def mock_jsonl_sample_file(table_spec, s3_path, file_handle, sample_rate, extension, max_records=1000):
         # To raise json decoder error.
         return json.loads(b"'{'}")
 

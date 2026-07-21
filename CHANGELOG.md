@@ -1,8 +1,11 @@
 # Changelog
 
-## 2.2.6
+## 2.3.1
   * Security: always assume the configured role before making any AWS calls. Removes the direct-access probe that issued a `list_objects_v2` request with the originating account's credentials before assuming the customer role.
   * Add a private, test-only `TAP_S3_CSV_SKIP_ROLE_ASSUMPTION` environment variable that skips role assumption and uses the default AWS credential chain. It is not a config property and cannot be enabled through the connection layer, so role assumption remains the secure default.
+
+## 2.3.0
+  * Close file handles after sampling, and reduce Parquet discovery memory usage by sampling rows before converting them to Python objects [#92](https://github.com/singer-io/tap-s3-csv/pull/92)
 
 ## 2.2.5
   * Bump urllib3 to 2.7.0 for security updates [#89](https://github.com/singer-io/tap-s3-csv/pull/89)

@@ -388,6 +388,23 @@ def get_records_for_iterator(s3_path, sample_rate, iterator):
 
     LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
 
+def get_records_for_parquet(s3_path, sample_rate, max_records, file_handle):
+    # Unlike the other formats, Parquet sampling filters rows at the
+    # Arrow level (before they're converted to Python objects), via
+    # parquet.sample_row_iterator(), instead of sampling a stream that's
+    # already fully materialized row-by-row. See singer-encodings'
+    # sample_row_iterator() docstring for why this matters for memory.
+    sampled_row_count = 0
+
+    for row in parquet.sample_row_iterator(file_handle, sample_rate, max_records):
+        sampled_row_count += 1
+        if (sampled_row_count % 200) == 0:
+            LOGGER.info("Sampled %s rows from %s",
+                        sampled_row_count, s3_path)
+        yield row
+
+    LOGGER.info("Sampled %s rows from %s", sampled_row_count, s3_path)
+
 def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sample_records, s3_path):
 
     all_keys = set()
@@ -408,7 +425,7 @@ def check_key_properties_and_date_overrides_for_jsonl_file(table_spec, jsonl_sam
                             .format(s3_path, date_overrides - all_keys))
 
 #pylint: disable=global-statement
-def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
+def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate, max_records=1000):
     global skipped_files_count
     if s3_path.endswith(".tar.gz"):
         LOGGER.warning('Skipping "%s" file as .tar.gz extension is not supported',s3_path)
@@ -435,12 +452,12 @@ def sampling_gz_file(table_spec, s3_path, file_handle, sample_rate):
             return []
 
         gz_file_extension = gz_file_name.split(".")[-1].lower()
-        return sample_file(table_spec, s3_path + "/" + gz_file_name, io.BytesIO(gz_file_obj.read()), sample_rate, gz_file_extension)
+        return sample_file(table_spec, s3_path + "/" + gz_file_name, io.BytesIO(gz_file_obj.read()), sample_rate, gz_file_extension, max_records)
 
     raise Exception('"{}" file has some error(s)'.format(s3_path))
 
-#pylint: disable=global-statement
-def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
+#pylint: disable=global-statement,too-many-arguments
+def sample_file(table_spec, s3_path, file_handle, sample_rate, extension, max_records=1000):
     global skipped_files_count
 
     # Check whether file is without extension or not
@@ -460,7 +477,7 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
             skipped_files_count = skipped_files_count + 1
         return csv_records
     if extension == "gz":
-        return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate)
+        return sampling_gz_file(table_spec, s3_path, file_handle, sample_rate, max_records)
     if extension == "jsonl":
         # If file object read from s3 bucket file else use extracted file object from zip or gz
         file_handle = file_handle._raw_stream if hasattr(file_handle, "_raw_stream") else file_handle
@@ -478,12 +495,11 @@ def sample_file(table_spec, s3_path, file_handle, sample_rate, extension):
         return records
 
     if extension == "parquet":
-        iterator = parquet.get_row_iterator(file_handle)
-        if iterator is not None:
-            return get_records_for_iterator(s3_path, sample_rate, iterator)
-        LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
-        skipped_files_count = skipped_files_count + 1
-        return []
+        if parquet.is_empty(file_handle):
+            LOGGER.warning('Skipping "%s" file as it is empty',s3_path)
+            skipped_files_count = skipped_files_count + 1
+            return []
+        return get_records_for_parquet(s3_path, sample_rate, max_records, file_handle)
 
     if extension == "avro":
         iterator = avro.get_row_iterator(file_handle)
@@ -585,13 +601,25 @@ def sample_files(config, table_spec, s3_files,
                     max_records,
                     sample_rate)
         try:
-            yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension), max_records)
+            yield from itertools.islice(sample_file(table_spec, s3_path, file_handle, sample_rate, extension, max_records), max_records)
         except (UnicodeDecodeError,json.decoder.JSONDecodeError):
             # UnicodeDecodeError will be raised if non csv file parsed to csv parser
             # JSONDecodeError will be reaised if non JSONL file parsed to JSON parser
             # Handled both error and skipping file with wrong extension.
             LOGGER.warn("Skipping %s file as parsing failed. Verify an extension of the file.",s3_path)
             skipped_files_count = skipped_files_count + 1
+        finally:
+            # Explicitly release the file handle once sampling is done so the
+            # underlying S3/S3FS connection and read buffers aren't held open
+            # for the entire discovery run (get_files_to_sample keeps every
+            # sampled file's handle alive in a list until this generator
+            # finishes, so relying on refcounting alone doesn't free them
+            # incrementally as each file is processed).
+            if hasattr(file_handle, "close"):
+                try:
+                    file_handle.close()
+                except Exception: #pylint:disable=broad-except
+                    LOGGER.debug('Could not close file handle for "%s"', s3_path)
 
 #pylint: disable=global-statement
 def get_input_files_for_table(config, table_spec, modified_since=None):
