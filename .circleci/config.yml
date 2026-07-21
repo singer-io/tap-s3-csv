@@ -34,6 +34,10 @@ jobs:
             uv pip install --upgrade awscli
             aws s3 cp s3://com-stitchdata-dev-deployment-assets/environments/tap-tester/tap_tester_sandbox dev_env.sh
             source dev_env.sh
+            # The synthesized customer role does not exist in CI, so opt the tap
+            # out of role assumption for tests. This env var cannot be set through
+            # the connection layer, so it is test-only and secure by default.
+            export TAP_S3_CSV_SKIP_ROLE_ASSUMPTION=1
             run-test --tap=tap-s3-csv tests
       - slack/notify-on-failure:
           only_for_branches: master
