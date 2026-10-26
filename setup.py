@@ -12,7 +12,7 @@ setup(name='tap-s3-csv',
       install_requires=[
           'backoff==1.10.0',
           'boto3==1.39.8',
-          'urllib3==2.7.0',
+          'urllib3==2.8.0',
           'singer-encodings==0.6.1',
           'singer-python==5.19.0',
           'voluptuous==0.15.2',
