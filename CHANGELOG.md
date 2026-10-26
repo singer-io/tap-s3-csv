@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.3.2
+  * Bump `urllib3` to 2.8.0 for security updates [#94](https://github.com/singer-io/tap-s3-csv/pull/94)
+
 ## 2.3.1
   * Bump singer-encodings to 0.6.1 for memory-efficient Parquet row group decoding [#93](https://github.com/singer-io/tap-s3-csv/pull/93)
 
